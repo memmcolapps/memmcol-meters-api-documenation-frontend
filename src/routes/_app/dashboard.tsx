@@ -1,8 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { DatePicker } from '../../app/DatePicker'
 
 export const Route = createFileRoute('/_app/dashboard')({
   component: DashboardPage,
 })
+
+const monthYear = (date: Date) =>
+  date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
 
 const stats = [
   { label: 'Total API Calls', value: '1000' },
@@ -49,9 +53,11 @@ function DashboardPage() {
         </button>
       </div>
 
-      <button type="button" className="dash-month">
-        June 2026 <CalendarIcon />
-      </button>
+      <DatePicker
+        initialDate={new Date(2026, 5, 1)}
+        formatLabel={monthYear}
+        triggerClassName="dash-month"
+      />
 
       <section className="dash-stats">
         {stats.map((stat) => (
@@ -158,15 +164,6 @@ function DashboardPage() {
         </article>
       </section>
     </div>
-  )
-}
-
-function CalendarIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4" />
-    </svg>
   )
 }
 

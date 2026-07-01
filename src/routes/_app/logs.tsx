@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { DatePicker } from '../../app/DatePicker'
 
 export const Route = createFileRoute('/_app/logs')({
   component: LogsPage,
@@ -42,9 +43,7 @@ function LogsPage() {
 
       <div className="dash-toolbar">
         <div className="dash-filters">
-          <button type="button" className="filter-btn">
-            Today <CalendarIcon />
-          </button>
+          <DatePicker placeholder="Today" />
           <button type="button" className="filter-btn">
             All code <ChevronIcon />
           </button>
@@ -150,15 +149,6 @@ function ChevronRightIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="m9 18 6-6-6-6" />
-    </svg>
-  )
-}
-
-function CalendarIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4" />
     </svg>
   )
 }

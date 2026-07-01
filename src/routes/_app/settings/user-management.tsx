@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { useDismiss } from '../../../app/useDismiss'
 
 export const Route = createFileRoute('/_app/settings/user-management')({
   component: UserManagementPage,
@@ -139,12 +140,16 @@ function InviteModal({
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<Role | ''>('')
   const [open, setOpen] = useState(false)
+  const modalRef = useRef<HTMLDivElement>(null)
+  const roleRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, onClose)
+  useDismiss(roleRef, () => setOpen(false), open)
 
   const selected = roleOptions.find((option) => option.value === role)
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="invite-title">
-      <div className="modal">
+      <div className="modal" ref={modalRef}>
         <div className="modal-head">
           <h2 id="invite-title" className="modal-title">
             Invite Member
@@ -163,7 +168,7 @@ function InviteModal({
             onChange={(event) => setEmail(event.target.value)}
           />
 
-          <div className="role-select">
+          <div className="role-select" ref={roleRef}>
             <button
               type="button"
               className="role-trigger"
@@ -224,10 +229,12 @@ function ConfirmModal({
 }) {
   const verb = action === 'leave' ? 'leave' : 'remove'
   const label = action === 'leave' ? 'Leave' : 'Remove'
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, onCancel)
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <div className="modal">
+      <div className="modal" ref={modalRef}>
         <div className="modal-head">
           <h2 id="confirm-title" className="modal-title">
             Confirm Action

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { useDismiss } from '../../../app/useDismiss'
 
 export const Route = createFileRoute('/_app/settings/api-keys')({
   component: ApiKeysPage,
@@ -30,6 +31,8 @@ function ApiKeysPage() {
   const [expiry, setExpiry] = useState('Never')
   const [generatedKey, setGeneratedKey] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, () => setStep('closed'), step !== 'closed')
 
   const hasLiveKey = liveKey !== null
 
@@ -117,7 +120,7 @@ function ApiKeysPage() {
           aria-modal="true"
           aria-labelledby="modal-title"
         >
-          <div className="modal">
+          <div className="modal" ref={modalRef}>
             <div className="modal-head">
               <h2 id="modal-title" className="modal-title">
                 Generate API Key

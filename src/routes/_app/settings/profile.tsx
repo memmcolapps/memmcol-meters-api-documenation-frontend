@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { useDismiss } from '../../../app/useDismiss'
 
 export const Route = createFileRoute('/_app/settings/profile')({
   component: ProfilePage,
@@ -117,13 +118,15 @@ function EditProfileModal({
   onSave: (profile: Profile) => void
 }) {
   const [draft, setDraft] = useState(profile)
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, onClose)
 
   const update = (patch: Partial<Profile>) =>
     setDraft((prev) => ({ ...prev, ...patch }))
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-title">
-      <div className="modal">
+      <div className="modal" ref={modalRef}>
         <div className="modal-head">
           <h2 id="edit-title" className="modal-title">
             Edit Profile
@@ -202,9 +205,12 @@ function EditProfileModal({
 }
 
 function ResetPasswordModal({ onClose }: { onClose: () => void }) {
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, onClose)
+
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="reset-title">
-      <div className="modal">
+      <div className="modal" ref={modalRef}>
         <div className="modal-head">
           <h2 id="reset-title" className="modal-title">
             Reset Password

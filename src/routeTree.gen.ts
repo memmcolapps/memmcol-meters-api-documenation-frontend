@@ -11,9 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as DocsRouteImport } from './routes/docs'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DocsSlugRouteImport } from './routes/docs.$slug'
 import { Route as AppMeterRouteImport } from './routes/_app/meter'
 import { Route as AppLogsRouteImport } from './routes/_app/logs'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
@@ -33,9 +34,9 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DocsRoute = DocsRouteImport.update({
-  id: '/docs',
-  path: '/docs',
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -45,6 +46,11 @@ const AppRoute = AppRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsSlugRoute = DocsSlugRouteImport.update({
+  id: '/docs/$slug',
+  path: '/docs/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppMeterRoute = AppMeterRouteImport.update({
@@ -91,13 +97,14 @@ const AppSettingsApiKeysRoute = AppSettingsApiKeysRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/docs': typeof DocsRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/billing': typeof AppBillingRoute
   '/dashboard': typeof AppDashboardRoute
   '/logs': typeof AppLogsRoute
   '/meter': typeof AppMeterRoute
+  '/docs/$slug': typeof DocsSlugRoute
   '/settings/api-keys': typeof AppSettingsApiKeysRoute
   '/settings/profile': typeof AppSettingsProfileRoute
   '/settings/user-management': typeof AppSettingsUserManagementRoute
@@ -105,13 +112,14 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/docs': typeof DocsRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/billing': typeof AppBillingRoute
   '/dashboard': typeof AppDashboardRoute
   '/logs': typeof AppLogsRoute
   '/meter': typeof AppMeterRoute
+  '/docs/$slug': typeof DocsSlugRoute
   '/settings/api-keys': typeof AppSettingsApiKeysRoute
   '/settings/profile': typeof AppSettingsProfileRoute
   '/settings/user-management': typeof AppSettingsUserManagementRoute
@@ -121,13 +129,14 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
-  '/docs': typeof DocsRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/_app/billing': typeof AppBillingRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/logs': typeof AppLogsRoute
   '/_app/meter': typeof AppMeterRoute
+  '/docs/$slug': typeof DocsSlugRoute
   '/_app/settings/api-keys': typeof AppSettingsApiKeysRoute
   '/_app/settings/profile': typeof AppSettingsProfileRoute
   '/_app/settings/user-management': typeof AppSettingsUserManagementRoute
@@ -137,13 +146,14 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/docs'
+    | '/forgot-password'
     | '/login'
     | '/signup'
     | '/billing'
     | '/dashboard'
     | '/logs'
     | '/meter'
+    | '/docs/$slug'
     | '/settings/api-keys'
     | '/settings/profile'
     | '/settings/user-management'
@@ -151,13 +161,14 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/docs'
+    | '/forgot-password'
     | '/login'
     | '/signup'
     | '/billing'
     | '/dashboard'
     | '/logs'
     | '/meter'
+    | '/docs/$slug'
     | '/settings/api-keys'
     | '/settings/profile'
     | '/settings/user-management'
@@ -166,13 +177,14 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
-    | '/docs'
+    | '/forgot-password'
     | '/login'
     | '/signup'
     | '/_app/billing'
     | '/_app/dashboard'
     | '/_app/logs'
     | '/_app/meter'
+    | '/docs/$slug'
     | '/_app/settings/api-keys'
     | '/_app/settings/profile'
     | '/_app/settings/user-management'
@@ -182,9 +194,10 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
-  DocsRoute: typeof DocsRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
+  DocsSlugRoute: typeof DocsSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -203,11 +216,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/docs': {
-      id: '/docs'
-      path: '/docs'
-      fullPath: '/docs'
-      preLoaderRoute: typeof DocsRouteImport
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -222,6 +235,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs/$slug': {
+      id: '/docs/$slug'
+      path: '/docs/$slug'
+      fullPath: '/docs/$slug'
+      preLoaderRoute: typeof DocsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/meter': {
@@ -310,9 +330,10 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
-  DocsRoute: DocsRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
+  DocsSlugRoute: DocsSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

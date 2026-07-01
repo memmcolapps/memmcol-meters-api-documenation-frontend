@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
+import { Logo } from '../app/Logo'
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
@@ -11,11 +12,7 @@ function LoginPage() {
   return (
     <div className="auth-wrap">
       <header className="auth-head">
-        <span className="auth-logo" aria-hidden="true">
-          <strong>Mo</strong>
-          <em>mas</em>
-          <small>...technology concern</small>
-        </span>
+        <Logo className="auth-brand-logo" />
         <p className="auth-tagline">We Make Meter Communication seamless</p>
       </header>
 
@@ -61,7 +58,7 @@ function LoginPage() {
             </div>
           </div>
 
-          <Link to="/login" className="auth-forgot">
+          <Link to="/forgot-password" className="auth-forgot">
             Forgot Password?
           </Link>
 

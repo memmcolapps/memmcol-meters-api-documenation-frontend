@@ -6,6 +6,7 @@ import {
   useRouterState,
 } from '@tanstack/react-router'
 import { navItems } from '../app/nav'
+import { Logo } from '../app/Logo'
 
 export const Route = createFileRoute('/_app')({
   component: AppLayout,
@@ -25,11 +26,7 @@ function AppLayout() {
         aria-label="Sidebar navigation"
       >
         <Link to="/dashboard" className="app-brand" onClick={closeSidebar}>
-          <span className="app-brand-mark" aria-hidden="true">
-            <strong>Mo</strong>
-            <em>mas</em>
-            <small>...technology concern</small>
-          </span>
+          <Logo />
         </Link>
 
         <nav className="app-nav">
