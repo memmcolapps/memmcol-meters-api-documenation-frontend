@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Link,
   Outlet,
   createFileRoute,
+  useNavigate,
   useRouterState,
 } from '@tanstack/react-router'
 import { navItems } from '../app/nav'
 import { Logo } from '../app/Logo'
+import { useDismiss } from '../app/useDismiss'
 
 export const Route = createFileRoute('/_app')({
   component: AppLayout,
@@ -80,10 +82,7 @@ function AppLayout() {
             <button type="button" className="app-icon-btn" aria-label="Notifications">
               <BellIcon />
             </button>
-            <button type="button" className="app-account" aria-label="Account menu">
-              <span className="app-avatar">A</span>
-              <ChevronIcon />
-            </button>
+            <AccountMenu />
           </div>
         </header>
 
@@ -93,6 +92,56 @@ function AppLayout() {
 
         <footer className="app-footer">© 2025, Powered by MEMMCOL</footer>
       </div>
+    </div>
+  )
+}
+
+const account = { name: 'Wuraola Akande', email: 'wura@gmail.com', initial: 'A' }
+
+function AccountMenu() {
+  const [open, setOpen] = useState(false)
+  const navigate = useNavigate()
+  const ref = useRef<HTMLDivElement>(null)
+  useDismiss(ref, () => setOpen(false), open)
+
+  return (
+    <div className="account" ref={ref}>
+      <button
+        type="button"
+        className="app-account"
+        aria-label="Account menu"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span className="app-avatar">{account.initial}</span>
+        <ChevronIcon />
+      </button>
+
+      {open ? (
+        <div className="account-menu" role="menu">
+          <div className="account-head">
+            <p className="account-name">{account.name}</p>
+            <p className="account-email">{account.email}</p>
+          </div>
+
+          <div className="account-group">
+            <button type="button" className="account-item" role="menuitem">
+              <UpgradeIcon /> Upgrade Plan
+            </button>
+          </div>
+
+          <div className="account-group">
+            <button
+              type="button"
+              className="account-item is-logout"
+              role="menuitem"
+              onClick={() => navigate({ to: '/login' })}
+            >
+              <LogoutIcon /> Logout
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -158,6 +207,24 @@ function ChevronIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
+
+function UpgradeIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M17.5 19a4.5 4.5 0 0 0 .5-9 6 6 0 0 0-11.6-1.5A4 4 0 0 0 6.5 19" />
+      <path d="M12 16v-6m0 0-2.5 2.5M12 10l2.5 2.5" />
+    </svg>
+  )
+}
+
+function LogoutIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5M21 12H9" />
     </svg>
   )
 }
