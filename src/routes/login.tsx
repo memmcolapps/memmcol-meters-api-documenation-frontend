@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { useState, type FormEvent } from 'react'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Logo } from '../app/Logo'
 
 export const Route = createFileRoute('/login')({
@@ -8,6 +8,18 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
+  const navigate = useNavigate()
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const email = String(data.get('email')).trim()
+    const password = String(data.get('password')).trim()
+
+    if (email && password) {
+      navigate({ to: '/dashboard' })
+    }
+  }
 
   return (
     <div className="auth-wrap">
@@ -23,7 +35,7 @@ function LoginPage() {
 
         <form
           className="auth-form"
-          onSubmit={(event) => event.preventDefault()}
+          onSubmit={handleSubmit}
         >
           <div className="auth-field">
             <label htmlFor="email">Email</label>
@@ -33,6 +45,7 @@ function LoginPage() {
               name="email"
               autoComplete="email"
               placeholder="Enter your email"
+              required
             />
           </div>
 
@@ -45,6 +58,7 @@ function LoginPage() {
                 name="password"
                 autoComplete="current-password"
                 placeholder="Enter your password"
+                required
               />
               <button
                 type="button"
