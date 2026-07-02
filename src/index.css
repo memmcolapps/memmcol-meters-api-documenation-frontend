@@ -1384,15 +1384,10 @@ h1 {
 }
 
 .table-scroll {
-  /* Visible on desktop so row-action dropdowns can overflow the table.
-     Horizontal scroll kicks in only on narrow screens where it's needed. */
-  overflow: visible;
-}
-
-@media (max-width: 900px) {
-  .table-scroll {
-    overflow-x: auto;
-  }
+  /* Overflow scrolls here, inside the table, so a wide table can never make
+     the whole page pan sideways. Row-action menus escape the clip via
+     position: fixed (see useAnchoredMenu). */
+  overflow-x: auto;
 }
 
 .data-table {
@@ -1402,12 +1397,11 @@ h1 {
 }
 
 .data-table thead th {
-  padding: 1rem 1.25rem;
+  padding: 1rem 0.9rem;
   background: #f7f8f7;
   color: var(--app-muted);
   font-weight: 600;
   text-align: left;
-  white-space: nowrap;
 }
 
 .data-table thead th:first-child {
@@ -1421,7 +1415,7 @@ h1 {
 }
 
 .data-table tbody td {
-  padding: 1.05rem 1.25rem;
+  padding: 1.05rem 0.9rem;
   border-bottom: 1px solid var(--app-border);
   color: var(--app-text);
   white-space: nowrap;
@@ -2651,6 +2645,41 @@ h1 {
   color: #46564f;
   font-size: 1rem;
   line-height: 1.65;
+}
+
+.doc-section-list {
+  margin: 0;
+  padding-left: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: #46564f;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.doc-section-table {
+  margin-top: 0.4rem;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.doc-section-table th,
+.doc-section-table td {
+  padding: 0.65rem 0.9rem;
+  border: 1px solid #dde4de;
+  text-align: left;
+}
+
+.doc-section-table th {
+  background: #f2f6f3;
+  color: #13231d;
+  font-weight: 600;
+}
+
+.doc-section-table td {
+  color: #46564f;
 }
 
 /* Footer */

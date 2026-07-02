@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useDismiss } from '../../app/useDismiss'
+import { useAnchoredMenu } from '../../app/useAnchoredMenu'
 import { DatePicker } from '../../app/DatePicker'
 
 export const Route = createFileRoute('/_app/meter')({
@@ -408,11 +409,13 @@ function RowActions({
 }) {
   const ref = useRef<HTMLDivElement>(null)
   useDismiss(ref, onClose, isOpen)
+  const { anchorRef, menuStyle } = useAnchoredMenu(isOpen)
 
   return (
     <div className="row-actions" ref={ref}>
       <button
         type="button"
+        ref={anchorRef}
         className="row-kebab"
         aria-label="Row actions"
         aria-expanded={isOpen}
@@ -421,7 +424,7 @@ function RowActions({
         <KebabIcon />
       </button>
       {isOpen ? (
-        <div className="row-menu" role="menu">
+        <div className="row-menu" style={menuStyle} role="menu">
           <button type="button" className="row-menu-item" role="menuitem">
             View details
           </button>

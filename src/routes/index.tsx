@@ -6,6 +6,8 @@ export const Route = createFileRoute('/')({
 })
 
 const gettingStarted = [
+  { slug: 'supported-meters', label: 'Supported meters', hint: 'Check if your meter is supported.' },
+  { slug: 'meter-onboarding', label: 'Onboard your meter', hint: 'Set up remote communication.' },
   { slug: 'authentication', label: 'Authentication', hint: 'How requests are authorized.' },
   { slug: 'api-keys', label: 'API Keys', hint: 'Create and manage your keys.' },
   { slug: 'first-request', label: 'Your first request', hint: 'Make a call in minutes.' },

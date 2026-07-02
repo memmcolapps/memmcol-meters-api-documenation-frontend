@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useDismiss } from '../../app/useDismiss'
+import { useAnchoredMenu } from '../../app/useAnchoredMenu'
 
 export const Route = createFileRoute('/_app/billing')({
   component: BillingPage,
@@ -165,11 +166,13 @@ function PlanActions({ onUpgrade }: { onUpgrade: () => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useDismiss(ref, () => setOpen(false), open)
+  const { anchorRef, menuStyle } = useAnchoredMenu(open)
 
   return (
     <div className="row-actions" ref={ref}>
       <button
         type="button"
+        ref={anchorRef}
         className="row-kebab"
         aria-label="Plan actions"
         aria-expanded={open}
@@ -178,7 +181,7 @@ function PlanActions({ onUpgrade }: { onUpgrade: () => void }) {
         <KebabIcon />
       </button>
       {open ? (
-        <div className="row-menu" role="menu">
+        <div className="row-menu" style={menuStyle} role="menu">
           <button
             type="button"
             className="row-menu-item"
