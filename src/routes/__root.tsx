@@ -1,11 +1,21 @@
+import { Suspense, lazy } from 'react'
 import {
   Link,
   Outlet,
   createRootRoute,
   useRouterState,
 } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import { Logo } from '../app/Logo'
+
+// Dev-only: stripped from the production bundle so the floating
+// devtools badge never ships to users.
+const TanStackRouterDevtools = import.meta.env.PROD
+  ? () => null
+  : lazy(() =>
+      import('@tanstack/router-devtools').then((m) => ({
+        default: m.TanStackRouterDevtools,
+      })),
+    )
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -21,7 +31,9 @@ function RootLayout() {
     return (
       <>
         <Outlet />
-        <TanStackRouterDevtools position="bottom-right" />
+        <Suspense>
+          <TanStackRouterDevtools position="bottom-right" />
+        </Suspense>
       </>
     )
   }
@@ -54,7 +66,9 @@ function RootLayout() {
         <p className="site-footer-copy">© 2025, Powered by MEMMCOL</p>
       </footer>
 
-      <TanStackRouterDevtools position="bottom-right" />
+      <Suspense>
+        <TanStackRouterDevtools position="bottom-right" />
+      </Suspense>
     </div>
   )
 }
