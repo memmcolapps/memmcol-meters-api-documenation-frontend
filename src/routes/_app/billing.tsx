@@ -109,7 +109,7 @@ function BillingPage() {
                   <th>Plan</th>
                   <th>Start Date</th>
                   <th>Quota Usage</th>
-                  <th>Actions</th>
+                  <th className="col-actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -121,7 +121,7 @@ function BillingPage() {
                   <td>{activePlan.plan}</td>
                   <td>{activePlan.startDate}</td>
                   <td>{activePlan.quota}</td>
-                  <td>
+                  <td className="col-actions">
                     <PlanActions onUpgrade={() => setActivePlan(null)} />
                   </td>
                 </tr>

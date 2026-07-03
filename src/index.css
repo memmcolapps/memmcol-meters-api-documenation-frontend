@@ -149,6 +149,13 @@ h1 {
   color: #ffffff;
 }
 
+/* Beats the generic nav/footer `a:hover { color: green }` rules so the
+   label never turns green-on-green; the button darkens instead. */
+.button.primary:hover {
+  background: #175544;
+  color: #ffffff;
+}
+
 .button.secondary {
   background: #ffffff;
   border: 1px solid #d9dfd8;
@@ -1429,6 +1436,14 @@ h1 {
   width: 1px;
 }
 
+/* Shrinks to its content so the kebab can't drift away from the header
+   when the table stretches on wide screens. */
+.col-actions {
+  width: 1px;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .data-table input[type='checkbox'] {
   width: 1.05rem;
   height: 1.05rem;
@@ -2004,7 +2019,9 @@ h1 {
 
 .member-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 10rem auto;
+  /* Name and role share the free width so the role sits mid-row instead of
+     crowding the action button on wide screens. */
+  grid-template-columns: minmax(0, 2fr) minmax(6rem, 1fr) auto;
   align-items: center;
   gap: 1rem;
   padding: 1.1rem 0;

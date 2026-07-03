@@ -126,7 +126,7 @@ function MeterPage() {
                   <th>Meter Model</th>
                   <th>Meter Class</th>
                   <th>Status</th>
-                  <th>Actions</th>
+                  <th className="col-actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -148,7 +148,7 @@ function MeterPage() {
                         {meter.status}
                       </span>
                     </td>
-                    <td>
+                    <td className="col-actions">
                       <RowActions
                         isOpen={openMenu === meter.id}
                         status={meter.status}
