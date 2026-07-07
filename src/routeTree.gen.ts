@@ -15,14 +15,27 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DocsSlugRouteImport } from './routes/docs.$slug'
+import { Route as AdminLoginRouteImport } from './routes/admin/login'
+import { Route as AdminForgotPasswordRouteImport } from './routes/admin/forgot-password'
+import { Route as AdminAdminRouteImport } from './routes/admin/_admin'
 import { Route as AppMeterRouteImport } from './routes/_app/meter'
 import { Route as AppLogsRouteImport } from './routes/_app/logs'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppBillingRouteImport } from './routes/_app/billing'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
+import { Route as AdminAdminSettingsRouteImport } from './routes/admin/_admin/settings'
+import { Route as AdminAdminRequestLogsRouteImport } from './routes/admin/_admin/request-logs'
+import { Route as AdminAdminOrganizationManagementRouteImport } from './routes/admin/_admin/organization-management'
+import { Route as AdminAdminIncidentReportRouteImport } from './routes/admin/_admin/incident-report'
+import { Route as AdminAdminDashboardRouteImport } from './routes/admin/_admin/dashboard'
+import { Route as AdminAdminAuditLogsRouteImport } from './routes/admin/_admin/audit-logs'
 import { Route as AppSettingsUserManagementRouteImport } from './routes/_app/settings/user-management'
 import { Route as AppSettingsProfileRouteImport } from './routes/_app/settings/profile'
 import { Route as AppSettingsApiKeysRouteImport } from './routes/_app/settings/api-keys'
+import { Route as AdminAdminMeterIntegrationIndexRouteImport } from './routes/admin/_admin/meter-integration/index'
+import { Route as AdminAdminApiManagementIndexRouteImport } from './routes/admin/_admin/api-management/index'
+import { Route as AdminAdminMeterIntegrationMeterIdRouteImport } from './routes/admin/_admin/meter-integration/$meterId'
+import { Route as AdminAdminApiManagementApiIdRouteImport } from './routes/admin/_admin/api-management/$apiId'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -53,6 +66,21 @@ const DocsSlugRoute = DocsSlugRouteImport.update({
   path: '/docs/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin/login',
+  path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminForgotPasswordRoute = AdminForgotPasswordRouteImport.update({
+  id: '/admin/forgot-password',
+  path: '/admin/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAdminRoute = AdminAdminRouteImport.update({
+  id: '/admin/_admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppMeterRoute = AppMeterRouteImport.update({
   id: '/meter',
   path: '/meter',
@@ -78,6 +106,38 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   path: '/settings/',
   getParentRoute: () => AppRoute,
 } as any)
+const AdminAdminSettingsRoute = AdminAdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
+const AdminAdminRequestLogsRoute = AdminAdminRequestLogsRouteImport.update({
+  id: '/request-logs',
+  path: '/request-logs',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
+const AdminAdminOrganizationManagementRoute =
+  AdminAdminOrganizationManagementRouteImport.update({
+    id: '/organization-management',
+    path: '/organization-management',
+    getParentRoute: () => AdminAdminRoute,
+  } as any)
+const AdminAdminIncidentReportRoute =
+  AdminAdminIncidentReportRouteImport.update({
+    id: '/incident-report',
+    path: '/incident-report',
+    getParentRoute: () => AdminAdminRoute,
+  } as any)
+const AdminAdminDashboardRoute = AdminAdminDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
+const AdminAdminAuditLogsRoute = AdminAdminAuditLogsRouteImport.update({
+  id: '/audit-logs',
+  path: '/audit-logs',
+  getParentRoute: () => AdminAdminRoute,
+} as any)
 const AppSettingsUserManagementRoute =
   AppSettingsUserManagementRouteImport.update({
     id: '/settings/user-management',
@@ -94,6 +154,30 @@ const AppSettingsApiKeysRoute = AppSettingsApiKeysRouteImport.update({
   path: '/settings/api-keys',
   getParentRoute: () => AppRoute,
 } as any)
+const AdminAdminMeterIntegrationIndexRoute =
+  AdminAdminMeterIntegrationIndexRouteImport.update({
+    id: '/meter-integration/',
+    path: '/meter-integration/',
+    getParentRoute: () => AdminAdminRoute,
+  } as any)
+const AdminAdminApiManagementIndexRoute =
+  AdminAdminApiManagementIndexRouteImport.update({
+    id: '/api-management/',
+    path: '/api-management/',
+    getParentRoute: () => AdminAdminRoute,
+  } as any)
+const AdminAdminMeterIntegrationMeterIdRoute =
+  AdminAdminMeterIntegrationMeterIdRouteImport.update({
+    id: '/meter-integration/$meterId',
+    path: '/meter-integration/$meterId',
+    getParentRoute: () => AdminAdminRoute,
+  } as any)
+const AdminAdminApiManagementApiIdRoute =
+  AdminAdminApiManagementApiIdRouteImport.update({
+    id: '/api-management/$apiId',
+    path: '/api-management/$apiId',
+    getParentRoute: () => AdminAdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -104,11 +188,24 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/logs': typeof AppLogsRoute
   '/meter': typeof AppMeterRoute
+  '/admin': typeof AdminAdminRouteWithChildren
+  '/admin/forgot-password': typeof AdminForgotPasswordRoute
+  '/admin/login': typeof AdminLoginRoute
   '/docs/$slug': typeof DocsSlugRoute
   '/settings/api-keys': typeof AppSettingsApiKeysRoute
   '/settings/profile': typeof AppSettingsProfileRoute
   '/settings/user-management': typeof AppSettingsUserManagementRoute
+  '/admin/audit-logs': typeof AdminAdminAuditLogsRoute
+  '/admin/dashboard': typeof AdminAdminDashboardRoute
+  '/admin/incident-report': typeof AdminAdminIncidentReportRoute
+  '/admin/organization-management': typeof AdminAdminOrganizationManagementRoute
+  '/admin/request-logs': typeof AdminAdminRequestLogsRoute
+  '/admin/settings': typeof AdminAdminSettingsRoute
   '/settings/': typeof AppSettingsIndexRoute
+  '/admin/api-management/$apiId': typeof AdminAdminApiManagementApiIdRoute
+  '/admin/meter-integration/$meterId': typeof AdminAdminMeterIntegrationMeterIdRoute
+  '/admin/api-management/': typeof AdminAdminApiManagementIndexRoute
+  '/admin/meter-integration/': typeof AdminAdminMeterIntegrationIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -119,11 +216,24 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/logs': typeof AppLogsRoute
   '/meter': typeof AppMeterRoute
+  '/admin': typeof AdminAdminRouteWithChildren
+  '/admin/forgot-password': typeof AdminForgotPasswordRoute
+  '/admin/login': typeof AdminLoginRoute
   '/docs/$slug': typeof DocsSlugRoute
   '/settings/api-keys': typeof AppSettingsApiKeysRoute
   '/settings/profile': typeof AppSettingsProfileRoute
   '/settings/user-management': typeof AppSettingsUserManagementRoute
+  '/admin/audit-logs': typeof AdminAdminAuditLogsRoute
+  '/admin/dashboard': typeof AdminAdminDashboardRoute
+  '/admin/incident-report': typeof AdminAdminIncidentReportRoute
+  '/admin/organization-management': typeof AdminAdminOrganizationManagementRoute
+  '/admin/request-logs': typeof AdminAdminRequestLogsRoute
+  '/admin/settings': typeof AdminAdminSettingsRoute
   '/settings': typeof AppSettingsIndexRoute
+  '/admin/api-management/$apiId': typeof AdminAdminApiManagementApiIdRoute
+  '/admin/meter-integration/$meterId': typeof AdminAdminMeterIntegrationMeterIdRoute
+  '/admin/api-management': typeof AdminAdminApiManagementIndexRoute
+  '/admin/meter-integration': typeof AdminAdminMeterIntegrationIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -136,11 +246,24 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/logs': typeof AppLogsRoute
   '/_app/meter': typeof AppMeterRoute
+  '/admin/_admin': typeof AdminAdminRouteWithChildren
+  '/admin/forgot-password': typeof AdminForgotPasswordRoute
+  '/admin/login': typeof AdminLoginRoute
   '/docs/$slug': typeof DocsSlugRoute
   '/_app/settings/api-keys': typeof AppSettingsApiKeysRoute
   '/_app/settings/profile': typeof AppSettingsProfileRoute
   '/_app/settings/user-management': typeof AppSettingsUserManagementRoute
+  '/admin/_admin/audit-logs': typeof AdminAdminAuditLogsRoute
+  '/admin/_admin/dashboard': typeof AdminAdminDashboardRoute
+  '/admin/_admin/incident-report': typeof AdminAdminIncidentReportRoute
+  '/admin/_admin/organization-management': typeof AdminAdminOrganizationManagementRoute
+  '/admin/_admin/request-logs': typeof AdminAdminRequestLogsRoute
+  '/admin/_admin/settings': typeof AdminAdminSettingsRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
+  '/admin/_admin/api-management/$apiId': typeof AdminAdminApiManagementApiIdRoute
+  '/admin/_admin/meter-integration/$meterId': typeof AdminAdminMeterIntegrationMeterIdRoute
+  '/admin/_admin/api-management/': typeof AdminAdminApiManagementIndexRoute
+  '/admin/_admin/meter-integration/': typeof AdminAdminMeterIntegrationIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -153,11 +276,24 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/logs'
     | '/meter'
+    | '/admin'
+    | '/admin/forgot-password'
+    | '/admin/login'
     | '/docs/$slug'
     | '/settings/api-keys'
     | '/settings/profile'
     | '/settings/user-management'
+    | '/admin/audit-logs'
+    | '/admin/dashboard'
+    | '/admin/incident-report'
+    | '/admin/organization-management'
+    | '/admin/request-logs'
+    | '/admin/settings'
     | '/settings/'
+    | '/admin/api-management/$apiId'
+    | '/admin/meter-integration/$meterId'
+    | '/admin/api-management/'
+    | '/admin/meter-integration/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -168,11 +304,24 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/logs'
     | '/meter'
+    | '/admin'
+    | '/admin/forgot-password'
+    | '/admin/login'
     | '/docs/$slug'
     | '/settings/api-keys'
     | '/settings/profile'
     | '/settings/user-management'
+    | '/admin/audit-logs'
+    | '/admin/dashboard'
+    | '/admin/incident-report'
+    | '/admin/organization-management'
+    | '/admin/request-logs'
+    | '/admin/settings'
     | '/settings'
+    | '/admin/api-management/$apiId'
+    | '/admin/meter-integration/$meterId'
+    | '/admin/api-management'
+    | '/admin/meter-integration'
   id:
     | '__root__'
     | '/'
@@ -184,11 +333,24 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/logs'
     | '/_app/meter'
+    | '/admin/_admin'
+    | '/admin/forgot-password'
+    | '/admin/login'
     | '/docs/$slug'
     | '/_app/settings/api-keys'
     | '/_app/settings/profile'
     | '/_app/settings/user-management'
+    | '/admin/_admin/audit-logs'
+    | '/admin/_admin/dashboard'
+    | '/admin/_admin/incident-report'
+    | '/admin/_admin/organization-management'
+    | '/admin/_admin/request-logs'
+    | '/admin/_admin/settings'
     | '/_app/settings/'
+    | '/admin/_admin/api-management/$apiId'
+    | '/admin/_admin/meter-integration/$meterId'
+    | '/admin/_admin/api-management/'
+    | '/admin/_admin/meter-integration/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -197,6 +359,9 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
+  AdminAdminRoute: typeof AdminAdminRouteWithChildren
+  AdminForgotPasswordRoute: typeof AdminForgotPasswordRoute
+  AdminLoginRoute: typeof AdminLoginRoute
   DocsSlugRoute: typeof DocsSlugRoute
 }
 
@@ -244,6 +409,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/admin/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/forgot-password': {
+      id: '/admin/forgot-password'
+      path: '/admin/forgot-password'
+      fullPath: '/admin/forgot-password'
+      preLoaderRoute: typeof AdminForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/_admin': {
+      id: '/admin/_admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/meter': {
       id: '/_app/meter'
       path: '/meter'
@@ -279,6 +465,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/admin/_admin/settings': {
+      id: '/admin/_admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminAdminSettingsRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/request-logs': {
+      id: '/admin/_admin/request-logs'
+      path: '/request-logs'
+      fullPath: '/admin/request-logs'
+      preLoaderRoute: typeof AdminAdminRequestLogsRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/organization-management': {
+      id: '/admin/_admin/organization-management'
+      path: '/organization-management'
+      fullPath: '/admin/organization-management'
+      preLoaderRoute: typeof AdminAdminOrganizationManagementRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/incident-report': {
+      id: '/admin/_admin/incident-report'
+      path: '/incident-report'
+      fullPath: '/admin/incident-report'
+      preLoaderRoute: typeof AdminAdminIncidentReportRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/dashboard': {
+      id: '/admin/_admin/dashboard'
+      path: '/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AdminAdminDashboardRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/audit-logs': {
+      id: '/admin/_admin/audit-logs'
+      path: '/audit-logs'
+      fullPath: '/admin/audit-logs'
+      preLoaderRoute: typeof AdminAdminAuditLogsRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
     '/_app/settings/user-management': {
       id: '/_app/settings/user-management'
       path: '/settings/user-management'
@@ -299,6 +527,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/api-keys'
       preLoaderRoute: typeof AppSettingsApiKeysRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/admin/_admin/meter-integration/': {
+      id: '/admin/_admin/meter-integration/'
+      path: '/meter-integration'
+      fullPath: '/admin/meter-integration/'
+      preLoaderRoute: typeof AdminAdminMeterIntegrationIndexRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/api-management/': {
+      id: '/admin/_admin/api-management/'
+      path: '/api-management'
+      fullPath: '/admin/api-management/'
+      preLoaderRoute: typeof AdminAdminApiManagementIndexRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/meter-integration/$meterId': {
+      id: '/admin/_admin/meter-integration/$meterId'
+      path: '/meter-integration/$meterId'
+      fullPath: '/admin/meter-integration/$meterId'
+      preLoaderRoute: typeof AdminAdminMeterIntegrationMeterIdRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/api-management/$apiId': {
+      id: '/admin/_admin/api-management/$apiId'
+      path: '/api-management/$apiId'
+      fullPath: '/admin/api-management/$apiId'
+      preLoaderRoute: typeof AdminAdminApiManagementApiIdRouteImport
+      parentRoute: typeof AdminAdminRoute
     }
   }
 }
@@ -327,12 +583,46 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface AdminAdminRouteChildren {
+  AdminAdminAuditLogsRoute: typeof AdminAdminAuditLogsRoute
+  AdminAdminDashboardRoute: typeof AdminAdminDashboardRoute
+  AdminAdminIncidentReportRoute: typeof AdminAdminIncidentReportRoute
+  AdminAdminOrganizationManagementRoute: typeof AdminAdminOrganizationManagementRoute
+  AdminAdminRequestLogsRoute: typeof AdminAdminRequestLogsRoute
+  AdminAdminSettingsRoute: typeof AdminAdminSettingsRoute
+  AdminAdminApiManagementApiIdRoute: typeof AdminAdminApiManagementApiIdRoute
+  AdminAdminMeterIntegrationMeterIdRoute: typeof AdminAdminMeterIntegrationMeterIdRoute
+  AdminAdminApiManagementIndexRoute: typeof AdminAdminApiManagementIndexRoute
+  AdminAdminMeterIntegrationIndexRoute: typeof AdminAdminMeterIntegrationIndexRoute
+}
+
+const AdminAdminRouteChildren: AdminAdminRouteChildren = {
+  AdminAdminAuditLogsRoute: AdminAdminAuditLogsRoute,
+  AdminAdminDashboardRoute: AdminAdminDashboardRoute,
+  AdminAdminIncidentReportRoute: AdminAdminIncidentReportRoute,
+  AdminAdminOrganizationManagementRoute: AdminAdminOrganizationManagementRoute,
+  AdminAdminRequestLogsRoute: AdminAdminRequestLogsRoute,
+  AdminAdminSettingsRoute: AdminAdminSettingsRoute,
+  AdminAdminApiManagementApiIdRoute: AdminAdminApiManagementApiIdRoute,
+  AdminAdminMeterIntegrationMeterIdRoute:
+    AdminAdminMeterIntegrationMeterIdRoute,
+  AdminAdminApiManagementIndexRoute: AdminAdminApiManagementIndexRoute,
+  AdminAdminMeterIntegrationIndexRoute: AdminAdminMeterIntegrationIndexRoute,
+}
+
+const AdminAdminRouteWithChildren = AdminAdminRoute._addFileChildren(
+  AdminAdminRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
+  AdminAdminRoute: AdminAdminRouteWithChildren,
+  AdminForgotPasswordRoute: AdminForgotPasswordRoute,
+  AdminLoginRoute: AdminLoginRoute,
   DocsSlugRoute: DocsSlugRoute,
 }
 export const routeTree = rootRouteImport

@@ -9,7 +9,8 @@
   color: #17211d;
   background: #f7f8f5;
   font-family: var(--font-sans);
-  font-size: 90%;
+  /* 10% below the previous 90% — gives text and rem-based padding room to breathe */
+  font-size: 81%;
   font-synthesis: none;
   line-height: 1.5;
   text-rendering: optimizeLegibility;
@@ -526,7 +527,7 @@ h1 {
   --app-border: #ececec;
   --app-text: #1c2722;
   --app-muted: #6b756f;
-  --sidebar-width: 16.5rem;
+  --sidebar-width: 17.5rem;
 
   display: flex;
   height: 100dvh;
@@ -1096,6 +1097,96 @@ h1 {
   color: var(--app-muted);
 }
 
+.table-search {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.table-search input {
+  width: min(320px, 100%);
+  padding: 0.6rem 2.4rem 0.6rem 0.9rem;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--app-text);
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+.table-search svg {
+  position: absolute;
+  right: 0.75rem;
+  color: var(--app-muted);
+  pointer-events: none;
+}
+
+.meter-view-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1.25rem 1.5rem;
+  background: #ffffff;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+}
+
+.meter-view-id {
+  display: flex;
+  gap: 1rem;
+}
+
+.meter-view-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: #f8faf9;
+  color: var(--app-text);
+}
+
+.meter-view-name {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.meter-view-meta {
+  margin: 0.2rem 0 0;
+  color: var(--app-muted);
+  font-size: 0.95rem;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.confirm-message {
+  margin: 0 0 1.75rem;
+  color: var(--app-text);
+}
+
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -1404,6 +1495,7 @@ h1 {
   color: var(--app-muted);
   font-weight: 600;
   text-align: left;
+  white-space: nowrap;
 }
 
 .data-table thead th:first-child {
@@ -2826,4 +2918,328 @@ h1 {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+/* ----------------------------------------------------------------------
+   Admin theme — scoped under `.admin` on the admin shell/auth wrappers.
+   Blue primary accents with the amber sidebar/tab highlight per design;
+   the customer app keeps the default green.
+   --------------------------------------------------------------------- */
+.admin {
+  --app-green: #1c1cdb;
+  --app-green-soft: #eaeafc;
+  --auth-green: #1c1cdb;
+  --auth-button: #a3a3ee;
+  --auth-button-hover: #8f8fe8;
+  --admin-amber: #e8a33d;
+  --admin-amber-soft: #faf3e6;
+}
+
+.admin .btn-primary {
+  background: #1c1cdb;
+}
+
+.admin .btn-primary:hover {
+  background: #1515b0;
+}
+
+.admin .auth-cta {
+  background: #1c1cdb;
+}
+
+.admin .auth-cta:hover:not(:disabled) {
+  background: #1515b0;
+}
+
+.admin .auth-cta:disabled {
+  background: var(--auth-button);
+}
+
+.admin .app-nav-link.is-active {
+  background: var(--admin-amber-soft);
+}
+
+.admin .app-nav-link.is-active::before {
+  background: var(--admin-amber);
+  width: 4px;
+  height: 100%;
+}
+
+.admin .dash-tab.is-active {
+  color: var(--app-text);
+  border-bottom-color: var(--admin-amber);
+}
+
+.admin .auth-field input:focus,
+.admin .auth-input-group:focus-within,
+.admin .modal-input:focus,
+.admin .modal-select:focus {
+  box-shadow: 0 0 0 3px rgba(28, 28, 219, 0.12);
+}
+
+/* Upload-file modal (admin OBIS upload) */
+.upload-heading {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.upload-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  min-height: 160px;
+  padding: 2rem 1rem;
+  border: 1.5px dashed #b9beba;
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.upload-zone:hover,
+.upload-zone:focus-visible {
+  border-color: var(--app-green);
+  outline: none;
+}
+
+.upload-zone-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #23272b;
+  color: #ffffff;
+}
+
+.upload-file-name {
+  margin: 0;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.upload-file-status {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 0.95rem;
+}
+
+.upload-note {
+  margin: 0;
+  color: var(--app-text);
+  line-height: 1.6;
+}
+
+.upload-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--app-green);
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.upload-link:hover {
+  text-decoration: underline;
+}
+
+/* Admin dashboard */
+.dash-stats--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.panel-subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--app-muted);
+  font-size: 0.95rem;
+}
+
+.donut-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.donut-tip {
+  position: absolute;
+  top: 32%;
+  left: -30%;
+  padding: 0.45rem 0.8rem;
+  border-radius: 6px;
+  background: #2f9e44;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 8px 20px -10px rgba(15, 30, 24, 0.5);
+}
+
+.uptime-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 1.25rem;
+}
+
+.uptime-chart-tick {
+  fill: var(--app-muted);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.admin .panel-link {
+  color: #2f9e44;
+}
+
+@media (max-width: 1100px) {
+  .dash-stats--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .dash-stats--4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Incident report cards */
+.incident-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.incident-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.5rem;
+  border-radius: 10px;
+  background: #fbe2e2;
+}
+
+.incident-card.is-resolved {
+  background: #eaf6ee;
+}
+
+.incident-card .btn-neutral {
+  background: #ffffff;
+}
+
+.incident-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.incident-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #2447f0;
+}
+
+.incident-meta {
+  margin: 0.3rem 0 0 1.25rem;
+  color: #5f6b65;
+  font-size: 0.95rem;
+}
+
+.incident-empty {
+  margin: 0;
+  color: var(--app-muted);
+}
+
+/* Two-line user cell (audit logs) */
+.table-user {
+  margin: 0;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.table-user-email {
+  margin: 0.15rem 0 0;
+  color: var(--app-muted);
+  font-size: 0.85rem;
+}
+
+/* Publication badge (unpublished) */
+.code-badge.is-warn {
+  background: #fdf3dd;
+  color: #b97d1e;
+}
+
+/* Amber outline action (API publish) */
+.btn-warn-outline {
+  padding: 0.7rem 1.5rem;
+  border: 1px solid #e8a33d;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #d98a3d;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-warn-outline:hover {
+  background: #fdf6ec;
+}
+
+/* Truncated table cell (long URLs) */
+.cell-truncate {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* API view/edit page */
+.api-view-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.api-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 780px;
+}
+
+.api-view-code {
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.api-view-docs-field {
+  max-width: none;
+}
+
+.api-view-docs {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  color: var(--app-text);
+  line-height: 1.7;
+}
+
+.api-view-docs p {
+  margin: 0;
 }

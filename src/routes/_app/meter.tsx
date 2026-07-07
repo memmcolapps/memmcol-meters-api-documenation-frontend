@@ -202,9 +202,16 @@ function MeterPage() {
   )
 }
 
-const meterClasses = ['Single-phase', 'Three-phase']
-const meterModels = ['MMX-310-NG', 'MMX-320-NG', 'MMX-410-NG']
-const manufacturers = ['Momas', 'Hexing', 'Mojec', 'Holley']
+// Meter types integrated by admins (see /admin/meter-integration).
+// Fed by the API later; only Active types are selectable here.
+const supportedMeters = [
+  { manufacturer: 'Momas', meterClass: 'MD', model: 'MMX-313-CT', status: 'Active' },
+  { manufacturer: 'Momas', meterClass: 'Single-Phase', model: 'MMX-110NG', status: 'Active' },
+  { manufacturer: 'Momas', meterClass: 'Three-Phase', model: 'MMX-310-NG', status: 'Deprecated' },
+  { manufacturer: 'Momas', meterClass: 'MD', model: 'MMX-312-CT', status: 'Active' },
+]
+
+const activeSupportedMeters = supportedMeters.filter((m) => m.status === 'Active')
 
 function AddMeterModal({
   onClose,
@@ -216,9 +223,7 @@ function AddMeterModal({
   const [form, setForm] = useState({
     meterNo: '',
     sim: '',
-    meterClass: '',
-    model: '',
-    manufacturer: '',
+    meterType: '',
     oldSgc: '',
     newSgc: '',
     oldKrn: '',
@@ -232,17 +237,18 @@ function AddMeterModal({
   const set = (key: keyof typeof form, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }))
 
-  const canSubmit =
-    form.meterNo && form.sim && form.meterClass && form.model && form.manufacturer
+  const selectedType = activeSupportedMeters.find((m) => m.model === form.meterType)
+
+  const canSubmit = Boolean(form.meterNo && form.sim && selectedType)
 
   const handleSubmit = () => {
-    if (!canSubmit) return
+    if (!selectedType || !canSubmit) return
     onAdd({
       meterNo: form.meterNo,
       sim: form.sim,
-      meterClass: form.meterClass,
-      model: form.model,
-      manufacturer: form.manufacturer,
+      meterClass: selectedType.meterClass,
+      model: selectedType.model,
+      manufacturer: selectedType.manufacturer,
     })
   }
 
@@ -279,52 +285,20 @@ function AddMeterModal({
                 onChange={(e) => set('sim', e.target.value)}
               />
             </Field>
-            <Field label="Meter Class" required>
-              <select
-                className="modal-select"
-                value={form.meterClass}
-                onChange={(e) => set('meterClass', e.target.value)}
-              >
-                <option value="" disabled>
-                  Select Class
-                </option>
-                {meterClasses.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Meter Model" required>
-              <select
-                className="modal-select"
-                value={form.model}
-                onChange={(e) => set('model', e.target.value)}
-              >
-                <option value="" disabled>
-                  Select Model
-                </option>
-                {meterModels.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </Field>
           </div>
 
-          <Field label="Meter Manufacturer" required>
+          <Field label="Meter Type" required>
             <select
               className="modal-select"
-              value={form.manufacturer}
-              onChange={(e) => set('manufacturer', e.target.value)}
+              value={form.meterType}
+              onChange={(e) => set('meterType', e.target.value)}
             >
               <option value="" disabled>
-                Select Manufacturer
+                Select Meter Type
               </option>
-              {manufacturers.map((m) => (
-                <option key={m} value={m}>
-                  {m}
+              {activeSupportedMeters.map((m) => (
+                <option key={m.model} value={m.model}>
+                  {m.model} — {m.manufacturer} ({m.meterClass})
                 </option>
               ))}
             </select>
