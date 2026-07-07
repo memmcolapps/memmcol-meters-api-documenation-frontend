@@ -1846,6 +1846,83 @@ h1 {
   margin-top: auto;
 }
 
+/* ---------- Billing: credit bundles ---------- */
+
+/* Four bundle cards laid out 2×2 so each keeps a comfortable width;
+   the ≤1024px plans-grid rule still stacks them on small screens. */
+.plans-grid--bundles {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.plan-card--featured {
+  border-color: var(--app-green);
+  box-shadow: 0 14px 30px -20px rgba(15, 81, 50, 0.5);
+}
+
+.plan-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.plan-badge {
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: var(--app-green-soft);
+  color: var(--app-green);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.plan-pricing {
+  margin: 1.75rem 0;
+  text-align: center;
+}
+
+.plan-pricing .plan-price {
+  margin: 0;
+}
+
+.plan-rate {
+  margin: 0.4rem 0 0;
+  color: var(--app-muted);
+  font-size: 0.92rem;
+}
+
+.stat-unit {
+  color: var(--app-muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.balance-pill {
+  display: inline-block;
+  margin-left: 0.6rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: #fbe9e9;
+  color: #c81818;
+  font-size: 0.75rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.pricing-note {
+  margin: 0 0 1.25rem;
+  max-width: 60ch;
+  color: var(--app-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.pricing-footnote {
+  margin: 1rem 0 0;
+  color: var(--app-muted);
+  font-size: 0.9rem;
+}
+
 /* ---------- Meter ---------- */
 
 .meter-empty {

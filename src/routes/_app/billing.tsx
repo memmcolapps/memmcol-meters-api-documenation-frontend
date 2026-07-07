@@ -1,224 +1,317 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { useDismiss } from '../../app/useDismiss'
-import { useAnchoredMenu } from '../../app/useAnchoredMenu'
 
 export const Route = createFileRoute('/_app/billing')({
   component: BillingPage,
 })
 
-type Plan = {
+type Bundle = {
   name: string
   description: string
-  price?: string
+  /** Naira price. Absent for the negotiated Enterprise tier. */
+  price?: number
+  credits?: number
+  /** Effective per-credit rate — the headline of the card. */
+  rate: string
   features: string[]
   cta: string
+  featured?: boolean
 }
 
-const plans: Plan[] = [
+const bundles: Bundle[] = [
   {
-    name: 'Basic Plan',
-    description: 'Great for small enterprise looking to manage their facility',
-    price: '₦ 300,000',
+    name: 'Starter',
+    description: 'For pilots and small estates getting integrated.',
+    price: 250_000,
+    credits: 25_000,
+    rate: '25,000 credits · ₦10 per credit',
     features: [
-      '500 API calls',
-      '600/ API calls',
-      '3 day support on tickets',
-      'API key access for integrations',
+      '≈ 25,000 meter reads or 2,500 token vends',
+      'Credits never expire',
+      'One balance across every API',
+      'Standard ticket support',
     ],
-    cta: 'Get started',
+    cta: 'Buy credits',
   },
   {
-    name: 'Standard Plan',
-    description: 'Great for medium enterprise looking to manage their facility',
-    price: '₦ 500,000',
+    name: 'Growth',
+    description: 'For estates and facilities in steady production.',
+    price: 1_000_000,
+    credits: 125_000,
+    rate: '125,000 credits · ₦8 per credit — save 20%',
+    featured: true,
     features: [
-      '1000 API calls',
-      '500/ API calls',
-      '3 day support on tickets',
-      'API key access for integrations',
+      '≈ 125,000 meter reads or 12,500 token vends',
+      'Credits never expire',
+      'One balance across every API',
+      'Priority ticket support',
     ],
-    cta: 'Get started',
+    cta: 'Buy credits',
   },
   {
-    name: 'Enterprise Plan',
-    description: 'Great for big enterprise looking to manage their facility',
+    name: 'Scale',
+    description: 'For large fleets with heavy daily traffic.',
+    price: 3_000_000,
+    credits: 500_000,
+    rate: '500,000 credits · ₦6 per credit — save 40%',
     features: [
-      'Flexible API calls',
-      'API integration assistance',
-      'Prioritized support on tickets',
-      'Volume Discounts',
+      '≈ 500,000 meter reads or 50,000 token vends',
+      'Credits never expire',
+      'One balance across every API',
+      'Priority ticket support',
+    ],
+    cta: 'Buy credits',
+  },
+  {
+    name: 'Enterprise',
+    description: 'For utilities and DisCos with committed volume.',
+    rate: 'Negotiated volume-based rate',
+    features: [
+      'Custom per-credit rate',
+      'Postpaid invoicing available',
+      'SLA with dedicated support',
+      'Hands-on integration engineering',
     ],
     cta: 'Contact us',
   },
 ]
 
-type ActivePlan = {
-  plan: string
-  startDate: string
-  quota: string
+/**
+ * Credit cost per operation. All APIs draw from the same balance, but
+ * calls are weighted by what they cost to serve and what they're worth —
+ * a token vend is not the same as a meter read.
+ */
+const operationPricing = [
+  { api: 'Consumption Data', operation: 'Single meter read', credits: '1' },
+  { api: 'Load Profile Data', operation: 'Interval profile pull', credits: '1' },
+  { api: 'Meter Master Data', operation: 'Meter lookup', credits: '1' },
+  { api: 'Meter Master Data', operation: 'Register or update a meter', credits: '2' },
+  {
+    api: 'Consumption / Load Profile',
+    operation: 'Batch read (up to 100 meters)',
+    credits: '10',
+  },
+  { api: 'Remote Communication', operation: 'Command to a meter', credits: '5' },
+  { api: 'Remote Token Management', operation: 'Token vend', credits: '10' },
+  { api: 'Event & Alarm Data', operation: 'Webhook delivery', credits: 'Free' },
+]
+
+type Purchase = {
+  bundle: string
+  date: string
+  credits: number
+  amount: number
 }
 
-// Starts with an active Basic subscription. Set to `null` to see the Plans view.
-const initialActivePlan: ActivePlan = {
-  plan: 'Basic',
-  startDate: '12/05/2026',
-  quota: '200/1000 Calls',
-}
+const initialPurchases: Purchase[] = [
+  { bundle: 'Starter', date: '12/05/2026', credits: 25_000, amount: 250_000 },
+]
 
-const formatToday = () =>
-  new Date().toLocaleDateString('en-GB').replace(/\//g, '/')
+const LOW_BALANCE_THRESHOLD = 5_000
+
+const naira = (value: number) => `₦ ${value.toLocaleString('en-NG')}`
+
+const formatToday = () => new Date().toLocaleDateString('en-GB')
 
 function BillingPage() {
-  const [activePlan, setActivePlan] = useState<ActivePlan | null>(initialActivePlan)
+  const [balance, setBalance] = useState(3_250)
+  const [purchases, setPurchases] = useState(initialPurchases)
+  // Customers with credits land on their credit overview; the buy grid only
+  // shows for first-time buyers or after pressing Top up.
+  const [view, setView] = useState<'credits' | 'buy'>(
+    initialPurchases.length > 0 ? 'credits' : 'buy',
+  )
 
-  const subscribe = (plan: Plan) => {
-    setActivePlan({
-      plan: plan.name.replace(/ Plan$/, ''),
-      startDate: formatToday(),
-      quota: '0/1000 Calls',
-    })
+  const creditsUsedThisMonth = 8_940
+  const lastPurchase = purchases[purchases.length - 1]
+
+  const buy = (bundle: Bundle) => {
+    if (!bundle.credits || !bundle.price) return
+    setBalance((value) => value + bundle.credits!)
+    setPurchases((value) => [
+      ...value,
+      {
+        bundle: bundle.name,
+        date: formatToday(),
+        credits: bundle.credits!,
+        amount: bundle.price!,
+      },
+    ])
+    setView('credits')
   }
 
   return (
     <div className="dash">
-      <header className="dash-head">
-        <h1 className="dash-title">Billing</h1>
-        <p className="dash-subtitle">
-          Manage your API subscriptions and choose the plan that best fits your
-          needs.
-        </p>
+      <header className="dash-toolbar dash-head-row">
+        <div className="dash-head">
+          <h1 className="dash-title">Billing</h1>
+          <p className="dash-subtitle">
+            Buy prepaid credits that work across every API. Calls are weighted —
+            a token vend costs more than a meter read — and credits never expire.
+          </p>
+        </div>
+        {view === 'credits' ? (
+          <button type="button" className="btn-primary" onClick={() => setView('buy')}>
+            Top up <PlusIcon />
+          </button>
+        ) : purchases.length > 0 ? (
+          <button type="button" className="filter-btn" onClick={() => setView('credits')}>
+            Back to Credits
+          </button>
+        ) : null}
       </header>
+
+      <section className="dash-stats">
+        <article className="stat-card">
+          <div className="stat-text">
+            <p className="stat-label">Credit Balance</p>
+            <p className="stat-value">
+              {balance.toLocaleString()} <span className="stat-unit">credits</span>
+              {balance < LOW_BALANCE_THRESHOLD ? (
+                <span className="balance-pill">Low balance</span>
+              ) : null}
+            </p>
+          </div>
+          <span className="stat-icon" aria-hidden="true">
+            <WalletIcon />
+          </span>
+        </article>
+        <article className="stat-card">
+          <div className="stat-text">
+            <p className="stat-label">Used This Month</p>
+            <p className="stat-value">
+              {creditsUsedThisMonth.toLocaleString()}{' '}
+              <span className="stat-unit">credits</span>
+            </p>
+          </div>
+          <span className="stat-icon" aria-hidden="true">
+            <GaugeIcon />
+          </span>
+        </article>
+        <article className="stat-card">
+          <div className="stat-text">
+            <p className="stat-label">Last Top-up</p>
+            <p className="stat-value">
+              {naira(lastPurchase.amount)}{' '}
+              <span className="stat-unit">on {lastPurchase.date}</span>
+            </p>
+          </div>
+          <span className="stat-icon" aria-hidden="true">
+            <ReceiptIcon />
+          </span>
+        </article>
+      </section>
 
       <div className="dash-tabs" role="tablist">
         <button type="button" className="dash-tab is-active" role="tab" aria-selected="true">
-          {activePlan ? 'Active Plan' : 'Plans'}
+          {view === 'credits' ? 'Credits' : 'Buy Credits'}
         </button>
       </div>
 
-      {activePlan ? (
-        <section className="table-wrap">
+      {view === 'buy' ? (
+        <>
+          <section className="plans-grid plans-grid--bundles">
+            {bundles.map((bundle) => (
+              <article
+                className={`plan-card${bundle.featured ? ' plan-card--featured' : ''}`}
+                key={bundle.name}
+              >
+                <div className="plan-head">
+                  <h2 className="plan-name">{bundle.name}</h2>
+                  {bundle.featured ? (
+                    <span className="plan-badge">Most popular</span>
+                  ) : null}
+                </div>
+                <p className="plan-desc">{bundle.description}</p>
+                <div className="plan-pricing">
+                  <p className="plan-price">
+                    {bundle.price ? naira(bundle.price) : 'Custom'}
+                  </p>
+                  <p className="plan-rate">{bundle.rate}</p>
+                </div>
+                <ul className="plan-features">
+                  {bundle.features.map((feature) => (
+                    <li className="plan-feature" key={feature}>
+                      <CheckIcon /> {feature}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  className="btn-primary btn-block plan-cta"
+                  onClick={() => buy(bundle)}
+                >
+                  {bundle.cta}
+                </button>
+              </article>
+            ))}
+          </section>
+
+          <section className="dash-panel">
+            <h2 className="panel-title">Operation Pricing</h2>
+            <p className="pricing-note">
+              Every API draws from the same credit balance, but not every call
+              costs the same. Operations are weighted by what they do: routine
+              reads cost 1 credit, commands that reach a physical meter cost 5,
+              and token vends — the transaction that delivers power — cost 10.
+            </p>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>API</th>
+                    <th>Operation</th>
+                    <th>Credits per call</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {operationPricing.map((row) => (
+                    <tr key={`${row.api}-${row.operation}`}>
+                      <td>{row.api}</td>
+                      <td>{row.operation}</td>
+                      <td>{row.credits}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="pricing-footnote">
+              Batch reads and event webhooks are the cheapest way to integrate —
+              poll less, pay less. Rate limits apply per API key regardless of
+              balance.
+            </p>
+          </section>
+        </>
+      ) : (
+        <section className="dash-panel">
+          <h2 className="panel-title">Purchase History</h2>
           <div className="table-scroll">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th className="col-check">
-                    <input type="checkbox" aria-label="Select all rows" />
-                  </th>
                   <th>S/N</th>
-                  <th>Plan</th>
-                  <th>Start Date</th>
-                  <th>Quota Usage</th>
-                  <th className="col-actions">Actions</th>
+                  <th>Bundle</th>
+                  <th>Purchase Date</th>
+                  <th>Credits Added</th>
+                  <th>Amount</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td className="col-check">
-                    <input type="checkbox" aria-label="Select plan" />
-                  </td>
-                  <td>01</td>
-                  <td>{activePlan.plan}</td>
-                  <td>{activePlan.startDate}</td>
-                  <td>{activePlan.quota}</td>
-                  <td className="col-actions">
-                    <PlanActions onUpgrade={() => setActivePlan(null)} />
-                  </td>
-                </tr>
+                {purchases.map((purchase, index) => (
+                  <tr key={`${purchase.bundle}-${purchase.date}-${index}`}>
+                    <td>{String(index + 1).padStart(2, '0')}</td>
+                    <td>{purchase.bundle}</td>
+                    <td>{purchase.date}</td>
+                    <td>{purchase.credits.toLocaleString()}</td>
+                    <td>{naira(purchase.amount)}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </section>
-      ) : (
-        <section className="plans-grid">
-          {plans.map((plan) => (
-            <article className="plan-card" key={plan.name}>
-              <h2 className="plan-name">{plan.name}</h2>
-              <p className="plan-desc">{plan.description}</p>
-              {plan.price ? (
-                <p className="plan-price">{plan.price}</p>
-              ) : (
-                <div className="plan-price-spacer" />
-              )}
-              <ul className="plan-features">
-                {plan.features.map((feature) => (
-                  <li className="plan-feature" key={feature}>
-                    <CheckIcon /> {feature}
-                  </li>
-                ))}
-              </ul>
-              <button
-                type="button"
-                className="btn-primary btn-block plan-cta"
-                onClick={() => subscribe(plan)}
-              >
-                {plan.cta}
-              </button>
-            </article>
-          ))}
-        </section>
       )}
     </div>
-  )
-}
-
-function PlanActions({ onUpgrade }: { onUpgrade: () => void }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  useDismiss(ref, () => setOpen(false), open)
-  const { anchorRef, menuStyle } = useAnchoredMenu(open)
-
-  return (
-    <div className="row-actions" ref={ref}>
-      <button
-        type="button"
-        ref={anchorRef}
-        className="row-kebab"
-        aria-label="Plan actions"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <KebabIcon />
-      </button>
-      {open ? (
-        <div className="row-menu" style={menuStyle} role="menu">
-          <button
-            type="button"
-            className="row-menu-item"
-            role="menuitem"
-            onClick={() => setOpen(false)}
-          >
-            <RenewIcon /> Renew Plan
-          </button>
-          <button
-            type="button"
-            className="row-menu-item"
-            role="menuitem"
-            onClick={onUpgrade}
-          >
-            <UpgradeIcon /> Upgrade Plan
-          </button>
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
-function RenewIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
-      <path d="M21 3v5h-5" />
-    </svg>
-  )
-}
-
-function UpgradeIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M17.5 19a4.5 4.5 0 0 0 .5-9 6 6 0 0 0-11.6-1.5A4 4 0 0 0 6.5 19" />
-      <path d="M12 16v-6m0 0-2.5 2.5M12 10l2.5 2.5" />
-    </svg>
   )
 }
 
@@ -231,12 +324,39 @@ function CheckIcon() {
   )
 }
 
-function KebabIcon() {
+function PlusIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <circle cx="12" cy="5" r="1.6" />
-      <circle cx="12" cy="12" r="1.6" />
-      <circle cx="12" cy="19" r="1.6" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  )
+}
+
+function WalletIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2" />
+      <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H3" />
+      <path d="M16.5 13.5h.01" />
+    </svg>
+  )
+}
+
+function GaugeIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4.5 19a9.5 9.5 0 1 1 15 0" />
+      <path d="m12 13 3.5-4.5" />
+      <circle cx="12" cy="13.5" r="1.4" />
+    </svg>
+  )
+}
+
+function ReceiptIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 3h14v18l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21V3Z" />
+      <path d="M9 8h6M9 12h6" />
     </svg>
   )
 }
