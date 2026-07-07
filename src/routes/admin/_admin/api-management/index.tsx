@@ -3,7 +3,15 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useDismiss } from '../../../../app/useDismiss'
 import { useAnchoredMenu } from '../../../../app/useAnchoredMenu'
 import { ConfirmModal } from '../../../../app/ConfirmModal'
+import { formatAddedDate } from '../../../../app/adminMeters'
 import { seededAdminApis, type AdminApi } from '../../../../app/adminApis'
+
+type ApiFormValues = Pick<
+  AdminApi,
+  'name' | 'route' | 'cost' | 'samplePayload' | 'sampleRequest' | 'documentation'
+>
+
+type FormModalState = { mode: 'add' } | { mode: 'edit'; api: AdminApi }
 
 export const Route = createFileRoute('/admin/_admin/api-management/')({
   component: ApiManagementPage,
@@ -14,7 +22,8 @@ function ApiManagementPage() {
   const [apis, setApis] = useState<AdminApi[]>(seededAdminApis)
   const [search, setSearch] = useState('')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
-  const [addOpen, setAddOpen] = useState(false)
+  const [formModal, setFormModal] = useState<FormModalState | null>(null)
+  const [publishing, setPublishing] = useState<AdminApi | null>(null)
   const [deprecating, setDeprecating] = useState<AdminApi | null>(null)
 
   const goToApi = (id: string) => {
@@ -57,7 +66,11 @@ function ApiManagementPage() {
             Create, publish and manage API services available to customers.
           </p>
         </div>
-        <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => setFormModal({ mode: 'add' })}
+        >
           Add New API <PlusIcon />
         </button>
       </header>
@@ -140,8 +153,14 @@ function ApiManagementPage() {
                     }
                     onClose={() => setOpenMenu(null)}
                     onView={() => goToApi(api.id)}
-                    onEdit={() => goToApi(api.id)}
-                    onTogglePublication={() => togglePublication(api.id)}
+                    onEdit={() => {
+                      setOpenMenu(null)
+                      setFormModal({ mode: 'edit', api })
+                    }}
+                    onTogglePublication={() => {
+                      setOpenMenu(null)
+                      setPublishing(api)
+                    }}
                     onActivate={() => setStatus(api.id, 'Active')}
                     onDeprecate={() => {
                       setOpenMenu(null)
@@ -155,24 +174,52 @@ function ApiManagementPage() {
         </table>
       </div>
 
-      {addOpen ? (
-        <AddApiModal
-          onClose={() => setAddOpen(false)}
-          onNext={(values) => {
-            const id = `api-${Date.now()}`
-            setApis((prev) => [
-              ...prev,
-              {
-                ...seededAdminApis[0],
-                ...values,
-                id,
-                addedBy: 'Admin',
-                status: 'Active',
-                publication: 'Unpublished',
-              },
-            ])
-            setAddOpen(false)
-            goToApi(id)
+      {formModal ? (
+        <ApiFormModal
+          title={formModal.mode === 'add' ? 'Add API' : 'Edit API'}
+          submitLabel={formModal.mode === 'add' ? 'Add API' : 'Save Changes'}
+          initial={formModal.mode === 'edit' ? formModal.api : undefined}
+          onClose={() => setFormModal(null)}
+          onSubmit={(values) => {
+            if (formModal.mode === 'add') {
+              setApis((prev) => [
+                ...prev,
+                {
+                  ...values,
+                  id: `api-${Date.now()}`,
+                  snippetLang: 'TypeScript',
+                  addedBy: 'Admin',
+                  addedDate: formatAddedDate(),
+                  status: 'Active',
+                  publication: 'Unpublished',
+                },
+              ])
+            } else {
+              const editedId = formModal.api.id
+              setApis((prev) =>
+                prev.map((item) =>
+                  item.id === editedId ? { ...item, ...values } : item,
+                ),
+              )
+            }
+            setFormModal(null)
+          }}
+        />
+      ) : null}
+
+      {publishing ? (
+        <ConfirmModal
+          tone={publishing.publication === 'Published' ? 'danger' : 'primary'}
+          message={`Are you sure you want to ${
+            publishing.publication === 'Published' ? 'unpublish' : 'publish'
+          } API?`}
+          confirmLabel={
+            publishing.publication === 'Published' ? 'Unpublish' : 'Publish'
+          }
+          onCancel={() => setPublishing(null)}
+          onConfirm={() => {
+            togglePublication(publishing.id)
+            setPublishing(null)
           }}
         />
       ) : null}
@@ -192,80 +239,137 @@ function ApiManagementPage() {
   )
 }
 
-function AddApiModal({
+function ApiFormModal({
+  title,
+  submitLabel,
+  initial,
   onClose,
-  onNext,
+  onSubmit,
 }: {
+  title: string
+  submitLabel: string
+  initial?: ApiFormValues
   onClose: () => void
-  onNext: (values: { name: string; route: string; cost: string }) => void
+  onSubmit: (values: ApiFormValues) => void
 }) {
-  const [name, setName] = useState('')
-  const [route, setRoute] = useState('')
-  const [cost, setCost] = useState('')
+  const [step, setStep] = useState<1 | 2>(1)
+  const [form, setForm] = useState<ApiFormValues>({
+    name: initial?.name ?? '',
+    route: initial?.route ?? '',
+    cost: initial?.cost ?? '',
+    samplePayload: initial?.samplePayload ?? '',
+    sampleRequest: initial?.sampleRequest ?? '',
+    documentation: initial?.documentation ?? '',
+  })
   const modalRef = useRef<HTMLDivElement>(null)
   useDismiss(modalRef, onClose)
 
-  const canSubmit = name.trim() !== '' && route.trim() !== '' && cost.trim() !== ''
+  const set = (key: keyof ApiFormValues, value: string) =>
+    setForm((prev) => ({ ...prev, [key]: value }))
+
+  const canAdvance =
+    form.name.trim() !== '' && form.route.trim() !== '' && form.cost.trim() !== ''
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="add-api-title">
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="api-form-title">
       <div className="modal" ref={modalRef}>
         <div className="modal-head">
-          <h2 id="add-api-title" className="modal-title">
-            Add API
+          <h2 id="api-form-title" className="modal-title">
+            {title}
           </h2>
           <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
             <CloseIcon />
           </button>
         </div>
 
-        <div className="modal-body">
-          <div className="modal-field">
-            <label>API Name</label>
-            <input
-              className="modal-input"
-              placeholder="E.g. Vend Token"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-          <div className="modal-field">
-            <label>Route URL</label>
-            <input
-              className="modal-input"
-              placeholder="E.g. www.memmserve.com/vend-token"
-              value={route}
-              onChange={(e) => setRoute(e.target.value)}
-            />
-          </div>
-          <div className="modal-field">
-            <label>Cost per Call (credits)</label>
-            <input
-              className="modal-input"
-              inputMode="numeric"
-              placeholder="E.g. 2"
-              value={cost}
-              onChange={(e) => setCost(e.target.value)}
-            />
-          </div>
+        {step === 1 ? (
+          <div className="modal-body">
+            <div className="modal-field">
+              <label>API Name</label>
+              <input
+                className="modal-input"
+                placeholder="E.g. Vend Token"
+                value={form.name}
+                onChange={(e) => set('name', e.target.value)}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Route URL</label>
+              <input
+                className="modal-input"
+                placeholder="E.g. www.memmserve.com/vend-token"
+                value={form.route}
+                onChange={(e) => set('route', e.target.value)}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Cost per Call (credits)</label>
+              <input
+                className="modal-input"
+                inputMode="numeric"
+                placeholder="E.g. 2"
+                value={form.cost}
+                onChange={(e) => set('cost', e.target.value)}
+              />
+            </div>
 
-          <div className="modal-foot">
-            <button type="button" className="btn-neutral" onClick={onClose}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={!canSubmit}
-              onClick={() =>
-                canSubmit &&
-                onNext({ name: name.trim(), route: route.trim(), cost: cost.trim() })
-              }
-            >
-              Next
-            </button>
+            <div className="modal-foot">
+              <button type="button" className="btn-neutral" onClick={onClose}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={!canAdvance}
+                onClick={() => canAdvance && setStep(2)}
+              >
+                Next
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="modal-body">
+            <div className="modal-field">
+              <label>Sample Payload</label>
+              <textarea
+                className="modal-input api-view-code"
+                rows={5}
+                placeholder={'{\n  "productId": "PROD-101"\n}'}
+                value={form.samplePayload}
+                onChange={(e) => set('samplePayload', e.target.value)}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Sample Request</label>
+              <textarea
+                className="modal-input api-view-code"
+                rows={5}
+                placeholder={'{\n  "productId": "PROD-101"\n}'}
+                value={form.sampleRequest}
+                onChange={(e) => set('sampleRequest', e.target.value)}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Documentation</label>
+              <textarea
+                className="modal-input"
+                rows={8}
+                placeholder="Describe how customers should use this API"
+                value={form.documentation}
+                onChange={(e) => set('documentation', e.target.value)}
+              />
+            </div>
+
+            <div className="modal-foot">
+              <button type="button" className="btn-neutral" onClick={() => setStep(1)}>
+                Back
+              </button>
+              <button type="button" className="btn-primary" onClick={() => onSubmit(form)}>
+                {submitLabel}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

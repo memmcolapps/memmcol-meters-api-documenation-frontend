@@ -120,16 +120,6 @@ function ApiView({
         </div>
 
         <div className="modal-field">
-          <label>Code Snippet</label>
-          <input
-            className="modal-input"
-            value={shown.snippetLang}
-            readOnly={!editing}
-            onChange={(e) => set('snippetLang', e.target.value)}
-          />
-        </div>
-
-        <div className="modal-field">
           <label>Sample Payload</label>
           <textarea
             className="modal-input api-view-code"
