@@ -23,7 +23,6 @@ import { Route as AppLogsRouteImport } from './routes/_app/logs'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppBillingRouteImport } from './routes/_app/billing'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
-import { Route as AdminAdminSettingsRouteImport } from './routes/admin/_admin/settings'
 import { Route as AdminAdminRequestLogsRouteImport } from './routes/admin/_admin/request-logs'
 import { Route as AdminAdminOrganizationManagementRouteImport } from './routes/admin/_admin/organization-management'
 import { Route as AdminAdminIncidentReportRouteImport } from './routes/admin/_admin/incident-report'
@@ -34,8 +33,12 @@ import { Route as AppSettingsProfileRouteImport } from './routes/_app/settings/p
 import { Route as AppSettingsApiKeysRouteImport } from './routes/_app/settings/api-keys'
 import { Route as AdminAdminMeterIntegrationIndexRouteImport } from './routes/admin/_admin/meter-integration/index'
 import { Route as AdminAdminApiManagementIndexRouteImport } from './routes/admin/_admin/api-management/index'
+import { Route as AdminAdminSettingsUserManagementRouteImport } from './routes/admin/_admin/settings/user-management'
+import { Route as AdminAdminSettingsProfileRouteImport } from './routes/admin/_admin/settings/profile'
 import { Route as AdminAdminMeterIntegrationMeterIdRouteImport } from './routes/admin/_admin/meter-integration/$meterId'
 import { Route as AdminAdminApiManagementApiIdRouteImport } from './routes/admin/_admin/api-management/$apiId'
+import { Route as AdminAdminSettingsPlansIndexRouteImport } from './routes/admin/_admin/settings/plans/index'
+import { Route as AdminAdminSettingsPlansPlanIdRouteImport } from './routes/admin/_admin/settings/plans/$planId'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -106,11 +109,6 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   path: '/settings/',
   getParentRoute: () => AppRoute,
 } as any)
-const AdminAdminSettingsRoute = AdminAdminSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AdminAdminRoute,
-} as any)
 const AdminAdminRequestLogsRoute = AdminAdminRequestLogsRouteImport.update({
   id: '/request-logs',
   path: '/request-logs',
@@ -166,6 +164,18 @@ const AdminAdminApiManagementIndexRoute =
     path: '/api-management/',
     getParentRoute: () => AdminAdminRoute,
   } as any)
+const AdminAdminSettingsUserManagementRoute =
+  AdminAdminSettingsUserManagementRouteImport.update({
+    id: '/settings/user-management',
+    path: '/settings/user-management',
+    getParentRoute: () => AdminAdminRoute,
+  } as any)
+const AdminAdminSettingsProfileRoute =
+  AdminAdminSettingsProfileRouteImport.update({
+    id: '/settings/profile',
+    path: '/settings/profile',
+    getParentRoute: () => AdminAdminRoute,
+  } as any)
 const AdminAdminMeterIntegrationMeterIdRoute =
   AdminAdminMeterIntegrationMeterIdRouteImport.update({
     id: '/meter-integration/$meterId',
@@ -176,6 +186,18 @@ const AdminAdminApiManagementApiIdRoute =
   AdminAdminApiManagementApiIdRouteImport.update({
     id: '/api-management/$apiId',
     path: '/api-management/$apiId',
+    getParentRoute: () => AdminAdminRoute,
+  } as any)
+const AdminAdminSettingsPlansIndexRoute =
+  AdminAdminSettingsPlansIndexRouteImport.update({
+    id: '/settings/plans/',
+    path: '/settings/plans/',
+    getParentRoute: () => AdminAdminRoute,
+  } as any)
+const AdminAdminSettingsPlansPlanIdRoute =
+  AdminAdminSettingsPlansPlanIdRouteImport.update({
+    id: '/settings/plans/$planId',
+    path: '/settings/plans/$planId',
     getParentRoute: () => AdminAdminRoute,
   } as any)
 
@@ -200,12 +222,15 @@ export interface FileRoutesByFullPath {
   '/admin/incident-report': typeof AdminAdminIncidentReportRoute
   '/admin/organization-management': typeof AdminAdminOrganizationManagementRoute
   '/admin/request-logs': typeof AdminAdminRequestLogsRoute
-  '/admin/settings': typeof AdminAdminSettingsRoute
   '/settings/': typeof AppSettingsIndexRoute
   '/admin/api-management/$apiId': typeof AdminAdminApiManagementApiIdRoute
   '/admin/meter-integration/$meterId': typeof AdminAdminMeterIntegrationMeterIdRoute
+  '/admin/settings/profile': typeof AdminAdminSettingsProfileRoute
+  '/admin/settings/user-management': typeof AdminAdminSettingsUserManagementRoute
   '/admin/api-management/': typeof AdminAdminApiManagementIndexRoute
   '/admin/meter-integration/': typeof AdminAdminMeterIntegrationIndexRoute
+  '/admin/settings/plans/$planId': typeof AdminAdminSettingsPlansPlanIdRoute
+  '/admin/settings/plans/': typeof AdminAdminSettingsPlansIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -228,12 +253,15 @@ export interface FileRoutesByTo {
   '/admin/incident-report': typeof AdminAdminIncidentReportRoute
   '/admin/organization-management': typeof AdminAdminOrganizationManagementRoute
   '/admin/request-logs': typeof AdminAdminRequestLogsRoute
-  '/admin/settings': typeof AdminAdminSettingsRoute
   '/settings': typeof AppSettingsIndexRoute
   '/admin/api-management/$apiId': typeof AdminAdminApiManagementApiIdRoute
   '/admin/meter-integration/$meterId': typeof AdminAdminMeterIntegrationMeterIdRoute
+  '/admin/settings/profile': typeof AdminAdminSettingsProfileRoute
+  '/admin/settings/user-management': typeof AdminAdminSettingsUserManagementRoute
   '/admin/api-management': typeof AdminAdminApiManagementIndexRoute
   '/admin/meter-integration': typeof AdminAdminMeterIntegrationIndexRoute
+  '/admin/settings/plans/$planId': typeof AdminAdminSettingsPlansPlanIdRoute
+  '/admin/settings/plans': typeof AdminAdminSettingsPlansIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -258,12 +286,15 @@ export interface FileRoutesById {
   '/admin/_admin/incident-report': typeof AdminAdminIncidentReportRoute
   '/admin/_admin/organization-management': typeof AdminAdminOrganizationManagementRoute
   '/admin/_admin/request-logs': typeof AdminAdminRequestLogsRoute
-  '/admin/_admin/settings': typeof AdminAdminSettingsRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
   '/admin/_admin/api-management/$apiId': typeof AdminAdminApiManagementApiIdRoute
   '/admin/_admin/meter-integration/$meterId': typeof AdminAdminMeterIntegrationMeterIdRoute
+  '/admin/_admin/settings/profile': typeof AdminAdminSettingsProfileRoute
+  '/admin/_admin/settings/user-management': typeof AdminAdminSettingsUserManagementRoute
   '/admin/_admin/api-management/': typeof AdminAdminApiManagementIndexRoute
   '/admin/_admin/meter-integration/': typeof AdminAdminMeterIntegrationIndexRoute
+  '/admin/_admin/settings/plans/$planId': typeof AdminAdminSettingsPlansPlanIdRoute
+  '/admin/_admin/settings/plans/': typeof AdminAdminSettingsPlansIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -288,12 +319,15 @@ export interface FileRouteTypes {
     | '/admin/incident-report'
     | '/admin/organization-management'
     | '/admin/request-logs'
-    | '/admin/settings'
     | '/settings/'
     | '/admin/api-management/$apiId'
     | '/admin/meter-integration/$meterId'
+    | '/admin/settings/profile'
+    | '/admin/settings/user-management'
     | '/admin/api-management/'
     | '/admin/meter-integration/'
+    | '/admin/settings/plans/$planId'
+    | '/admin/settings/plans/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -316,12 +350,15 @@ export interface FileRouteTypes {
     | '/admin/incident-report'
     | '/admin/organization-management'
     | '/admin/request-logs'
-    | '/admin/settings'
     | '/settings'
     | '/admin/api-management/$apiId'
     | '/admin/meter-integration/$meterId'
+    | '/admin/settings/profile'
+    | '/admin/settings/user-management'
     | '/admin/api-management'
     | '/admin/meter-integration'
+    | '/admin/settings/plans/$planId'
+    | '/admin/settings/plans'
   id:
     | '__root__'
     | '/'
@@ -345,12 +382,15 @@ export interface FileRouteTypes {
     | '/admin/_admin/incident-report'
     | '/admin/_admin/organization-management'
     | '/admin/_admin/request-logs'
-    | '/admin/_admin/settings'
     | '/_app/settings/'
     | '/admin/_admin/api-management/$apiId'
     | '/admin/_admin/meter-integration/$meterId'
+    | '/admin/_admin/settings/profile'
+    | '/admin/_admin/settings/user-management'
     | '/admin/_admin/api-management/'
     | '/admin/_admin/meter-integration/'
+    | '/admin/_admin/settings/plans/$planId'
+    | '/admin/_admin/settings/plans/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -465,13 +505,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/admin/_admin/settings': {
-      id: '/admin/_admin/settings'
-      path: '/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AdminAdminSettingsRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
     '/admin/_admin/request-logs': {
       id: '/admin/_admin/request-logs'
       path: '/request-logs'
@@ -542,6 +575,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAdminApiManagementIndexRouteImport
       parentRoute: typeof AdminAdminRoute
     }
+    '/admin/_admin/settings/user-management': {
+      id: '/admin/_admin/settings/user-management'
+      path: '/settings/user-management'
+      fullPath: '/admin/settings/user-management'
+      preLoaderRoute: typeof AdminAdminSettingsUserManagementRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/settings/profile': {
+      id: '/admin/_admin/settings/profile'
+      path: '/settings/profile'
+      fullPath: '/admin/settings/profile'
+      preLoaderRoute: typeof AdminAdminSettingsProfileRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
     '/admin/_admin/meter-integration/$meterId': {
       id: '/admin/_admin/meter-integration/$meterId'
       path: '/meter-integration/$meterId'
@@ -554,6 +601,20 @@ declare module '@tanstack/react-router' {
       path: '/api-management/$apiId'
       fullPath: '/admin/api-management/$apiId'
       preLoaderRoute: typeof AdminAdminApiManagementApiIdRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/settings/plans/': {
+      id: '/admin/_admin/settings/plans/'
+      path: '/settings/plans'
+      fullPath: '/admin/settings/plans/'
+      preLoaderRoute: typeof AdminAdminSettingsPlansIndexRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/settings/plans/$planId': {
+      id: '/admin/_admin/settings/plans/$planId'
+      path: '/settings/plans/$planId'
+      fullPath: '/admin/settings/plans/$planId'
+      preLoaderRoute: typeof AdminAdminSettingsPlansPlanIdRouteImport
       parentRoute: typeof AdminAdminRoute
     }
   }
@@ -589,11 +650,14 @@ interface AdminAdminRouteChildren {
   AdminAdminIncidentReportRoute: typeof AdminAdminIncidentReportRoute
   AdminAdminOrganizationManagementRoute: typeof AdminAdminOrganizationManagementRoute
   AdminAdminRequestLogsRoute: typeof AdminAdminRequestLogsRoute
-  AdminAdminSettingsRoute: typeof AdminAdminSettingsRoute
   AdminAdminApiManagementApiIdRoute: typeof AdminAdminApiManagementApiIdRoute
   AdminAdminMeterIntegrationMeterIdRoute: typeof AdminAdminMeterIntegrationMeterIdRoute
+  AdminAdminSettingsProfileRoute: typeof AdminAdminSettingsProfileRoute
+  AdminAdminSettingsUserManagementRoute: typeof AdminAdminSettingsUserManagementRoute
   AdminAdminApiManagementIndexRoute: typeof AdminAdminApiManagementIndexRoute
   AdminAdminMeterIntegrationIndexRoute: typeof AdminAdminMeterIntegrationIndexRoute
+  AdminAdminSettingsPlansPlanIdRoute: typeof AdminAdminSettingsPlansPlanIdRoute
+  AdminAdminSettingsPlansIndexRoute: typeof AdminAdminSettingsPlansIndexRoute
 }
 
 const AdminAdminRouteChildren: AdminAdminRouteChildren = {
@@ -602,12 +666,15 @@ const AdminAdminRouteChildren: AdminAdminRouteChildren = {
   AdminAdminIncidentReportRoute: AdminAdminIncidentReportRoute,
   AdminAdminOrganizationManagementRoute: AdminAdminOrganizationManagementRoute,
   AdminAdminRequestLogsRoute: AdminAdminRequestLogsRoute,
-  AdminAdminSettingsRoute: AdminAdminSettingsRoute,
   AdminAdminApiManagementApiIdRoute: AdminAdminApiManagementApiIdRoute,
   AdminAdminMeterIntegrationMeterIdRoute:
     AdminAdminMeterIntegrationMeterIdRoute,
+  AdminAdminSettingsProfileRoute: AdminAdminSettingsProfileRoute,
+  AdminAdminSettingsUserManagementRoute: AdminAdminSettingsUserManagementRoute,
   AdminAdminApiManagementIndexRoute: AdminAdminApiManagementIndexRoute,
   AdminAdminMeterIntegrationIndexRoute: AdminAdminMeterIntegrationIndexRoute,
+  AdminAdminSettingsPlansPlanIdRoute: AdminAdminSettingsPlansPlanIdRoute,
+  AdminAdminSettingsPlansIndexRoute: AdminAdminSettingsPlansIndexRoute,
 }
 
 const AdminAdminRouteWithChildren = AdminAdminRoute._addFileChildren(

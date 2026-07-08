@@ -28,7 +28,16 @@ export const adminNavItems: NavItem[] = [
     icon: <IncidentIcon />,
   },
   { to: '/admin/audit-logs', label: 'Audit Logs', icon: <AuditIcon /> },
-  { to: '/admin/settings', label: 'Settings', icon: <SettingsIcon /> },
+  {
+    to: '/admin/settings',
+    label: 'Settings',
+    icon: <SettingsIcon />,
+    children: [
+      { to: '/admin/settings/user-management', label: 'User Management' },
+      { to: '/admin/settings/plans', label: 'Plans & Pricing' },
+      { to: '/admin/settings/profile', label: 'Profile' },
+    ],
+  },
 ]
 
 function DashboardIcon() {

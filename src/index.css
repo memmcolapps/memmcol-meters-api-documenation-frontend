@@ -3243,3 +3243,282 @@ h1 {
 .api-view-docs p {
   margin: 0;
 }
+
+/* Team member list (admin settings) */
+.member-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1.1rem 0;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.member-row:last-child {
+  border-bottom: none;
+}
+
+.member-id {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex: 1.2;
+  min-width: 220px;
+}
+
+.member-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #0f4d2e;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.member-name {
+  margin: 0;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.member-email {
+  margin: 0.15rem 0 0;
+  color: var(--app-muted);
+  font-size: 0.9rem;
+}
+
+.member-role {
+  flex: 1;
+  margin: 0;
+  color: var(--app-text);
+}
+
+.member-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.icon-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 8px;
+  background: var(--app-green);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.icon-btn-primary:hover {
+  filter: brightness(0.92);
+}
+
+/* Role picker with per-option descriptions */
+.role-select {
+  position: relative;
+}
+
+.role-select-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--app-text);
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.role-select-btn.is-placeholder {
+  color: var(--app-muted);
+}
+
+/* Rendered in normal flow (not absolutely positioned): the modal scrolls
+   internally, so an overlay would be clipped by its overflow. */
+.role-menu {
+  margin-top: 6px;
+  background: #ffffff;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  box-shadow: 0 20px 40px -20px rgba(15, 30, 24, 0.35);
+  overflow: hidden;
+}
+
+.role-option {
+  display: block;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: none;
+  background: none;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.role-option + .role-option {
+  border-top: 1px solid var(--app-border);
+}
+
+.role-option:hover {
+  background: #f6f8f7;
+}
+
+.role-option-name {
+  margin: 0;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.role-option-desc {
+  margin: 0.2rem 0 0;
+  color: var(--app-muted);
+  font-size: 0.9rem;
+}
+
+/* Right-aligned single-action modal footer */
+.modal-foot--end {
+  justify-content: flex-end;
+}
+
+.admin .app-subnav-link.is-active {
+  background: var(--admin-amber-soft);
+}
+
+/* Amount input with currency prefix (subscription plans) */
+.amount-input {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.amount-input:focus-within {
+  border-color: var(--app-green);
+}
+
+.amount-prefix {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.95rem 1rem;
+  border-right: 1px solid var(--app-border);
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.amount-input input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.95rem 1rem;
+  border: none;
+  background: transparent;
+  color: var(--app-text);
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.amount-input input:focus {
+  outline: none;
+}
+
+/* Feature tag input (subscription plans) */
+.tag-box {
+  padding: 0.85rem 1rem 1rem;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.tag-box:focus-within {
+  border-color: var(--app-green);
+}
+
+.tag-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--app-text);
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.15rem 0 0.6rem;
+}
+
+.tag-input:focus {
+  outline: none;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  background: #e9e9fb;
+  color: var(--app-text);
+  font-size: 0.9rem;
+}
+
+.tag-chip button {
+  display: inline-flex;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--app-text);
+  cursor: pointer;
+}
+
+/* Status toggle row (subscription plans) */
+.status-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--app-text);
+  cursor: pointer;
+}
+
+.status-box input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  accent-color: #22a555;
+  cursor: pointer;
+}
+
+/* Numbered feature list (plan view) */
+.plan-features {
+  margin: 0;
+  padding: 0.95rem 1rem 0.95rem 2.4rem;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--app-text);
+  line-height: 1.9;
+}
