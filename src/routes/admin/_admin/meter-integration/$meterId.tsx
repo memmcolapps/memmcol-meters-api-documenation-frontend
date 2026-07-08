@@ -493,6 +493,20 @@ function UploadObisModal({ onClose }: { onClose: () => void }) {
             the required document format. Please ensure your file follows the
             structure before uploading.
           </p>
+
+          <div className="modal-foot">
+            <button type="button" className="btn-neutral" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={!file}
+              onClick={onClose}
+            >
+              Import
+            </button>
+          </div>
         </div>
       </div>
     </div>

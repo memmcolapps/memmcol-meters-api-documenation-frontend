@@ -3012,7 +3012,7 @@ h1 {
   width: 44px;
   height: 44px;
   border-radius: 8px;
-  background: #23272b;
+  background: var(--app-green);
   color: #ffffff;
 }
 
@@ -3521,4 +3521,23 @@ h1 {
   background: #ffffff;
   color: var(--app-text);
   line-height: 1.9;
+}
+
+/* Role label under the profile avatar (admin profile) */
+.profile-role {
+  margin: 0.6rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--app-text);
+  text-align: center;
+}
+
+/* Match legend swatches to the hardcoded chart line colors — the admin
+   theme turns --app-green blue, but chart status colors stay green/red. */
+.admin .legend-dot.is-success {
+  background: #2f9e44;
+}
+
+.admin .legend-dot.is-error {
+  background: #e03131;
 }

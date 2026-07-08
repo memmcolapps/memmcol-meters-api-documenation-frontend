@@ -63,7 +63,7 @@ function RootLayout() {
           <Link to="/">Docs</Link>
           <Link to="/login">Sign In</Link>
         </nav>
-        <p className="site-footer-copy">© 2025, Powered by MEMMCOL</p>
+        <p className="site-footer-copy">© 2026, Powered by MEMMCOL</p>
       </footer>
 
       <Suspense>

@@ -97,7 +97,7 @@ function AdminLayout() {
           <Outlet />
         </main>
 
-        <footer className="app-footer">© 2025, Powered by MEMMCOL</footer>
+        <footer className="app-footer">© 2026, Powered by MEMMCOL</footer>
       </div>
     </div>
   )
