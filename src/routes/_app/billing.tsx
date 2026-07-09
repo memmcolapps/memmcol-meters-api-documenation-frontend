@@ -1,143 +1,93 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { seededPlans, type Plan } from '../../app/adminPlans'
 
 export const Route = createFileRoute('/_app/billing')({
   component: BillingPage,
 })
 
-type Bundle = {
-  name: string
-  description: string
-  /** Naira price. Absent for the negotiated Enterprise tier. */
-  price?: number
-  credits?: number
-  /** Effective per-credit rate — the headline of the card. */
-  rate: string
-  features: string[]
-  cta: string
-  featured?: boolean
-}
-
-const bundles: Bundle[] = [
-  {
-    name: 'Starter',
-    description: 'For pilots and small estates getting integrated.',
-    price: 250_000,
-    credits: 25_000,
-    rate: '25,000 credits · ₦10 per credit',
-    features: [
-      '≈ 25,000 meter reads or 2,500 token vends',
-      'Credits never expire',
-      'One balance across every API',
-      'Standard ticket support',
-    ],
-    cta: 'Buy credits',
-  },
-  {
-    name: 'Growth',
-    description: 'For estates and facilities in steady production.',
-    price: 1_000_000,
-    credits: 125_000,
-    rate: '125,000 credits · ₦8 per credit — save 20%',
-    featured: true,
-    features: [
-      '≈ 125,000 meter reads or 12,500 token vends',
-      'Credits never expire',
-      'One balance across every API',
-      'Priority ticket support',
-    ],
-    cta: 'Buy credits',
-  },
-  {
-    name: 'Scale',
-    description: 'For large fleets with heavy daily traffic.',
-    price: 3_000_000,
-    credits: 500_000,
-    rate: '500,000 credits · ₦6 per credit — save 40%',
-    features: [
-      '≈ 500,000 meter reads or 50,000 token vends',
-      'Credits never expire',
-      'One balance across every API',
-      'Priority ticket support',
-    ],
-    cta: 'Buy credits',
-  },
-  {
-    name: 'Enterprise',
-    description: 'For utilities and DisCos with committed volume.',
-    rate: 'Negotiated volume-based rate',
-    features: [
-      'Custom per-credit rate',
-      'Postpaid invoicing available',
-      'SLA with dedicated support',
-      'Hands-on integration engineering',
-    ],
-    cta: 'Contact us',
-  },
-]
-
-/**
- * Credit cost per operation. All APIs draw from the same balance, but
- * calls are weighted by what they cost to serve and what they're worth —
- * a token vend is not the same as a meter read.
- */
-const operationPricing = [
-  { api: 'Consumption Data', operation: 'Single meter read', credits: '1' },
-  { api: 'Load Profile Data', operation: 'Interval profile pull', credits: '1' },
-  { api: 'Meter Master Data', operation: 'Meter lookup', credits: '1' },
-  { api: 'Meter Master Data', operation: 'Register or update a meter', credits: '2' },
-  {
-    api: 'Consumption / Load Profile',
-    operation: 'Batch read (up to 100 meters)',
-    credits: '10',
-  },
-  { api: 'Remote Communication', operation: 'Command to a meter', credits: '5' },
-  { api: 'Remote Token Management', operation: 'Token vend', credits: '10' },
-  { api: 'Event & Alarm Data', operation: 'Webhook delivery', credits: 'Free' },
-]
-
-type Purchase = {
-  bundle: string
+type CreditLedgerEntry = {
+  id: string
+  source: 'customer_purchase' | 'admin_adjustment' | 'enterprise_agreement'
+  label: string
   date: string
   credits: number
-  amount: number
+  amount?: number
 }
 
-const initialPurchases: Purchase[] = [
-  { bundle: 'Starter', date: '12/05/2026', credits: 25_000, amount: 250_000 },
-]
+type BillingAccount = {
+  balance: number
+  usedThisMonth: number
+  ledger: CreditLedgerEntry[]
+}
 
 const LOW_BALANCE_THRESHOLD = 5_000
+
+const initialAccount: BillingAccount = {
+  balance: 3_250,
+  usedThisMonth: 8_940,
+  ledger: [
+    {
+      id: 'ledger-1',
+      source: 'customer_purchase',
+      label: 'Basic plan',
+      date: '12/05/2026',
+      credits: 25_000,
+      amount: 250_000,
+    },
+  ],
+}
 
 const naira = (value: number) => `₦ ${value.toLocaleString('en-NG')}`
 
 const formatToday = () => new Date().toLocaleDateString('en-GB')
 
+const parsePlanNumber = (value: string) => Number(value.replaceAll(',', ''))
+
+const activePlans = seededPlans.filter((plan) => plan.status === 'Active')
+
+const sourceLabel = (source: CreditLedgerEntry['source']) => {
+  switch (source) {
+    case 'customer_purchase':
+      return 'Customer purchase'
+    case 'admin_adjustment':
+      return 'Admin adjustment'
+    case 'enterprise_agreement':
+      return 'Enterprise agreement'
+  }
+}
+
 function BillingPage() {
-  const [balance, setBalance] = useState(3_250)
-  const [purchases, setPurchases] = useState(initialPurchases)
-  // Customers with credits land on their credit overview; the buy grid only
-  // shows for first-time buyers or after pressing Top up.
-  const [view, setView] = useState<'credits' | 'buy'>(
-    initialPurchases.length > 0 ? 'credits' : 'buy',
+  const [account, setAccount] = useState(initialAccount)
+  const [purchaseFlow, setPurchaseFlow] = useState<'idle' | 'selecting-plan'>(
+    initialAccount.ledger.length > 0 ? 'idle' : 'selecting-plan',
   )
 
-  const creditsUsedThisMonth = 8_940
-  const lastPurchase = purchases[purchases.length - 1]
+  const isBuying = purchaseFlow === 'selecting-plan'
+  const hasCreditHistory = account.ledger.length > 0
+  const lastCreditMovement = account.ledger[account.ledger.length - 1]
 
-  const buy = (bundle: Bundle) => {
-    if (!bundle.credits || !bundle.price) return
-    setBalance((value) => value + bundle.credits!)
-    setPurchases((value) => [
+  const buy = (plan: Plan) => {
+    const credits = parsePlanNumber(plan.credits)
+    const amount = parsePlanNumber(plan.amount)
+    if (!credits || !amount) return
+
+    setAccount((value) => ({
       ...value,
-      {
-        bundle: bundle.name,
-        date: formatToday(),
-        credits: bundle.credits!,
-        amount: bundle.price!,
-      },
-    ])
-    setView('credits')
+      balance: value.balance + credits,
+      ledger: [
+        ...value.ledger,
+        {
+          id: `ledger-${Date.now()}`,
+          source: 'customer_purchase',
+          label: `${plan.name} plan`,
+          date: formatToday(),
+          credits,
+          amount,
+        },
+      ],
+    }))
+    setPurchaseFlow('idle')
   }
 
   return (
@@ -146,164 +96,138 @@ function BillingPage() {
         <div className="dash-head">
           <h1 className="dash-title">Billing</h1>
           <p className="dash-subtitle">
-            Buy prepaid credits that work across every API. Calls are weighted —
-            a token vend costs more than a meter read — and credits never expire.
+            {isBuying
+              ? 'Choose a credit plan for your organization.'
+              : 'Track your organization credit balance, usage, and credit history.'}
           </p>
         </div>
-        {view === 'credits' ? (
-          <button type="button" className="btn-primary" onClick={() => setView('buy')}>
+        {!isBuying ? (
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setPurchaseFlow('selecting-plan')}
+          >
             Top up <PlusIcon />
           </button>
-        ) : purchases.length > 0 ? (
-          <button type="button" className="filter-btn" onClick={() => setView('credits')}>
+        ) : hasCreditHistory ? (
+          <button
+            type="button"
+            className="filter-btn"
+            onClick={() => setPurchaseFlow('idle')}
+          >
             Back to Credits
           </button>
         ) : null}
       </header>
 
-      <section className="dash-stats">
-        <article className="stat-card">
-          <div className="stat-text">
-            <p className="stat-label">Credit Balance</p>
-            <p className="stat-value">
-              {balance.toLocaleString()} <span className="stat-unit">credits</span>
-              {balance < LOW_BALANCE_THRESHOLD ? (
-                <span className="balance-pill">Low balance</span>
-              ) : null}
-            </p>
-          </div>
-          <span className="stat-icon" aria-hidden="true">
-            <WalletIcon />
-          </span>
-        </article>
-        <article className="stat-card">
-          <div className="stat-text">
-            <p className="stat-label">Used This Month</p>
-            <p className="stat-value">
-              {creditsUsedThisMonth.toLocaleString()}{' '}
-              <span className="stat-unit">credits</span>
-            </p>
-          </div>
-          <span className="stat-icon" aria-hidden="true">
-            <GaugeIcon />
-          </span>
-        </article>
-        <article className="stat-card">
-          <div className="stat-text">
-            <p className="stat-label">Last Top-up</p>
-            <p className="stat-value">
-              {naira(lastPurchase.amount)}{' '}
-              <span className="stat-unit">on {lastPurchase.date}</span>
-            </p>
-          </div>
-          <span className="stat-icon" aria-hidden="true">
-            <ReceiptIcon />
-          </span>
-        </article>
-      </section>
+      {!isBuying ? (
+        <section className="dash-stats">
+          <article className="stat-card">
+            <div className="stat-text">
+              <p className="stat-label">Credit Balance</p>
+              <p className="stat-value">
+                {account.balance.toLocaleString()} <span className="stat-unit">credits</span>
+                {account.balance < LOW_BALANCE_THRESHOLD ? (
+                  <span className="balance-pill">Low balance</span>
+                ) : null}
+              </p>
+            </div>
+            <span className="stat-icon" aria-hidden="true">
+              <WalletIcon />
+            </span>
+          </article>
+          <article className="stat-card">
+            <div className="stat-text">
+              <p className="stat-label">Used This Month</p>
+              <p className="stat-value">
+                {account.usedThisMonth.toLocaleString()}{' '}
+                <span className="stat-unit">credits</span>
+              </p>
+            </div>
+            <span className="stat-icon" aria-hidden="true">
+              <GaugeIcon />
+            </span>
+          </article>
+          <article className="stat-card">
+            <div className="stat-text">
+              <p className="stat-label">Last Credit Movement</p>
+              <p className="stat-value">
+                {lastCreditMovement?.amount ? naira(lastCreditMovement.amount) : 'Manual'}{' '}
+                <span className="stat-unit">on {lastCreditMovement?.date}</span>
+              </p>
+            </div>
+            <span className="stat-icon" aria-hidden="true">
+              <ReceiptIcon />
+            </span>
+          </article>
+        </section>
+      ) : null}
 
       <div className="dash-tabs" role="tablist">
         <button type="button" className="dash-tab is-active" role="tab" aria-selected="true">
-          {view === 'credits' ? 'Credits' : 'Buy Credits'}
+          {isBuying ? 'Buy Credits' : 'Credits'}
         </button>
       </div>
 
-      {view === 'buy' ? (
-        <>
-          <section className="plans-grid plans-grid--bundles">
-            {bundles.map((bundle) => (
-              <article
-                className={`plan-card${bundle.featured ? ' plan-card--featured' : ''}`}
-                key={bundle.name}
+      {isBuying ? (
+        <section className="plans-grid plans-grid--bundles">
+          {activePlans.map((plan, index) => (
+            <article
+              className={`plan-card${index === 1 ? ' plan-card--featured' : ''}`}
+              key={plan.id}
+            >
+              <div className="plan-head">
+                <h2 className="plan-name">{plan.name}</h2>
+                {index === 1 ? (
+                  <span className="plan-badge">Most popular</span>
+                ) : null}
+              </div>
+              <p className="plan-desc">{plan.description}</p>
+              <div className="plan-pricing">
+                <p className="plan-price">{naira(parsePlanNumber(plan.amount))}</p>
+                <p className="plan-rate">{plan.credits} credits</p>
+              </div>
+              <ul className="plan-features">
+                {plan.features.map((feature) => (
+                  <li className="plan-feature" key={feature}>
+                    <CheckIcon /> {feature}
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                className="btn-primary btn-block plan-cta"
+                onClick={() => buy(plan)}
               >
-                <div className="plan-head">
-                  <h2 className="plan-name">{bundle.name}</h2>
-                  {bundle.featured ? (
-                    <span className="plan-badge">Most popular</span>
-                  ) : null}
-                </div>
-                <p className="plan-desc">{bundle.description}</p>
-                <div className="plan-pricing">
-                  <p className="plan-price">
-                    {bundle.price ? naira(bundle.price) : 'Custom'}
-                  </p>
-                  <p className="plan-rate">{bundle.rate}</p>
-                </div>
-                <ul className="plan-features">
-                  {bundle.features.map((feature) => (
-                    <li className="plan-feature" key={feature}>
-                      <CheckIcon /> {feature}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  type="button"
-                  className="btn-primary btn-block plan-cta"
-                  onClick={() => buy(bundle)}
-                >
-                  {bundle.cta}
-                </button>
-              </article>
-            ))}
-          </section>
-
-          <section className="dash-panel">
-            <h2 className="panel-title">Operation Pricing</h2>
-            <p className="pricing-note">
-              Every API draws from the same credit balance, but not every call
-              costs the same. Operations are weighted by what they do: routine
-              reads cost 1 credit, commands that reach a physical meter cost 5,
-              and token vends — the transaction that delivers power — cost 10.
-            </p>
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>API</th>
-                    <th>Operation</th>
-                    <th>Credits per call</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {operationPricing.map((row) => (
-                    <tr key={`${row.api}-${row.operation}`}>
-                      <td>{row.api}</td>
-                      <td>{row.operation}</td>
-                      <td>{row.credits}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="pricing-footnote">
-              Batch reads and event webhooks are the cheapest way to integrate —
-              poll less, pay less. Rate limits apply per API key regardless of
-              balance.
-            </p>
-          </section>
-        </>
+                {plan.cta}
+              </button>
+            </article>
+          ))}
+        </section>
       ) : (
         <section className="dash-panel">
-          <h2 className="panel-title">Purchase History</h2>
+          <h2 className="panel-title">Credit History</h2>
           <div className="table-scroll">
             <table className="data-table">
               <thead>
                 <tr>
                   <th>S/N</th>
-                  <th>Bundle</th>
-                  <th>Purchase Date</th>
+                  <th>Description</th>
+                  <th>Source</th>
+                  <th>Date</th>
                   <th>Credits Added</th>
                   <th>Amount</th>
                 </tr>
               </thead>
               <tbody>
-                {purchases.map((purchase, index) => (
-                  <tr key={`${purchase.bundle}-${purchase.date}-${index}`}>
+                {account.ledger.map((entry, index) => (
+                  <tr key={entry.id}>
                     <td>{String(index + 1).padStart(2, '0')}</td>
-                    <td>{purchase.bundle}</td>
-                    <td>{purchase.date}</td>
-                    <td>{purchase.credits.toLocaleString()}</td>
-                    <td>{naira(purchase.amount)}</td>
+                    <td>{entry.label}</td>
+                    <td>{sourceLabel(entry.source)}</td>
+                    <td>{entry.date}</td>
+                    <td>{entry.credits.toLocaleString()}</td>
+                    <td>{entry.amount ? naira(entry.amount) : '—'}</td>
                   </tr>
                 ))}
               </tbody>
