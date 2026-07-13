@@ -2,6 +2,7 @@ const ADMIN_SESSION_KEY = 'momas.admin.session'
 
 export type AdminSession = {
   email: string
+  accessToken?: string
 }
 
 /**

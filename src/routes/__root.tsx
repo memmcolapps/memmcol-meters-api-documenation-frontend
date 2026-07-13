@@ -12,7 +12,7 @@ import { Logo } from '../app/Logo'
 const TanStackRouterDevtools = import.meta.env.PROD
   ? () => null
   : lazy(() =>
-      import('@tanstack/router-devtools').then((m) => ({
+      import('@tanstack/react-router-devtools').then((m) => ({
         default: m.TanStackRouterDevtools,
       })),
     )

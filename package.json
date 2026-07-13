@@ -11,13 +11,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "^1.170.16",
-    "@tanstack/router-devtools": "^1.167.0",
     "@tanstack/router-plugin": "^1.168.18",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@tanstack/react-router-devtools": "^1.167.0",
     "@tanstack/router-cli": "^1.167.17",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
