@@ -1,35 +1,51 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { useToast } from '../../../app/toastContext'
 import { useDismiss } from '../../../app/useDismiss'
+import {
+  profileKeys,
+  useChangePassword,
+  useCurrentProfile,
+  type CurrentProfile,
+} from '../../../features/profile/profileQueries'
+import {
+  changePasswordSchema,
+  getSchemaFieldErrors,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_REQUIREMENTS,
+  summarizeFieldErrors,
+  type ChangePasswordField,
+} from '../../../features/auth/schemas'
+import { getApiErrorMessage } from '../../../lib/api/client'
 
 export const Route = createFileRoute('/_app/settings/profile')({
   component: ProfilePage,
 })
 
-type Profile = {
-  firstName: string
-  lastName: string
-  businessName: string
-  email: string
-  dialCode: string
-  phone: string
-}
-
-const initialProfile: Profile = {
-  firstName: 'Wura',
-  lastName: 'Akande',
-  businessName: 'Memmcol',
-  email: 'wura@gmail.com',
-  dialCode: '+234',
-  phone: '08124563987',
-}
-
 function ProfilePage() {
-  const [profile, setProfile] = useState(initialProfile)
   const [editOpen, setEditOpen] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
+  const profileQuery = useCurrentProfile()
+  const queryClient = useQueryClient()
+  const { showToast } = useToast()
+  const notifiedError = useRef<unknown>(null)
+  const profile = profileQuery.data
 
-  const fullName = `${profile.firstName} ${profile.lastName}`
+  useEffect(() => {
+    if (!profileQuery.error || notifiedError.current === profileQuery.error) return
+    notifiedError.current = profileQuery.error
+    showToast({
+      title: 'Could not load your profile',
+      message: getApiErrorMessage(profileQuery.error),
+      variant: 'error',
+    })
+  }, [profileQuery.error, showToast])
+
+  const fullName = profile
+    ? `${profile.firstName} ${profile.lastName}`.trim()
+    : ''
 
   return (
     <div className="dash">
@@ -46,64 +62,82 @@ function ProfilePage() {
         </button>
       </div>
 
-      <div className="profile-top">
-        <span className="profile-avatar" aria-hidden="true">
-          {profile.firstName.charAt(0)}
-        </span>
-        <div className="profile-actions">
-          <button type="button" className="btn-primary" onClick={() => setEditOpen(true)}>
-            Edit
+      {profileQuery.isPending ? (
+        <div className="async-state" role="status" aria-live="polite">
+          <span className="async-spinner" aria-hidden="true" />
+          <p>Loading profile…</p>
+        </div>
+      ) : profileQuery.error ? (
+        <div className="async-state">
+          <button type="button" className="btn-neutral" onClick={() => profileQuery.refetch()}>
+            Try again
           </button>
-          <button type="button" className="btn-danger" onClick={() => setResetOpen(true)}>
-            Reset Password
-          </button>
         </div>
-      </div>
+      ) : profile ? (
+        <>
+          <div className="profile-top">
+            <div>
+              <span className="profile-avatar" aria-hidden="true">
+                {profile.firstName.charAt(0).toUpperCase()}
+              </span>
+              <p className="profile-role">{profile.role}</p>
+            </div>
+            <div className="profile-actions">
+              <button type="button" className="btn-primary" onClick={() => setEditOpen(true)}>
+                Edit
+              </button>
+              <button type="button" className="btn-danger" onClick={() => setResetOpen(true)}>
+                Change Password
+              </button>
+            </div>
+          </div>
 
-      <section className="profile-section">
-        <h2 className="profile-section-title">Name</h2>
-        <div className="profile-field">
-          <p className="profile-help">This is the name associated with your account</p>
-          <input className="profile-input" value={fullName} readOnly />
-        </div>
-        <div className="profile-field">
-          <p className="profile-help">
-            This is the phone number associated with your account
-          </p>
-          <input className="profile-input" value={profile.phone} readOnly />
-        </div>
-      </section>
+          <section className="profile-section">
+            <h2 className="profile-section-title">Name</h2>
+            <div className="profile-field">
+              <p className="profile-help">This is the name associated with your account</p>
+              <input className="profile-input" value={fullName} readOnly />
+            </div>
+            <div className="profile-field">
+              <p className="profile-help">
+                This is the phone number associated with your account
+              </p>
+              <input className="profile-input" value={`${profile.dialCode} ${profile.phone}`} readOnly />
+            </div>
+          </section>
 
-      <section className="profile-section">
-        <h2 className="profile-section-title">Email Address</h2>
-        <div className="profile-field">
-          <p className="profile-help">This is the email associated with your account</p>
-          <input className="profile-input" value={profile.email} disabled />
-        </div>
-      </section>
+          <section className="profile-section">
+            <h2 className="profile-section-title">Email Address</h2>
+            <div className="profile-field">
+              <p className="profile-help">This is the email associated with your account</p>
+              <input className="profile-input" value={profile.email} disabled />
+            </div>
+          </section>
 
-      <section className="profile-section">
-        <h2 className="profile-section-title">Business Name</h2>
-        <div className="profile-field">
-          <p className="profile-help">
-            This is the business name associated with your account
-          </p>
-          <input className="profile-input" value={profile.businessName} readOnly />
-        </div>
-      </section>
+          <section className="profile-section">
+            <h2 className="profile-section-title">Business Name</h2>
+            <div className="profile-field">
+              <p className="profile-help">
+                This is the business name associated with your account
+              </p>
+              <input className="profile-input" value={profile.businessName} readOnly />
+            </div>
+          </section>
 
-      {editOpen ? (
-        <EditProfileModal
-          profile={profile}
-          onClose={() => setEditOpen(false)}
-          onSave={(next) => {
-            setProfile(next)
-            setEditOpen(false)
-          }}
-        />
+          {editOpen ? (
+            <EditProfileModal
+              profile={profile}
+              onClose={() => setEditOpen(false)}
+              onSave={(next) => {
+                queryClient.setQueryData(profileKeys.current(), next)
+                setEditOpen(false)
+              }}
+            />
+          ) : null}
+
+          {resetOpen ? <ResetPasswordModal onClose={() => setResetOpen(false)} /> : null}
+        </>
       ) : null}
-
-      {resetOpen ? <ResetPasswordModal onClose={() => setResetOpen(false)} /> : null}
     </div>
   )
 }
@@ -113,15 +147,15 @@ function EditProfileModal({
   onClose,
   onSave,
 }: {
-  profile: Profile
+  profile: CurrentProfile
   onClose: () => void
-  onSave: (profile: Profile) => void
+  onSave: (profile: CurrentProfile) => void
 }) {
   const [draft, setDraft] = useState(profile)
   const modalRef = useRef<HTMLDivElement>(null)
   useDismiss(modalRef, onClose)
 
-  const update = (patch: Partial<Profile>) =>
+  const update = (patch: Partial<CurrentProfile>) =>
     setDraft((prev) => ({ ...prev, ...patch }))
 
   return (
@@ -206,32 +240,109 @@ function EditProfileModal({
 
 function ResetPasswordModal({ onClose }: { onClose: () => void }) {
   const modalRef = useRef<HTMLDivElement>(null)
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<ChangePasswordField, string>>>({})
+  const changePassword = useChangePassword()
+  const { showToast } = useToast()
   useDismiss(modalRef, onClose)
+
+  const clearFieldError = (field: ChangePasswordField) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setFieldErrors({})
+
+    const data = new FormData(event.currentTarget)
+    const result = changePasswordSchema.safeParse({
+      currentPassword: String(data.get('currentPassword') ?? ''),
+      newPassword: String(data.get('newPassword') ?? ''),
+      confirmPassword: String(data.get('confirmPassword') ?? ''),
+    })
+
+    if (!result.success) {
+      const errors = getSchemaFieldErrors<ChangePasswordField>(result.error)
+      setFieldErrors(errors)
+      showToast({
+        title: 'Review the highlighted fields',
+        message: summarizeFieldErrors(errors),
+        variant: 'error',
+      })
+      return
+    }
+
+    try {
+      const response = await changePassword.mutateAsync(result.data)
+      showToast({
+        title: response.message,
+        variant: 'success',
+      })
+      onClose()
+    } catch (error) {
+      showToast({
+        title: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
+  }
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="reset-title">
       <div className="modal" ref={modalRef}>
         <div className="modal-head">
           <h2 id="reset-title" className="modal-title">
-            Reset Password
+            Change Password
           </h2>
           <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
             <CloseIcon />
           </button>
         </div>
 
-        <div className="modal-body">
-          <PasswordField id="oldPassword" label="Old Password" placeholder="Enter your old password" />
-          <PasswordField id="newPassword" label="New Password" placeholder="Enter your new password" />
+        <form className="modal-body" onSubmit={handleSubmit} noValidate>
+          <PasswordField
+            id="currentPassword"
+            name="currentPassword"
+            label="Current Password"
+            placeholder="Enter your current password"
+            autoComplete="current-password"
+            invalid={Boolean(fieldErrors.currentPassword)}
+            onChange={() => clearFieldError('currentPassword')}
+          />
+          <PasswordField
+            id="newPassword"
+            name="newPassword"
+            label="New Password"
+            placeholder="Enter your new password"
+            autoComplete="new-password"
+            invalid={Boolean(fieldErrors.newPassword)}
+            minLength={PASSWORD_MIN_LENGTH}
+            maxLength={PASSWORD_MAX_LENGTH}
+            hint={PASSWORD_REQUIREMENTS}
+            onChange={() => clearFieldError('newPassword')}
+          />
           <PasswordField
             id="confirmPassword"
+            name="confirmPassword"
             label="Confirm New Password"
             placeholder="Enter your new password"
+            autoComplete="new-password"
+            invalid={Boolean(fieldErrors.confirmPassword)}
+            maxLength={PASSWORD_MAX_LENGTH}
+            onChange={() => clearFieldError('confirmPassword')}
           />
-          <button type="button" className="btn-primary btn-block" onClick={onClose}>
-            Save Changes
+          <button
+            type="submit"
+            className="btn-primary btn-block"
+            disabled={changePassword.isPending}
+          >
+            {changePassword.isPending ? 'Changing password…' : 'Change Password'}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   )
@@ -239,24 +350,44 @@ function ResetPasswordModal({ onClose }: { onClose: () => void }) {
 
 function PasswordField({
   id,
+  name,
   label,
   placeholder,
+  autoComplete,
+  invalid,
+  minLength,
+  maxLength,
+  hint,
+  onChange,
 }: {
   id: string
+  name: string
   label: string
   placeholder: string
+  autoComplete: string
+  invalid: boolean
+  minLength?: number
+  maxLength?: number
+  hint?: string
+  onChange: () => void
 }) {
   const [show, setShow] = useState(false)
   return (
     <div className="modal-field">
       <label htmlFor={id}>{label}</label>
-      <div className="modal-input-group">
+      <div className={`modal-input-group${invalid ? ' is-invalid' : ''}`}>
         <input
           id={id}
+          name={name}
           className="modal-input"
           type={show ? 'text' : 'password'}
           placeholder={placeholder}
-          autoComplete="off"
+          autoComplete={autoComplete}
+          required
+          minLength={minLength}
+          maxLength={maxLength}
+          aria-invalid={invalid}
+          onChange={onChange}
         />
         <button
           type="button"
@@ -268,6 +399,7 @@ function PasswordField({
           {show ? <EyeIcon /> : <EyeOffIcon />}
         </button>
       </div>
+      {hint ? <p className="profile-help">{hint}</p> : null}
     </div>
   )
 }

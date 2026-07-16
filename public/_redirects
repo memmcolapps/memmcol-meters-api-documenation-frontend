@@ -1,2 +1,5 @@
+# Keep API requests same-origin so cookie-based sessions and CSRF protection work.
+/powerhub/v1/api/*  https://sbctest.memmserve.com/powerhub/v1/api/:splat  200
+
 # SPA fallback: serve index.html for every route so TanStack Router handles it
 /*    /index.html   200
