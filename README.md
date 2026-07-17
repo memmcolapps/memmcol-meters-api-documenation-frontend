@@ -19,7 +19,7 @@ To use the backend, copy `.env.example` to `.env.local`, set the API base URL, a
 disable the mock adapter:
 
 ```bash
-VITE_API_BASE_URL=https://api.example.com/v1
+VITE_API_BASE_URL=/powerhub/v1/api
 VITE_USE_MOCK_API=false
 ```
 
@@ -33,9 +33,9 @@ The API Management feature currently expects:
 | `PATCH` | `/admin/apis/:id` | Update fields, status, or publication |
 
 Responses may be the resource directly or wrapped as `{ "data": ... }`. Failed
-responses should preferably contain a `message` string. If an `accessToken` is
-present in the customer or admin session, the shared client sends it as a Bearer
-token.
+responses should preferably contain a `message` string. Authentication uses the
+server-issued HttpOnly session cookie; the client does not store or send bearer
+tokens.
 
 ## Data-flow structure
 

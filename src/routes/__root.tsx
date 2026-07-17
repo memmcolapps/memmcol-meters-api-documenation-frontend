@@ -23,7 +23,8 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   const pathname = useRouterState({
-    select: (state) => state.location.pathname,
+    select: (state) =>
+      state.resolvedLocation?.pathname ?? state.location.pathname,
   })
   const isMarketing = pathname === '/' || pathname.startsWith('/docs')
 

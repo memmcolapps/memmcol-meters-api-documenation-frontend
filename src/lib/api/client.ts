@@ -18,10 +18,11 @@ type ApiRequestOptions = Omit<RequestInit, 'body'> & {
   json?: unknown
 }
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL
+const apiBaseUrl = (configuredApiBaseUrl ?? '/powerhub/v1/api').replace(/\/$/, '')
 
 export const isMockApiEnabled =
-  (import.meta.env.VITE_USE_MOCK_API ?? String(!apiBaseUrl)) === 'true'
+  (import.meta.env.VITE_USE_MOCK_API ?? String(!configuredApiBaseUrl)) === 'true'
 
 const unsafeMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
@@ -48,23 +49,6 @@ async function isCsrfAccessDenied(response: Response) {
   } catch {
     return false
   }
-}
-
-function getAccessToken() {
-  if (typeof localStorage === 'undefined') return null
-
-  for (const key of ['momas.admin.session', 'momas.session']) {
-    try {
-      const session = JSON.parse(localStorage.getItem(key) ?? 'null') as {
-        accessToken?: string
-      } | null
-      if (session?.accessToken) return session.accessToken
-    } catch {
-      // A malformed session should not prevent public requests from being made.
-    }
-  }
-
-  return null
 }
 
 function getErrorMessage(payload: unknown, statusText: string) {
@@ -97,9 +81,6 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   const isUnsafeRequest = unsafeMethods.has(method)
   const csrfToken = isUnsafeRequest ? getCookie('XSRF-TOKEN') : null
   if (csrfToken) headers.set('X-XSRF-TOKEN', csrfToken)
-
-  const token = getAccessToken()
-  if (token) headers.set('Authorization', `Bearer ${token}`)
 
   let body: string | undefined
   if (options.json !== undefined) {

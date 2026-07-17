@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useDismiss } from '../../../../app/useDismiss'
-import { getAdminSession } from '../../../../app/adminSession'
+import { useAdminIdentity } from '../../../../features/auth/adminLogin'
 
 export const Route = createFileRoute('/admin/_admin/settings/profile')({
   component: AdminProfilePage,
@@ -12,23 +12,20 @@ type AdminProfile = {
   lastName: string
   role: string
   email: string
-  dialCode: string
-  phone: string
-}
-
-const initialProfile: AdminProfile = {
-  firstName: 'Jane',
-  lastName: 'Doe',
-  role: 'Developer',
-  email: getAdminSession()?.email ?? 'jane@gmail.com',
-  dialCode: '+234',
-  phone: '08124563987',
 }
 
 function AdminProfilePage() {
-  const [profile, setProfile] = useState(initialProfile)
+  const { data: admin } = useAdminIdentity()
+  const [editedProfile, setEditedProfile] = useState<AdminProfile | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
+
+  const profile = editedProfile ?? {
+    firstName: admin.firstName,
+    lastName: admin.lastName,
+    role: admin.role,
+    email: admin.email,
+  }
 
   const fullName = `${profile.firstName} ${profile.lastName}`
 
@@ -70,12 +67,6 @@ function AdminProfilePage() {
           <p className="profile-help">This is the name associated with your account</p>
           <input className="profile-input" value={fullName} readOnly />
         </div>
-        <div className="profile-field">
-          <p className="profile-help">
-            This is the phone number associated with your account
-          </p>
-          <input className="profile-input" value={profile.phone} readOnly />
-        </div>
       </section>
 
       <section className="profile-section">
@@ -91,7 +82,7 @@ function AdminProfilePage() {
           profile={profile}
           onClose={() => setEditOpen(false)}
           onSave={(next) => {
-            setProfile(next)
+            setEditedProfile(next)
             setEditOpen(false)
           }}
         />
@@ -152,29 +143,6 @@ function EditProfileModal({
           <div className="modal-field">
             <label htmlFor="editEmail">Email Address</label>
             <input id="editEmail" className="modal-input" value={draft.email} disabled />
-          </div>
-          <div className="modal-field">
-            <label htmlFor="editPhone">Phone Number</label>
-            <div className="modal-phone">
-              <select
-                className="modal-select"
-                aria-label="Country dialing code"
-                value={draft.dialCode}
-                onChange={(event) => update({ dialCode: event.target.value })}
-              >
-                <option value="+234">+234</option>
-                <option value="+1">+1</option>
-                <option value="+44">+44</option>
-                <option value="+233">+233</option>
-                <option value="+254">+254</option>
-              </select>
-              <input
-                id="editPhone"
-                className="modal-input"
-                value={draft.phone}
-                onChange={(event) => update({ phone: event.target.value })}
-              />
-            </div>
           </div>
           <button
             type="button"
