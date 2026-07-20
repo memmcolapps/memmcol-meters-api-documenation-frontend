@@ -1,63 +1,59 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { useToast } from '../../../app/toastContext'
 import { useDismiss } from '../../../app/useDismiss'
+import {
+  useInviteOrganisationMember,
+  useOrganisationMembers,
+  type InvitationRole,
+  type OrganisationMemberRole,
+  type OrganisationMemberStatus,
+} from '../../../features/organisation/memberQueries'
+import {
+  inviteOrganisationMemberSchema,
+  type InviteMemberField,
+} from '../../../features/organisation/schemas'
+import {
+  getSchemaFieldErrors,
+  summarizeFieldErrors,
+} from '../../../features/auth/schemas'
+import { getApiErrorMessage } from '../../../lib/api/client'
 
 export const Route = createFileRoute('/_app/settings/user-management')({
   component: UserManagementPage,
 })
 
-type Role = 'Owner' | 'Admin' | 'Member'
-
-type Member = {
-  id: string
-  name: string
-  email: string
-  role: Role
-  isSelf?: boolean
+const roleLabels: Record<OrganisationMemberRole, string> = {
+  OWNER: 'Owner',
+  ADMIN: 'Admin',
+  MEMBER: 'Member',
 }
 
-const roleOptions = [
-  { value: 'Admin', label: 'Admin', desc: 'Can manage member and billing' },
-  { value: 'Member', label: 'Members', desc: 'Can only generate API keys' },
-]
-
-const initialMembers: Member[] = [
-  {
-    id: 'self',
-    name: 'Wura Akande',
-    email: 'wura@gmail.com',
-    role: 'Owner',
-    isSelf: true,
-  },
-]
-
-type Confirm = { action: 'leave' | 'remove'; member: Member } | null
+const statusLabels: Record<OrganisationMemberStatus, string> = {
+  ACTIVE: 'Active',
+  INVITED: 'Invited',
+  SUSPENDED: 'Suspended',
+}
 
 function UserManagementPage() {
-  const [members, setMembers] = useState<Member[]>(initialMembers)
   const [inviteOpen, setInviteOpen] = useState(false)
-  const [confirm, setConfirm] = useState<Confirm>(null)
+  const membersQuery = useOrganisationMembers()
+  const { showToast } = useToast()
+  const notifiedError = useRef<unknown>(null)
 
-  const handleInvite = (email: string, role: Role) => {
-    const name = email.split('@')[0]
-    setMembers((prev) => [
-      ...prev,
-      {
-        id: `m-${Date.now()}`,
-        name: name.charAt(0).toUpperCase() + name.slice(1),
-        email,
-        role,
-      },
-    ])
-    setInviteOpen(false)
-  }
+  useEffect(() => {
+    if (!membersQuery.error || notifiedError.current === membersQuery.error) return
+    notifiedError.current = membersQuery.error
+    showToast({
+      title: 'Could not load organisation members',
+      message: getApiErrorMessage(membersQuery.error),
+      variant: 'error',
+    })
+  }, [membersQuery.error, showToast])
 
-  const handleConfirm = () => {
-    if (confirm) {
-      setMembers((prev) => prev.filter((m) => m.id !== confirm.member.id))
-    }
-    setConfirm(null)
-  }
+  const currentMember = membersQuery.data?.items.find((member) => member.isCurrentUser)
+  const canInvite = currentMember?.role === 'OWNER' || currentMember?.role === 'ADMIN'
+  const canGrantAdmin = currentMember?.role === 'OWNER'
 
   return (
     <div className="dash">
@@ -68,7 +64,13 @@ function UserManagementPage() {
             Manage users, roles, and access permissions in one place.
           </p>
         </div>
-        <button type="button" className="btn-primary" onClick={() => setInviteOpen(true)}>
+        <button
+          type="button"
+          className="btn-primary"
+          disabled={!canInvite}
+          title={canInvite ? undefined : 'Only owners and admins can invite members'}
+          onClick={() => setInviteOpen(true)}
+        >
           Invite Members <PlusIcon />
         </button>
       </header>
@@ -79,181 +81,179 @@ function UserManagementPage() {
         </button>
       </div>
 
-      <section className="member-list">
-        {members.map((member) => (
-          <div className="member-row" key={member.id}>
-            <div className="member-id">
-              <span className="member-avatar" aria-hidden="true">
-                {member.name.charAt(0)}
-              </span>
-              <div className="member-text">
-                <p className="member-name">{member.name}</p>
-                <p className="member-email">{member.email}</p>
+      {membersQuery.isPending ? (
+        <div className="async-state" role="status" aria-live="polite">
+          <span className="async-spinner" aria-hidden="true" />
+          <p>Loading members…</p>
+        </div>
+      ) : membersQuery.error ? (
+        <div className="async-state">
+          <button type="button" className="btn-neutral" onClick={() => membersQuery.refetch()}>
+            Try again
+          </button>
+        </div>
+      ) : membersQuery.data?.items.length ? (
+        <section className="org-member-list" aria-label="Organisation members">
+          {membersQuery.data.items.map((member) => (
+            <div className="org-member-row" key={member.id}>
+              <div className="org-member-id">
+                <span className="org-member-avatar" aria-hidden="true">
+                  {member.displayName.charAt(0).toUpperCase()}
+                </span>
+                <div className="org-member-text">
+                  <p className="org-member-name">
+                    {member.displayName}
+                    {member.isCurrentUser ? <span className="org-member-you">You</span> : null}
+                  </p>
+                  <p className="org-member-email">{member.email}</p>
+                </div>
               </div>
+              <span className="org-member-role">{roleLabels[member.role]}</span>
+              <span className={`org-member-status is-${member.status.toLowerCase()}`}>
+                {statusLabels[member.status]}
+              </span>
             </div>
-            <span className="member-role">{member.role}</span>
-            <div className="member-action">
-              {member.isSelf ? (
-                <button
-                  type="button"
-                  className="btn-danger"
-                  onClick={() => setConfirm({ action: 'leave', member })}
-                >
-                  Leave
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn-danger"
-                  onClick={() => setConfirm({ action: 'remove', member })}
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-      </section>
+          ))}
+        </section>
+      ) : (
+        <div className="async-state">
+          <p>No organisation members found.</p>
+        </div>
+      )}
 
-      {inviteOpen ? (
-        <InviteModal onClose={() => setInviteOpen(false)} onInvite={handleInvite} />
-      ) : null}
-
-      {confirm ? (
-        <ConfirmModal
-          action={confirm.action}
-          onCancel={() => setConfirm(null)}
-          onConfirm={handleConfirm}
+      {inviteOpen && canInvite ? (
+        <InviteMemberModal
+          canGrantAdmin={canGrantAdmin}
+          onClose={() => setInviteOpen(false)}
         />
       ) : null}
     </div>
   )
 }
 
-function InviteModal({
+function InviteMemberModal({
+  canGrantAdmin,
   onClose,
-  onInvite,
 }: {
+  canGrantAdmin: boolean
   onClose: () => void
-  onInvite: (email: string, role: Role) => void
 }) {
-  const [email, setEmail] = useState('')
-  const [role, setRole] = useState<Role | ''>('')
-  const [open, setOpen] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<InviteMemberField, string>>>({})
+  const inviteMember = useInviteOrganisationMember()
+  const { showToast } = useToast()
   const modalRef = useRef<HTMLDivElement>(null)
-  const roleRef = useRef<HTMLDivElement>(null)
   useDismiss(modalRef, onClose)
-  useDismiss(roleRef, () => setOpen(false), open)
 
-  const selected = roleOptions.find((option) => option.value === role)
+  const clearFieldError = (field: InviteMemberField) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setFieldErrors({})
+
+    const data = new FormData(event.currentTarget)
+    const result = inviteOrganisationMemberSchema.safeParse({
+      email: String(data.get('email') ?? ''),
+      role: String(data.get('role') ?? ''),
+    })
+
+    if (!result.success) {
+      const errors = getSchemaFieldErrors<InviteMemberField>(result.error)
+      setFieldErrors(errors)
+      showToast({
+        title: 'Review the highlighted fields',
+        message: summarizeFieldErrors(errors),
+        variant: 'error',
+      })
+      return
+    }
+
+    if (result.data.role === 'ADMIN' && !canGrantAdmin) {
+      showToast({
+        title: 'Only an owner can grant the Admin role',
+        variant: 'error',
+      })
+      return
+    }
+
+    try {
+      const invitation = await inviteMember.mutateAsync(result.data)
+      showToast({
+        title: 'Invitation sent',
+        message: `${invitation.email} was invited as ${roleLabels[invitation.role]}.`,
+        variant: 'success',
+      })
+      onClose()
+    } catch (error) {
+      showToast({
+        title: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
+  }
+
+  const roles: InvitationRole[] = canGrantAdmin
+    ? ['ADMIN', 'MEMBER']
+    : ['MEMBER']
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="invite-title">
       <div className="modal" ref={modalRef}>
         <div className="modal-head">
-          <h2 id="invite-title" className="modal-title">
-            Invite Member
-          </h2>
+          <h2 id="invite-title" className="modal-title">Invite Member</h2>
           <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
             <CloseIcon />
           </button>
         </div>
 
-        <div className="modal-body">
-          <input
-            className="modal-input"
-            type="email"
-            value={email}
-            placeholder="Enter Email Address"
-            onChange={(event) => setEmail(event.target.value)}
-          />
-
-          <div className="role-select" ref={roleRef}>
-            <button
-              type="button"
-              className="role-trigger"
-              aria-haspopup="listbox"
-              aria-expanded={open}
-              onClick={() => setOpen((value) => !value)}
-            >
-              <span className={selected ? '' : 'role-placeholder'}>
-                {selected ? selected.label : 'Select Role'}
-              </span>
-              <ChevronDownIcon />
-            </button>
-            {open ? (
-              <ul className="role-options" role="listbox">
-                {roleOptions.map((option) => (
-                  <li key={option.value}>
-                    <button
-                      type="button"
-                      className="role-option"
-                      onClick={() => {
-                        setRole(option.value as Role)
-                        setOpen(false)
-                      }}
-                    >
-                      <span className="role-option-label">{option.label}</span>
-                      <span className="role-option-desc">{option.desc}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+        <form className="modal-body" onSubmit={handleSubmit} noValidate>
+          <div className="modal-field">
+            <label htmlFor="inviteEmail">Email Address</label>
+            <input
+              id="inviteEmail"
+              name="email"
+              className="modal-input"
+              type="email"
+              autoComplete="email"
+              placeholder="Enter email address"
+              required
+              aria-invalid={Boolean(fieldErrors.email)}
+              onChange={() => clearFieldError('email')}
+            />
           </div>
 
-          <div className="modal-actions">
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={!email || !role}
-              onClick={() => role && onInvite(email, role)}
+          <div className="modal-field">
+            <label htmlFor="inviteRole">Role</label>
+            <select
+              id="inviteRole"
+              name="role"
+              className="modal-select"
+              defaultValue=""
+              required
+              aria-invalid={Boolean(fieldErrors.role)}
+              onChange={() => clearFieldError('role')}
             >
-              Invite
-            </button>
+              <option value="" disabled>Select role</option>
+              {roles.map((role) => (
+                <option key={role} value={role}>{roleLabels[role]}</option>
+              ))}
+            </select>
           </div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
-function ConfirmModal({
-  action,
-  onCancel,
-  onConfirm,
-}: {
-  action: 'leave' | 'remove'
-  onCancel: () => void
-  onConfirm: () => void
-}) {
-  const verb = action === 'leave' ? 'leave' : 'remove'
-  const label = action === 'leave' ? 'Leave' : 'Remove'
-  const modalRef = useRef<HTMLDivElement>(null)
-  useDismiss(modalRef, onCancel)
-
-  return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <div className="modal" ref={modalRef}>
-        <div className="modal-head">
-          <h2 id="confirm-title" className="modal-title">
-            Confirm Action
-          </h2>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onCancel}>
-            <CloseIcon />
+          <button
+            type="submit"
+            className="btn-primary btn-block"
+            disabled={inviteMember.isPending}
+          >
+            {inviteMember.isPending ? 'Sending invitation…' : 'Send Invitation'}
           </button>
-        </div>
-        <div className="modal-body modal-confirm">
-          <p className="modal-text">Are you sure you want to {verb}?</p>
-          <div className="confirm-actions">
-            <button type="button" className="btn-neutral" onClick={onCancel}>
-              Cancel
-            </button>
-            <button type="button" className="btn-danger-solid" onClick={onConfirm}>
-              {label}
-            </button>
-          </div>
-        </div>
+        </form>
       </div>
     </div>
   )
@@ -272,14 +272,6 @@ function CloseIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M18 6 6 18M6 6l12 12" />
-    </svg>
-  )
-}
-
-function ChevronDownIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m6 9 6 6 6-6" />
     </svg>
   )
 }

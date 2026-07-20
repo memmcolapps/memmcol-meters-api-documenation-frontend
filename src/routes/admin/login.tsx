@@ -1,30 +1,72 @@
 import { useState, type FormEvent } from 'react'
-import { Link, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Logo } from '../../app/Logo'
-import { getAdminSession, setAdminSession } from '../../app/adminSession'
+import { useToast } from '../../app/toastContext'
+import { getAuthError } from '../../features/auth/errors'
+import {
+  useAdminLogin,
+  type AdminLoginInput,
+} from '../../features/auth/adminLogin'
+import {
+  getSchemaFieldErrors,
+  loginSchema,
+  summarizeFieldErrors,
+} from '../../features/auth/schemas'
 
 export const Route = createFileRoute('/admin/login')({
-  beforeLoad: () => {
-    if (getAdminSession()) {
-      throw redirect({ to: '/admin/dashboard' })
-    }
-  },
   component: AdminLoginPage,
 })
 
 function AdminLoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<keyof AdminLoginInput, string>>
+  >({})
+  const login = useAdminLogin()
   const navigate = useNavigate()
+  const { showToast } = useToast()
 
-  const canSubmit = email.trim() !== '' && password.trim() !== ''
+  const clearFieldError = (field: keyof AdminLoginInput) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (canSubmit) {
-      setAdminSession({ email: email.trim() })
-      navigate({ to: '/admin/dashboard' })
+    setFieldErrors({})
+
+    const data = new FormData(event.currentTarget)
+    const result = loginSchema.safeParse({
+      email: String(data.get('email') ?? ''),
+      password: String(data.get('password') ?? ''),
+    })
+
+    if (!result.success) {
+      const errors = getSchemaFieldErrors<keyof AdminLoginInput>(result.error)
+      setFieldErrors(errors)
+      showToast({
+        title: 'Review the highlighted fields',
+        message: summarizeFieldErrors(errors),
+        variant: 'error',
+      })
+      return
+    }
+
+    try {
+      await login.mutateAsync(result.data)
+      await navigate({ to: '/admin/dashboard' })
+    } catch (error) {
+      const authError = getAuthError(error)
+      setFieldErrors(authError.fields)
+      showToast({
+        title: authError.message,
+        message: summarizeFieldErrors(authError.fields),
+        variant: 'error',
+      })
     }
   }
 
@@ -40,10 +82,7 @@ function AdminLoginPage() {
           Sign In
         </h1>
 
-        <form
-          className="auth-form"
-          onSubmit={handleSubmit}
-        >
+        <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <div className="auth-field">
             <label htmlFor="email">Email</label>
             <input
@@ -52,24 +91,24 @@ function AdminLoginPage() {
               name="email"
               autoComplete="email"
               placeholder="Enter your email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
               required
+              aria-invalid={Boolean(fieldErrors.email)}
+              onChange={() => clearFieldError('email')}
             />
           </div>
 
           <div className="auth-field">
             <label htmlFor="password">Password</label>
-            <div className="auth-input-group">
+            <div className={`auth-input-group${fieldErrors.password ? ' is-invalid' : ''}`}>
               <input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 name="password"
                 autoComplete="current-password"
                 placeholder="Enter your password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
                 required
+                aria-invalid={Boolean(fieldErrors.password)}
+                onChange={() => clearFieldError('password')}
               />
               <button
                 type="button"
@@ -87,8 +126,8 @@ function AdminLoginPage() {
             Forgot Password?
           </Link>
 
-          <button type="submit" className="auth-submit auth-cta" disabled={!canSubmit}>
-            Sign In
+          <button type="submit" className="auth-submit auth-cta" disabled={login.isPending}>
+            {login.isPending ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
       </section>

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   Link,
   Outlet,
@@ -9,6 +10,7 @@ import {
 import { navItems } from '../app/nav'
 import { Logo } from '../app/Logo'
 import { useDismiss } from '../app/useDismiss'
+import { profileKeys, useCurrentProfile } from '../features/profile/profileQueries'
 
 export const Route = createFileRoute('/_app')({
   component: AppLayout,
@@ -96,13 +98,17 @@ function AppLayout() {
   )
 }
 
-const account = { name: 'Wuraola Akande', email: 'wura@gmail.com', initial: 'A' }
-
 function AccountMenu() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const ref = useRef<HTMLDivElement>(null)
   useDismiss(ref, () => setOpen(false), open)
+  const profileQuery = useCurrentProfile()
+  const profile = profileQuery.data
+  const fullName = profile
+    ? `${profile.firstName} ${profile.lastName}`.trim()
+    : null
 
   return (
     <div className="account" ref={ref}>
@@ -113,16 +119,20 @@ function AccountMenu() {
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        <span className="app-avatar">{account.initial}</span>
+        <span className="app-avatar">
+          {fullName ? fullName.charAt(0).toUpperCase() : <UserIcon />}
+        </span>
         <ChevronIcon />
       </button>
 
       {open ? (
         <div className="account-menu" role="menu">
-          <div className="account-head">
-            <p className="account-name">{account.name}</p>
-            <p className="account-email">{account.email}</p>
-          </div>
+          {profile && fullName ? (
+            <div className="account-head">
+              <p className="account-name">{fullName}</p>
+              <p className="account-email">{profile.email}</p>
+            </div>
+          ) : null}
 
           <div className="account-group">
             <button type="button" className="account-item" role="menuitem">
@@ -135,7 +145,10 @@ function AccountMenu() {
               type="button"
               className="account-item is-logout"
               role="menuitem"
-              onClick={() => navigate({ to: '/login' })}
+              onClick={() => {
+                queryClient.removeQueries({ queryKey: profileKeys.all })
+                navigate({ to: '/login' })
+              }}
             >
               <LogoutIcon /> Logout
             </button>
@@ -207,6 +220,15 @@ function ChevronIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
+
+function UserIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
     </svg>
   )
 }

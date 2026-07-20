@@ -1,14 +1,90 @@
-import { useState } from "react";
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { Logo } from "../app/Logo";
+import { useState, type FormEvent } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { Logo } from '../app/Logo'
+import { useToast } from '../app/toastContext'
+import {
+  getRegistrationError,
+  useRegisterBusinessAccount,
+} from '../features/auth/register'
+import {
+  getSchemaFieldErrors,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_REQUIREMENTS,
+  signUpSchema,
+  summarizeFieldErrors,
+  type SignUpField,
+} from '../features/auth/schemas'
+import { profileKeys } from '../features/profile/profileQueries'
 
 export const Route = createFileRoute("/signup")({
   component: SignUpPage,
-});
+})
+
+type SignUpErrors = Partial<Record<SignUpField, string>>
 
 function SignUpPage() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<SignUpErrors>({})
+  const registration = useRegisterBusinessAccount()
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const { showToast } = useToast()
+
+  const clearFieldError = (field: SignUpField) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setFieldErrors({})
+
+    const data = new FormData(event.currentTarget)
+    const result = signUpSchema.safeParse({
+      businessName: String(data.get('businessName') ?? ''),
+      firstName: String(data.get('firstName') ?? ''),
+      lastName: String(data.get('lastName') ?? ''),
+      email: String(data.get('email') ?? ''),
+      dialCode: String(data.get('dialCode') ?? ''),
+      phone: String(data.get('phone') ?? ''),
+      password: String(data.get('password') ?? ''),
+      confirmPassword: String(data.get('confirmPassword') ?? ''),
+    })
+
+    if (!result.success) {
+      const errors = getSchemaFieldErrors<SignUpField>(result.error)
+      setFieldErrors(errors)
+      showToast({
+        title: 'Review the highlighted fields',
+        message: summarizeFieldErrors(errors),
+        variant: 'error',
+      })
+      return
+    }
+
+    try {
+      await registration.mutateAsync(result.data)
+      queryClient.removeQueries({ queryKey: profileKeys.all })
+      await navigate({ to: '/dashboard' })
+    } catch (error) {
+      const registrationError = getRegistrationError(error)
+      setFieldErrors(registrationError.fields as SignUpErrors)
+      showToast({
+        title: registrationError.message,
+        message: summarizeFieldErrors(registrationError.fields),
+        variant: 'error',
+      })
+    }
+  }
+
+  const errorFor = (field: SignUpField) => fieldErrors[field]
 
   return (
     <div className="auth-wrap">
@@ -22,18 +98,18 @@ function SignUpPage() {
           Sign Up
         </h1>
 
-        <form
-          className="auth-form"
-          onSubmit={(event) => event.preventDefault()}
-        >
+        <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <div className="auth-field">
-            <label htmlFor="business">Business Name</label>
+            <label htmlFor="businessName">Business Name</label>
             <input
-              id="business"
+              id="businessName"
               type="text"
-              name="business"
+              name="businessName"
               autoComplete="organization"
               placeholder="Enter business name"
+              required
+              aria-invalid={Boolean(errorFor('businessName'))}
+              onChange={() => clearFieldError('businessName')}
             />
           </div>
 
@@ -45,6 +121,9 @@ function SignUpPage() {
               name="firstName"
               autoComplete="given-name"
               placeholder="Enter first name"
+              required
+              aria-invalid={Boolean(errorFor('firstName'))}
+              onChange={() => clearFieldError('firstName')}
             />
           </div>
 
@@ -56,6 +135,9 @@ function SignUpPage() {
               name="lastName"
               autoComplete="family-name"
               placeholder="Enter last name"
+              required
+              aria-invalid={Boolean(errorFor('lastName'))}
+              onChange={() => clearFieldError('lastName')}
             />
           </div>
 
@@ -67,6 +149,9 @@ function SignUpPage() {
               name="email"
               autoComplete="email"
               placeholder="Enter email address"
+              required
+              aria-invalid={Boolean(errorFor('email'))}
+              onChange={() => clearFieldError('email')}
             />
           </div>
 
@@ -78,6 +163,9 @@ function SignUpPage() {
                 name="dialCode"
                 aria-label="Country dialing code"
                 defaultValue="+234"
+                required
+                aria-invalid={Boolean(errorFor('dialCode'))}
+                onChange={() => clearFieldError('dialCode')}
               >
                 <option value="+234">+234</option>
                 <option value="+1">+1</option>
@@ -92,19 +180,28 @@ function SignUpPage() {
                 name="phone"
                 autoComplete="tel"
                 placeholder="Enter phone number"
+                required
+                aria-invalid={Boolean(errorFor('phone') || errorFor('dialCode'))}
+                onChange={() => clearFieldError('phone')}
               />
             </div>
           </div>
 
           <div className="auth-field">
             <label htmlFor="signupPassword">Password</label>
-            <div className="auth-input-group">
+            <div className={`auth-input-group${errorFor('password') ? ' is-invalid' : ''}`}>
               <input
                 id="signupPassword"
                 type={showPassword ? "text" : "password"}
                 name="password"
                 autoComplete="new-password"
                 placeholder="Enter your password"
+                required
+                minLength={PASSWORD_MIN_LENGTH}
+                maxLength={PASSWORD_MAX_LENGTH}
+                aria-invalid={Boolean(errorFor('password'))}
+                aria-describedby="password-requirements"
+                onChange={() => clearFieldError('password')}
               />
               <button
                 type="button"
@@ -116,17 +213,23 @@ function SignUpPage() {
                 {showPassword ? <EyeIcon /> : <EyeOffIcon />}
               </button>
             </div>
+            <p id="password-requirements" className="auth-field-hint">
+              {PASSWORD_REQUIREMENTS}
+            </p>
           </div>
 
           <div className="auth-field">
             <label htmlFor="confirmPassword">Confirm Password</label>
-            <div className="auth-input-group">
+            <div className={`auth-input-group${errorFor('confirmPassword') ? ' is-invalid' : ''}`}>
               <input
                 id="confirmPassword"
                 type={showConfirm ? "text" : "password"}
                 name="confirmPassword"
                 autoComplete="new-password"
                 placeholder="Confirm Password"
+                required
+                aria-invalid={Boolean(errorFor('confirmPassword'))}
+                onChange={() => clearFieldError('confirmPassword')}
               />
               <button
                 type="button"
@@ -140,8 +243,8 @@ function SignUpPage() {
             </div>
           </div>
 
-          <button type="submit" className="auth-submit">
-            Sign Up
+          <button type="submit" className="auth-submit" disabled={registration.isPending}>
+            {registration.isPending ? 'Creating account…' : 'Sign Up'}
           </button>
         </form>
 
@@ -158,7 +261,7 @@ function SignUpPage() {
         </p>
       </section>
     </div>
-  );
+  )
 }
 
 function EyeOffIcon() {

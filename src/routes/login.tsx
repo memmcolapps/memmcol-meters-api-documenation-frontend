@@ -1,6 +1,16 @@
 import { useState, type FormEvent } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Logo } from '../app/Logo'
+import { useToast } from '../app/toastContext'
+import { getAuthError } from '../features/auth/errors'
+import { useLogin, type LoginInput } from '../features/auth/login'
+import { profileKeys } from '../features/profile/profileQueries'
+import {
+  getSchemaFieldErrors,
+  loginSchema,
+  summarizeFieldErrors,
+} from '../features/auth/schemas'
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
@@ -8,16 +18,54 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof LoginInput, string>>>({})
+  const login = useLogin()
+  const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const { showToast } = useToast()
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const clearFieldError = (field: keyof LoginInput) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const data = new FormData(event.currentTarget)
-    const email = String(data.get('email')).trim()
-    const password = String(data.get('password')).trim()
+    setFieldErrors({})
 
-    if (email && password) {
-      navigate({ to: '/dashboard' })
+    const data = new FormData(event.currentTarget)
+    const result = loginSchema.safeParse({
+      email: String(data.get('email') ?? ''),
+      password: String(data.get('password') ?? ''),
+    })
+
+    if (!result.success) {
+      const errors = getSchemaFieldErrors<keyof LoginInput>(result.error)
+      setFieldErrors(errors)
+      showToast({
+        title: 'Review the highlighted fields',
+        message: summarizeFieldErrors(errors),
+        variant: 'error',
+      })
+      return
+    }
+
+    try {
+      await login.mutateAsync(result.data)
+      queryClient.removeQueries({ queryKey: profileKeys.all })
+      await navigate({ to: '/dashboard' })
+    } catch (error) {
+      const authError = getAuthError(error)
+      setFieldErrors(authError.fields)
+      showToast({
+        title: authError.message,
+        message: summarizeFieldErrors(authError.fields),
+        variant: 'error',
+      })
     }
   }
 
@@ -33,10 +81,7 @@ function LoginPage() {
           Sign In
         </h1>
 
-        <form
-          className="auth-form"
-          onSubmit={handleSubmit}
-        >
+        <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <div className="auth-field">
             <label htmlFor="email">Email</label>
             <input
@@ -46,12 +91,14 @@ function LoginPage() {
               autoComplete="email"
               placeholder="Enter your email"
               required
+              aria-invalid={Boolean(fieldErrors.email)}
+              onChange={() => clearFieldError('email')}
             />
           </div>
 
           <div className="auth-field">
             <label htmlFor="password">Password</label>
-            <div className="auth-input-group">
+            <div className={`auth-input-group${fieldErrors.password ? ' is-invalid' : ''}`}>
               <input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
@@ -59,6 +106,8 @@ function LoginPage() {
                 autoComplete="current-password"
                 placeholder="Enter your password"
                 required
+                aria-invalid={Boolean(fieldErrors.password)}
+                onChange={() => clearFieldError('password')}
               />
               <button
                 type="button"
@@ -76,8 +125,8 @@ function LoginPage() {
             Forgot Password?
           </Link>
 
-          <button type="submit" className="auth-submit">
-            Sign In
+          <button type="submit" className="auth-submit" disabled={login.isPending}>
+            {login.isPending ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
 
