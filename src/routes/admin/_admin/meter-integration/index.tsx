@@ -3,12 +3,20 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useDismiss } from '../../../../app/useDismiss'
 import { useAnchoredMenu } from '../../../../app/useAnchoredMenu'
 import { ConfirmModal } from '../../../../app/ConfirmModal'
-import { MeterFormModal, type MeterFormValues } from '../../../../app/MeterFormModal'
+import {
+  MeterFormModal,
+  type MeterFormField,
+  type MeterFormValues,
+} from '../../../../app/MeterFormModal'
+import { useToast } from '../../../../app/toastContext'
 import {
   formatAddedDate,
-  seededSupportedMeters,
   type SupportedMeter,
 } from '../../../../app/adminMeters'
+import {
+  getMeterIntegrationError,
+  useCreateMeterIntegration,
+} from '../../../../features/admin-meters/adminMeterQueries'
 
 export const Route = createFileRoute('/admin/_admin/meter-integration/')({
   component: MeterIntegrationPage,
@@ -16,29 +24,84 @@ export const Route = createFileRoute('/admin/_admin/meter-integration/')({
 
 function MeterIntegrationPage() {
   const navigate = useNavigate()
-  const [meters, setMeters] = useState<SupportedMeter[]>(seededSupportedMeters)
+  const createMeter = useCreateMeterIntegration()
+  const { showToast } = useToast()
+  const [meters, setMeters] = useState<SupportedMeter[]>([])
   const [search, setSearch] = useState('')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [integrateOpen, setIntegrateOpen] = useState(false)
+  const [createFieldErrors, setCreateFieldErrors] = useState<
+    Partial<Record<MeterFormField, string>>
+  >({})
   const [editing, setEditing] = useState<SupportedMeter | null>(null)
   const [deprecating, setDeprecating] = useState<SupportedMeter | null>(null)
 
-  const integrateMeter = (data: MeterFormValues) => {
-    setMeters((prev) => [
-      ...prev,
-      {
-        id: `sm-${Date.now()}`,
-        addedBy: 'Admin',
-        addedDate: formatAddedDate(),
-        status: 'Active',
-        ...data,
-      },
-    ])
-    setIntegrateOpen(false)
+  const openIntegrateModal = () => {
+    createMeter.reset()
+    setCreateFieldErrors({})
+    setIntegrateOpen(true)
+  }
+
+  const integrateMeter = async (data: MeterFormValues) => {
+    setCreateFieldErrors({})
+
+    try {
+      const integration = await createMeter.mutateAsync({
+        manufacturer: data.manufacturer,
+        model: data.model,
+        class: data.meterClass.toLowerCase().replaceAll('-', ' '),
+        category: data.category.toLowerCase().replace('-', ''),
+        protocol: data.protocol,
+        authenticationType: data.authenticationType,
+        ...(data.password ? { password: data.password } : {}),
+        ...(data.description ? { description: data.description } : {}),
+      })
+
+      setMeters((prev) => [
+        ...prev,
+        {
+          id: integration.id,
+          manufacturer: integration.manufacturer,
+          category: data.category,
+          meterClass: data.meterClass,
+          model: integration.model,
+          protocol: integration.protocol,
+          authenticationType: integration.authenticationType,
+          description: integration.description,
+          addedBy: integration.addedBy.name,
+          addedDate: formatAddedDate(new Date(integration.createdAt)),
+          status: integration.status === 'ACTIVE' ? 'Active' : 'Deprecated',
+        },
+      ])
+      setIntegrateOpen(false)
+      showToast({
+        title: 'Meter integrated',
+        message: `${integration.manufacturer} ${integration.model} is now active.`,
+        variant: 'success',
+      })
+    } catch (error) {
+      const apiError = getMeterIntegrationError(error)
+      const { class: meterClassError, ...fieldErrors } = apiError.fields
+      const fieldMessage = [...new Set(Object.values(apiError.fields))].join(' ')
+      setCreateFieldErrors({
+        ...fieldErrors,
+        ...(meterClassError ? { meterClass: meterClassError } : {}),
+      })
+      showToast({
+        title: apiError.message,
+        message: [fieldMessage, apiError.requestId ? `Request ID: ${apiError.requestId}` : '']
+          .filter(Boolean)
+          .join(' · ') || undefined,
+        variant: 'error',
+      })
+    } finally {
+      createMeter.reset()
+    }
   }
 
   const saveMeter = (id: string, data: MeterFormValues) => {
-    setMeters((prev) => prev.map((m) => (m.id === id ? { ...m, ...data } : m)))
+    const { password: _password, ...meterData } = data
+    setMeters((prev) => prev.map((m) => (m.id === id ? { ...m, ...meterData } : m)))
     setEditing(null)
   }
 
@@ -73,7 +136,7 @@ function MeterIntegrationPage() {
             API integration.
           </p>
         </div>
-        <button type="button" className="btn-primary" onClick={() => setIntegrateOpen(true)}>
+        <button type="button" className="btn-primary" onClick={openIntegrateModal}>
           Integrate Meter <PlusIcon />
         </button>
       </header>
@@ -87,7 +150,7 @@ function MeterIntegrationPage() {
       {isEmpty ? (
         <div className="meter-empty">
           <p className="meter-empty-text">No meters Available</p>
-          <button type="button" className="btn-primary" onClick={() => setIntegrateOpen(true)}>
+          <button type="button" className="btn-primary" onClick={openIntegrateModal}>
             Integrate Meter <PlusIcon />
           </button>
         </div>
@@ -185,7 +248,19 @@ function MeterIntegrationPage() {
         <MeterFormModal
           title="Integrate Meter"
           submitLabel="Integrate"
-          onClose={() => setIntegrateOpen(false)}
+          isSubmitting={createMeter.isPending}
+          fieldErrors={createFieldErrors}
+          onFieldChange={(field) => {
+            setCreateFieldErrors((current) => {
+              if (!current[field]) return current
+              const next = { ...current }
+              delete next[field]
+              return next
+            })
+          }}
+          onClose={() => {
+            if (!createMeter.isPending) setIntegrateOpen(false)
+          }}
           onSubmit={integrateMeter}
         />
       ) : null}

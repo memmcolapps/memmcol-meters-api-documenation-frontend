@@ -1,15 +1,19 @@
 import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { useDismiss } from '../../../../app/useDismiss'
 import { useAnchoredMenu } from '../../../../app/useAnchoredMenu'
 import { ConfirmModal } from '../../../../app/ConfirmModal'
 import { MeterFormModal, type MeterFormValues } from '../../../../app/MeterFormModal'
 import {
   formatAddedDate,
-  seededSupportedMeters,
   type AdminMeterStatus,
   type SupportedMeter,
 } from '../../../../app/adminMeters'
+import {
+  getCachedMeterIntegration,
+  type MeterIntegration,
+} from '../../../../features/admin-meters/adminMeterQueries'
 
 export const Route = createFileRoute('/admin/_admin/meter-integration/$meterId')({
   component: MeterViewPage,
@@ -24,48 +28,30 @@ type ObisCode = {
   status: AdminMeterStatus
 }
 
-const seededObisCodes: ObisCode[] = [
-  {
-    id: 'ob-1',
-    action: 'Send Token',
-    code: '45;0.11.25.4.0.255;2;0',
-    addedBy: 'Wura',
-    addedDate: '17-02-2026',
-    status: 'Active',
-  },
-  {
-    id: 'ob-2',
-    action: 'Configure IP Address',
-    code: '46;0.11.25.4.0.255;2;0',
-    addedBy: 'Margaret',
-    addedDate: '17-02-2026',
-    status: 'Active',
-  },
-  {
-    id: 'ob-3',
-    action: 'Configure Port',
-    code: '45;0.11.25.4.0.255;4;0',
-    addedBy: 'Moshood',
-    addedDate: '17-02-2026',
-    status: 'Deprecated',
-  },
-  {
-    id: 'ob-4',
-    action: 'Read Credit Balance',
-    code: '45;0.11.35.4.0.255;2;0',
-    addedBy: 'Wura',
-    addedDate: '17-02-2026',
-    status: 'Active',
-  },
-]
-
-const pages = [1, 2, 3, '…', 5, 6, 7]
-const currentPage = 1
+function toSupportedMeter(integration: MeterIntegration): SupportedMeter {
+  return {
+    id: integration.id,
+    manufacturer: integration.manufacturer,
+    category: integration.category,
+    meterClass: integration.class,
+    model: integration.model,
+    protocol: integration.protocol,
+    authenticationType: integration.authenticationType,
+    description: integration.description,
+    addedBy: integration.addedBy.name,
+    addedDate: formatAddedDate(new Date(integration.createdAt)),
+    status: integration.status === 'ACTIVE' ? 'Active' : 'Deprecated',
+  }
+}
 
 function MeterViewPage() {
   const { meterId } = Route.useParams()
+  const queryClient = useQueryClient()
   const [meter, setMeter] = useState<SupportedMeter | undefined>(() =>
-    seededSupportedMeters.find((m) => m.id === meterId),
+    {
+      const integration = getCachedMeterIntegration(queryClient, meterId)
+      return integration ? toSupportedMeter(integration) : undefined
+    },
   )
 
   if (!meter) {
@@ -92,7 +78,8 @@ function MeterView({
   const [editInfoOpen, setEditInfoOpen] = useState(false)
 
   const saveInfo = (values: MeterFormValues) => {
-    onUpdate({ ...meter, ...values })
+    const { password: _password, ...meterData } = values
+    onUpdate({ ...meter, ...meterData })
     setEditInfoOpen(false)
   }
 
@@ -148,7 +135,7 @@ function MeterView({
 }
 
 function ObisPanel() {
-  const [codes, setCodes] = useState<ObisCode[]>(seededObisCodes)
+  const [codes, setCodes] = useState<ObisCode[]>([])
   const [search, setSearch] = useState('')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
@@ -280,33 +267,6 @@ function ObisPanel() {
           </tbody>
         </table>
       </div>
-
-      <nav className="pagination" aria-label="Pagination">
-        <button type="button" className="page-nav" disabled>
-          <ChevronLeftIcon /> Previous
-        </button>
-        <div className="page-numbers">
-          {pages.map((page, index) =>
-            page === '…' ? (
-              <span key={`gap-${index}`} className="page-gap">
-                …
-              </span>
-            ) : (
-              <button
-                type="button"
-                key={page}
-                className={`page-num${page === currentPage ? ' is-active' : ''}`}
-                aria-current={page === currentPage ? 'page' : undefined}
-              >
-                {page}
-              </button>
-            ),
-          )}
-        </div>
-        <button type="button" className="page-nav">
-          Next <ChevronRightIcon />
-        </button>
-      </nav>
 
       {addOpen ? (
         <ObisFormModal
@@ -672,22 +632,6 @@ function CloseIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M18 6 6 18M6 6l12 12" />
-    </svg>
-  )
-}
-
-function ChevronLeftIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m15 18-6-6 6-6" />
-    </svg>
-  )
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m9 18 6-6-6-6" />
     </svg>
   )
 }

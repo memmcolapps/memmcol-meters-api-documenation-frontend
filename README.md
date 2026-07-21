@@ -48,6 +48,17 @@ tokens.
 Use the API Management feature as the reference when connecting meters, plans, and
 the remaining seeded screens.
 
+The Meter Integration form consumes the admin creation endpoint directly:
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/admin/meter-integrations` | Create a supported meter integration |
+
+The response is expected as `{ "meterIntegration": { ... } }`. Validation errors
+from `error.fields` are displayed on the matching form controls. The optional
+password is sent only in the create request and is not retained in client-side
+meter state.
+
 ## Checks
 
 ```bash

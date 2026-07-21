@@ -1938,6 +1938,12 @@ h1 {
   border-color: #b42318;
 }
 
+.modal-field-error {
+  color: #b42318;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
 .modal-text {
   margin: 0;
   color: var(--app-text);
