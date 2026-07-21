@@ -1,6 +1,14 @@
 import { useRef, useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Logo } from '../app/Logo'
+import { useToast } from '../app/toastContext'
+import { getApiErrorMessage } from '../lib/api/client'
+import {
+  useRequestPasswordOtp,
+  useVerifyPasswordOtp,
+  useResetPassword,
+  useResendPasswordOtp,
+} from '../features/auth/passwordReset'
 
 export const Route = createFileRoute('/forgot-password')({
   component: ForgotPasswordPage,
@@ -8,12 +16,19 @@ export const Route = createFileRoute('/forgot-password')({
 
 type Step = 'email' | 'otp' | 'password'
 
-const OTP_LENGTH = 4
+const OTP_LENGTH = 6
 
 function ForgotPasswordPage() {
   const navigate = useNavigate()
+  const { showToast } = useToast()
+  const requestOtp = useRequestPasswordOtp()
+  const verifyOtp = useVerifyPasswordOtp()
+  const resetPwd = useResetPassword()
+  const resendOtp = useResendPasswordOtp()
+
   const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')
+  const [resetToken, setResetToken] = useState('')
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''))
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -41,6 +56,73 @@ function ForgotPasswordPage() {
 
   const otpComplete = otp.every((digit) => digit !== '')
 
+  const handleRequestOtp = async (event: React.FormEvent) => {
+    event.preventDefault()
+    try {
+      await requestOtp.mutateAsync({ email })
+      setStep('otp')
+    } catch (error) {
+      showToast({
+        title: 'Request failed',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
+  }
+
+  const handleVerifyOtp = async (event: React.FormEvent) => {
+    event.preventDefault()
+    try {
+      const result = await verifyOtp.mutateAsync({ email, otp: otp.join('') })
+      setResetToken(result.resetToken)
+      setStep('password')
+    } catch (error) {
+      showToast({
+        title: 'Verification failed',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
+  }
+
+  const handleResendOtp = async () => {
+    try {
+      await resendOtp.mutateAsync({ email })
+      setOtp(Array(OTP_LENGTH).fill(''))
+      otpRefs.current[0]?.focus()
+      showToast({
+        title: 'Code resent',
+        message: 'A new verification code has been sent.',
+        variant: 'success',
+      })
+    } catch (error) {
+      showToast({
+        title: 'Resend failed',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
+  }
+
+  const handleResetPassword = async (event: React.FormEvent) => {
+    event.preventDefault()
+    try {
+      await resetPwd.mutateAsync({ resetToken, password })
+      showToast({
+        title: 'Password reset',
+        message: 'Your password has been reset successfully.',
+        variant: 'success',
+      })
+      await navigate({ to: '/login' })
+    } catch (error) {
+      showToast({
+        title: 'Reset failed',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
+  }
+
   return (
     <div className="auth-wrap">
       <header className="auth-head">
@@ -54,13 +136,7 @@ function ForgotPasswordPage() {
             <h1 id="auth-title" className="auth-title">
               Reset Password
             </h1>
-            <form
-              className="auth-form"
-              onSubmit={(event) => {
-                event.preventDefault()
-                if (email) setStep('otp')
-              }}
-            >
+            <form className="auth-form" onSubmit={handleRequestOtp}>
               <div className="auth-field">
                 <label htmlFor="email">Email</label>
                 <input
@@ -72,8 +148,8 @@ function ForgotPasswordPage() {
                   onChange={(event) => setEmail(event.target.value)}
                 />
               </div>
-              <button type="submit" className="auth-submit auth-cta" disabled={!email}>
-                Sign In
+              <button type="submit" className="auth-submit auth-cta" disabled={!email || requestOtp.isPending}>
+                {requestOtp.isPending ? 'Sending…' : 'Send Code'}
               </button>
             </form>
           </>
@@ -85,13 +161,7 @@ function ForgotPasswordPage() {
               Enter Verification Code
             </h1>
             <p className="auth-subtitle">We sent an OTP code to {email}</p>
-            <form
-              className="auth-form"
-              onSubmit={(event) => {
-                event.preventDefault()
-                if (otpComplete) setStep('password')
-              }}
-            >
+            <form className="auth-form" onSubmit={handleVerifyOtp}>
               <div className="otp-group">
                 {otp.map((digit, index) => (
                   <input
@@ -110,8 +180,8 @@ function ForgotPasswordPage() {
                   />
                 ))}
               </div>
-              <button type="submit" className="auth-submit auth-cta" disabled={!otpComplete}>
-                Reset Password
+              <button type="submit" className="auth-submit auth-cta" disabled={!otpComplete || verifyOtp.isPending}>
+                {verifyOtp.isPending ? 'Verifying…' : 'Reset Password'}
               </button>
             </form>
             <p className="auth-resend">
@@ -119,9 +189,10 @@ function ForgotPasswordPage() {
               <button
                 type="button"
                 className="auth-link-btn"
-                onClick={() => setOtp(Array(OTP_LENGTH).fill(''))}
+                disabled={resendOtp.isPending}
+                onClick={handleResendOtp}
               >
-                Click here to resend
+                {resendOtp.isPending ? 'Resending…' : 'Click here to resend'}
               </button>
             </p>
           </>
@@ -132,13 +203,7 @@ function ForgotPasswordPage() {
             <h1 id="auth-title" className="auth-title">
               Reset Password
             </h1>
-            <form
-              className="auth-form"
-              onSubmit={(event) => {
-                event.preventDefault()
-                if (password && password === confirm) navigate({ to: '/login' })
-              }}
-            >
+            <form className="auth-form" onSubmit={handleResetPassword}>
               <div className="auth-field">
                 <label htmlFor="password">Password</label>
                 <div className="auth-input-group">
@@ -186,9 +251,9 @@ function ForgotPasswordPage() {
               <button
                 type="submit"
                 className="auth-submit auth-cta"
-                disabled={!password || password !== confirm}
+                disabled={!password || password !== confirm || resetPwd.isPending}
               >
-                Reset Password
+                {resetPwd.isPending ? 'Resetting…' : 'Reset Password'}
               </button>
             </form>
           </>
