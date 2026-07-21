@@ -68,3 +68,38 @@ export function useInviteOrganisationMember() {
     }),
   })
 }
+
+export function removeOrganisationMember(memberId: string) {
+  return apiRequest<void>(`/organisation/members/${memberId}`, {
+    method: 'DELETE',
+  })
+}
+
+export function useRemoveOrganisationMember() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: removeOrganisationMember,
+    onSuccess: () => queryClient.invalidateQueries({
+      queryKey: organisationMemberKeys.all,
+    }),
+  })
+}
+
+export function leaveOrganisation() {
+  return apiRequest<void>('/organisation/leave', {
+    method: 'POST',
+    json: { confirmation: true },
+  })
+}
+
+export function useLeaveOrganisation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: leaveOrganisation,
+    onSuccess: () => queryClient.invalidateQueries({
+      queryKey: organisationMemberKeys.all,
+    }),
+  })
+}

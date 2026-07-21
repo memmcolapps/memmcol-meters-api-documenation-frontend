@@ -1810,6 +1810,31 @@ h1 {
   background: #fbe9e9;
 }
 
+.btn-leave,
+.btn-remove {
+  padding: 0.5rem 1rem;
+  border: 1.5px solid #d64545;
+  border-radius: 6px;
+  background: transparent;
+  color: #d64545;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-leave:hover,
+.btn-remove:hover {
+  background: #fbe9e9;
+}
+
+.btn-leave:disabled,
+.btn-remove:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Modal */
 
 .modal-overlay {
@@ -1997,7 +2022,7 @@ h1 {
 
 .modal-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
 }
 
 /* ---------- Billing ---------- */
