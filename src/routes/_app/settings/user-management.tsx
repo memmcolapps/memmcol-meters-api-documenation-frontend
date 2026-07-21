@@ -304,7 +304,6 @@ function CloseIcon() {
 }
 
 function LeaveConfirmationModal({
-  member,
   onClose,
 }: {
   member: OrganisationMember
