@@ -5,9 +5,11 @@ import { useDismiss } from '../../../app/useDismiss'
 import {
   useInviteOrganisationMember,
   useOrganisationMembers,
+  useRemoveOrganisationMember,
+  useLeaveOrganisation,
   type InvitationRole,
+  type OrganisationMember,
   type OrganisationMemberRole,
-  type OrganisationMemberStatus,
 } from '../../../features/organisation/memberQueries'
 import {
   inviteOrganisationMemberSchema,
@@ -29,14 +31,10 @@ const roleLabels: Record<OrganisationMemberRole, string> = {
   MEMBER: 'Member',
 }
 
-const statusLabels: Record<OrganisationMemberStatus, string> = {
-  ACTIVE: 'Active',
-  INVITED: 'Invited',
-  SUSPENDED: 'Suspended',
-}
-
 function UserManagementPage() {
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [leaveModalMember, setLeaveModalMember] = useState<OrganisationMember | null>(null)
+  const [removeModalMember, setRemoveModalMember] = useState<OrganisationMember | null>(null)
   const membersQuery = useOrganisationMembers()
   const { showToast } = useToast()
   const notifiedError = useRef<unknown>(null)
@@ -54,6 +52,7 @@ function UserManagementPage() {
   const currentMember = membersQuery.data?.items.find((member) => member.isCurrentUser)
   const canInvite = currentMember?.role === 'OWNER' || currentMember?.role === 'ADMIN'
   const canGrantAdmin = currentMember?.role === 'OWNER'
+  const canRemove = currentMember?.role === 'OWNER' || currentMember?.role === 'ADMIN'
 
   return (
     <div className="dash">
@@ -109,9 +108,23 @@ function UserManagementPage() {
                 </div>
               </div>
               <span className="org-member-role">{roleLabels[member.role]}</span>
-              <span className={`org-member-status is-${member.status.toLowerCase()}`}>
-                {statusLabels[member.status]}
-              </span>
+              {member.isCurrentUser ? (
+                <button
+                  type="button"
+                  className="btn-leave"
+                  onClick={() => setLeaveModalMember(member)}
+                >
+                  Leave
+                </button>
+              ) : canRemove ? (
+                <button
+                  type="button"
+                  className="btn-remove"
+                  onClick={() => setRemoveModalMember(member)}
+                >
+                  Remove
+                </button>
+              ) : null}
             </div>
           ))}
         </section>
@@ -125,6 +138,20 @@ function UserManagementPage() {
         <InviteMemberModal
           canGrantAdmin={canGrantAdmin}
           onClose={() => setInviteOpen(false)}
+        />
+      ) : null}
+
+      {leaveModalMember ? (
+        <LeaveConfirmationModal
+          member={leaveModalMember}
+          onClose={() => setLeaveModalMember(null)}
+        />
+      ) : null}
+
+      {removeModalMember ? (
+        <RemoveConfirmationModal
+          member={removeModalMember}
+          onClose={() => setRemoveModalMember(null)}
         />
       ) : null}
     </div>
@@ -273,5 +300,135 @@ function CloseIcon() {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M18 6 6 18M6 6l12 12" />
     </svg>
+  )
+}
+
+function LeaveConfirmationModal({
+  member,
+  onClose,
+}: {
+  member: OrganisationMember
+  onClose: () => void
+}) {
+  const leaveMember = useLeaveOrganisation()
+  const { showToast } = useToast()
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, onClose)
+
+  const handleLeave = async () => {
+    try {
+      await leaveMember.mutateAsync()
+      showToast({
+        title: 'Left organisation',
+        message: 'You have successfully left the organisation.',
+        variant: 'success',
+      })
+      onClose()
+    } catch (error) {
+      showToast({
+        title: 'Could not leave organisation',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
+  }
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="leave-title">
+      <div className="modal" ref={modalRef}>
+        <div className="modal-head">
+          <h2 id="leave-title" className="modal-title">Confirm Action</h2>
+          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+            <CloseIcon />
+          </button>
+        </div>
+        <div className="modal-body">
+          <p>Are you sure you want to leave this organisation?</p>
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn-neutral"
+              onClick={onClose}
+              disabled={leaveMember.isPending}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-leave"
+              onClick={handleLeave}
+              disabled={leaveMember.isPending}
+            >
+              {leaveMember.isPending ? 'Leaving…' : 'Leave'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RemoveConfirmationModal({
+  member,
+  onClose,
+}: {
+  member: OrganisationMember
+  onClose: () => void
+}) {
+  const removeMember = useRemoveOrganisationMember()
+  const { showToast } = useToast()
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, onClose)
+
+  const handleRemove = async () => {
+    try {
+      await removeMember.mutateAsync(member.id)
+      showToast({
+        title: 'Member removed',
+        message: `${member.displayName} has been removed from the organisation.`,
+        variant: 'success',
+      })
+      onClose()
+    } catch (error) {
+      showToast({
+        title: 'Could not remove member',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
+  }
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="remove-title">
+      <div className="modal" ref={modalRef}>
+        <div className="modal-head">
+          <h2 id="remove-title" className="modal-title">Confirm Action</h2>
+          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+            <CloseIcon />
+          </button>
+        </div>
+        <div className="modal-body">
+          <p>Are you sure you want to remove <strong>{member.displayName}</strong> from this organisation?</p>
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn-neutral"
+              onClick={onClose}
+              disabled={removeMember.isPending}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-remove"
+              onClick={handleRemove}
+              disabled={removeMember.isPending}
+            >
+              {removeMember.isPending ? 'Removing…' : 'Remove'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
