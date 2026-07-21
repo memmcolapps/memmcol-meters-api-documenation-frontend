@@ -2,31 +2,28 @@ import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useDismiss } from '../../../../app/useDismiss'
-import { useAnchoredMenu } from '../../../../app/useAnchoredMenu'
-import { ConfirmModal } from '../../../../app/ConfirmModal'
+import { useToast } from '../../../../app/toastContext'
 import { MeterFormModal, type MeterFormValues } from '../../../../app/MeterFormModal'
 import {
   formatAddedDate,
-  type AdminMeterStatus,
   type SupportedMeter,
 } from '../../../../app/adminMeters'
 import {
+  getCachedObisCodes,
   getCachedMeterIntegration,
+  getObisCodeError,
+  useCreateObisCode,
+  type CreateObisCodeInput,
   type MeterIntegration,
+  type ObisCode,
 } from '../../../../features/admin-meters/adminMeterQueries'
 
 export const Route = createFileRoute('/admin/_admin/meter-integration/$meterId')({
   component: MeterViewPage,
 })
 
-type ObisCode = {
-  id: string
-  action: string
-  code: string
-  addedBy: string
-  addedDate: string
-  status: AdminMeterStatus
-}
+type ObisFormValues = Required<CreateObisCodeInput>
+type ObisFormField = keyof ObisFormValues
 
 function toSupportedMeter(integration: MeterIntegration): SupportedMeter {
   return {
@@ -119,7 +116,7 @@ function MeterView({
         </button>
       </section>
 
-      <ObisPanel />
+      <ObisPanel meterIntegrationId={meter.id} />
 
       {editInfoOpen ? (
         <MeterFormModal
@@ -134,43 +131,62 @@ function MeterView({
   )
 }
 
-function ObisPanel() {
-  const [codes, setCodes] = useState<ObisCode[]>([])
+function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
+  const queryClient = useQueryClient()
+  const createObisCode = useCreateObisCode(meterIntegrationId)
+  const { showToast } = useToast()
+  const [codes, setCodes] = useState<ObisCode[]>(() =>
+    getCachedObisCodes(queryClient, meterIntegrationId),
+  )
   const [search, setSearch] = useState('')
-  const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
-  const [uploadOpen, setUploadOpen] = useState(false)
-  const [editing, setEditing] = useState<ObisCode | null>(null)
-  const [deprecating, setDeprecating] = useState<ObisCode | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<ObisFormField, string>>
+  >({})
 
-  const addCode = (values: { action: string; code: string }) => {
-    setCodes((prev) => [
-      ...prev,
-      {
-        id: `ob-${Date.now()}`,
-        addedBy: 'Admin',
-        addedDate: formatAddedDate(),
-        status: 'Active',
-        ...values,
-      },
-    ])
-    setAddOpen(false)
+  const openAddModal = () => {
+    createObisCode.reset()
+    setFieldErrors({})
+    setAddOpen(true)
   }
 
-  const saveCode = (id: string, values: { action: string; code: string }) => {
-    setCodes((prev) => prev.map((c) => (c.id === id ? { ...c, ...values } : c)))
-    setEditing(null)
-  }
+  const addCode = async (values: ObisFormValues) => {
+    setFieldErrors({})
 
-  const setStatus = (id: string, status: AdminMeterStatus) => {
-    setCodes((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)))
-    setOpenMenu(null)
+    try {
+      const obisCode = await createObisCode.mutateAsync({
+        action: values.action,
+        code: values.code,
+        ...(values.description ? { description: values.description } : {}),
+      })
+      setCodes((current) => [...current, obisCode])
+      setAddOpen(false)
+      showToast({
+        title: 'OBIS code added',
+        message: `${obisCode.action} was added with status ${obisCode.status}.`,
+        variant: 'success',
+      })
+    } catch (error) {
+      const apiError = getObisCodeError(error)
+      const nextFieldErrors = apiError.fields as Partial<Record<ObisFormField, string>>
+      const fieldMessage = [...new Set(Object.values(apiError.fields))].join(' ')
+      setFieldErrors(nextFieldErrors)
+      showToast({
+        title: apiError.message,
+        message: [fieldMessage, apiError.requestId ? `Request ID: ${apiError.requestId}` : '']
+          .filter(Boolean)
+          .join(' · ') || undefined,
+        variant: 'error',
+      })
+    } finally {
+      createObisCode.reset()
+    }
   }
 
   const query = search.trim().toLowerCase()
   const visibleCodes = query
     ? codes.filter((c) =>
-        [c.action, c.code, c.addedBy].join(' ').toLowerCase().includes(query),
+        [c.action, c.code, c.description].join(' ').toLowerCase().includes(query),
       )
     : codes
 
@@ -179,16 +195,8 @@ function ObisPanel() {
       <div className="panel-head">
         <h2 className="panel-title">OBIS Code</h2>
         <div className="panel-actions">
-          <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
+          <button type="button" className="btn-primary" onClick={openAddModal}>
             Add OBIS Code <PlusIcon />
-          </button>
-          <button
-            type="button"
-            className="btn-outline btn-icon"
-            aria-label="Upload OBIS file"
-            onClick={() => setUploadOpen(true)}
-          >
-            <UploadIcon />
           </button>
         </div>
       </div>
@@ -219,10 +227,9 @@ function ObisPanel() {
               <th>S/N</th>
               <th>OBIS Action</th>
               <th>OBIS Code</th>
-              <th>Added By</th>
-              <th>Added Date</th>
+              <th>Description</th>
+              <th>Created Date</th>
               <th>Status</th>
-              <th className="col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -234,33 +241,14 @@ function ObisPanel() {
                 <td>{String(index + 1).padStart(2, '0')}</td>
                 <td>{code.action}</td>
                 <td>{code.code}</td>
-                <td>{code.addedBy}</td>
-                <td>{code.addedDate}</td>
+                <td>{code.description}</td>
+                <td>{formatAddedDate(new Date(code.createdAt))}</td>
                 <td>
                   <span
-                    className={`code-badge${code.status === 'Active' ? ' is-ok' : ' is-error'}`}
+                    className={`code-badge${code.status === 'ACTIVE' ? ' is-ok' : ' is-error'}`}
                   >
                     {code.status}
                   </span>
-                </td>
-                <td className="col-actions">
-                  <ObisRowActions
-                    isOpen={openMenu === code.id}
-                    status={code.status}
-                    onToggle={() =>
-                      setOpenMenu((prev) => (prev === code.id ? null : code.id))
-                    }
-                    onClose={() => setOpenMenu(null)}
-                    onEdit={() => {
-                      setOpenMenu(null)
-                      setEditing(code)
-                    }}
-                    onActivate={() => setStatus(code.id, 'Active')}
-                    onDeprecate={() => {
-                      setOpenMenu(null)
-                      setDeprecating(code)
-                    }}
-                  />
                 </td>
               </tr>
             ))}
@@ -272,32 +260,20 @@ function ObisPanel() {
         <ObisFormModal
           title="Add OBIS Code"
           submitLabel="Add"
-          onClose={() => setAddOpen(false)}
-          onSubmit={addCode}
-        />
-      ) : null}
-
-      {uploadOpen ? <UploadObisModal onClose={() => setUploadOpen(false)} /> : null}
-
-      {editing ? (
-        <ObisFormModal
-          title="Edit OBIS Code"
-          submitLabel="Save"
-          initial={editing}
-          onClose={() => setEditing(null)}
-          onSubmit={(values) => saveCode(editing.id, values)}
-        />
-      ) : null}
-
-      {deprecating ? (
-        <ConfirmModal
-          message="Are you sure you want to deprecate OBIS?"
-          confirmLabel="Deprecate"
-          onCancel={() => setDeprecating(null)}
-          onConfirm={() => {
-            setStatus(deprecating.id, 'Deprecated')
-            setDeprecating(null)
+          isSubmitting={createObisCode.isPending}
+          fieldErrors={fieldErrors}
+          onFieldChange={(field) => {
+            setFieldErrors((current) => {
+              if (!current[field]) return current
+              const next = { ...current }
+              delete next[field]
+              return next
+            })
           }}
+          onClose={() => {
+            if (!createObisCode.isPending) setAddOpen(false)
+          }}
+          onSubmit={addCode}
         />
       ) : null}
     </section>
@@ -307,18 +283,23 @@ function ObisPanel() {
 function ObisFormModal({
   title,
   submitLabel,
-  initial,
+  isSubmitting,
+  fieldErrors,
+  onFieldChange,
   onClose,
   onSubmit,
 }: {
   title: string
   submitLabel: string
-  initial?: Pick<ObisCode, 'action' | 'code'>
+  isSubmitting: boolean
+  fieldErrors: Partial<Record<ObisFormField, string>>
+  onFieldChange: (field: ObisFormField) => void
   onClose: () => void
-  onSubmit: (values: { action: string; code: string }) => void
+  onSubmit: (values: ObisFormValues) => void
 }) {
-  const [action, setAction] = useState(initial?.action ?? '')
-  const [code, setCode] = useState(initial?.code ?? '')
+  const [action, setAction] = useState('')
+  const [code, setCode] = useState('')
+  const [description, setDescription] = useState('')
   const modalRef = useRef<HTMLDivElement>(null)
   useDismiss(modalRef, onClose)
 
@@ -331,7 +312,13 @@ function ObisFormModal({
           <h2 id="obis-form-title" className="modal-title">
             {title}
           </h2>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Close"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
             <CloseIcon />
           </button>
         </div>
@@ -341,197 +328,74 @@ function ObisFormModal({
             <label>OBIS Action</label>
             <input
               className="modal-input"
-              placeholder="E.g. Send Token"
+              placeholder="Enter action"
               value={action}
-              onChange={(e) => setAction(e.target.value)}
+              onChange={(e) => {
+                setAction(e.target.value)
+                onFieldChange('action')
+              }}
+              aria-invalid={Boolean(fieldErrors.action)}
+              disabled={isSubmitting}
             />
+            {fieldErrors.action ? (
+              <span className="modal-field-error" role="alert">{fieldErrors.action}</span>
+            ) : null}
           </div>
           <div className="modal-field">
             <label>OBIS Code</label>
             <input
               className="modal-input"
-              placeholder="E.g. 45;0.11.25.4.0.255;2;0"
+              placeholder="Enter OBIS code"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => {
+                setCode(e.target.value)
+                onFieldChange('code')
+              }}
+              aria-invalid={Boolean(fieldErrors.code)}
+              disabled={isSubmitting}
             />
-          </div>
-
-          <div className="modal-foot">
-            <button type="button" className="btn-neutral" onClick={onClose}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={!canSubmit}
-              onClick={() => canSubmit && onSubmit({ action: action.trim(), code: code.trim() })}
-            >
-              {submitLabel}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function UploadObisModal({ onClose }: { onClose: () => void }) {
-  const [file, setFile] = useState<{ name: string; size: number } | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const modalRef = useRef<HTMLDivElement>(null)
-  useDismiss(modalRef, onClose)
-
-  const handleFiles = (files: FileList | null) => {
-    const selected = files?.[0]
-    if (selected) setFile({ name: selected.name, size: selected.size })
-  }
-
-  const formatSize = (bytes: number) => `${Math.max(1, Math.round(bytes / 1024))} KB`
-
-  return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="upload-obis-title">
-      <div className="modal" ref={modalRef}>
-        <div className="modal-head">
-          <h2 id="upload-obis-title" className="modal-title">
-            Upload File
-          </h2>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
-            <CloseIcon />
-          </button>
-        </div>
-
-        <div className="modal-body">
-          <div>
-            <h3 className="upload-heading">Upload OBIS</h3>
-            <p className="modal-subtitle">Upload your file containing OBIS details.</p>
-          </div>
-
-          <div
-            className="upload-zone"
-            role="button"
-            tabIndex={0}
-            aria-label="Choose a file to upload"
-            onClick={() => inputRef.current?.click()}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault()
-                inputRef.current?.click()
-              }
-            }}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault()
-              handleFiles(event.dataTransfer.files)
-            }}
-          >
-            <span className="upload-zone-icon" aria-hidden="true">
-              <FilePlusIcon />
-            </span>
-            {file ? (
-              <>
-                <p className="upload-file-name">
-                  {file.name} | {formatSize(file.size)}
-                </p>
-                <p className="upload-file-status">
-                  Your {file.name} has been successfully updated
-                </p>
-              </>
+            {fieldErrors.code ? (
+              <span className="modal-field-error" role="alert">{fieldErrors.code}</span>
             ) : null}
           </div>
-          <input
-            ref={inputRef}
-            type="file"
-            hidden
-            onChange={(event) => handleFiles(event.target.files)}
-          />
-
-          <p className="upload-note">
-            Click the{' '}
-            <button type="button" className="upload-link">
-              link to download
-            </button>{' '}
-            the required document format. Please ensure your file follows the
-            structure before uploading.
-          </p>
+          <div className="modal-field">
+            <label>Description</label>
+            <textarea
+              className="modal-input"
+              rows={3}
+              placeholder="Describe this OBIS command"
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value)
+                onFieldChange('description')
+              }}
+              aria-invalid={Boolean(fieldErrors.description)}
+              disabled={isSubmitting}
+            />
+            {fieldErrors.description ? (
+              <span className="modal-field-error" role="alert">{fieldErrors.description}</span>
+            ) : null}
+          </div>
 
           <div className="modal-foot">
-            <button type="button" className="btn-neutral" onClick={onClose}>
+            <button type="button" className="btn-neutral" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </button>
             <button
               type="button"
               className="btn-primary"
-              disabled={!file}
-              onClick={onClose}
+              disabled={!canSubmit || isSubmitting}
+              onClick={() => canSubmit && onSubmit({
+                action: action.trim(),
+                code: code.trim(),
+                description: description.trim(),
+              })}
             >
-              Import
+              {isSubmitting ? 'Adding…' : submitLabel}
             </button>
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-function FilePlusIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />
-      <path d="M14 3v5h5" />
-      <path d="M12 12v6M9 15h6" />
-    </svg>
-  )
-}
-
-function ObisRowActions({
-  isOpen,
-  status,
-  onToggle,
-  onClose,
-  onEdit,
-  onActivate,
-  onDeprecate,
-}: {
-  isOpen: boolean
-  status: AdminMeterStatus
-  onToggle: () => void
-  onClose: () => void
-  onEdit: () => void
-  onActivate: () => void
-  onDeprecate: () => void
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  useDismiss(ref, onClose, isOpen)
-  const { anchorRef, menuStyle } = useAnchoredMenu(isOpen)
-
-  return (
-    <div className="row-actions" ref={ref}>
-      <button
-        type="button"
-        ref={anchorRef}
-        className="row-kebab"
-        aria-label="Row actions"
-        aria-expanded={isOpen}
-        onClick={onToggle}
-      >
-        <KebabIcon />
-      </button>
-      {isOpen ? (
-        <div className="row-menu" style={menuStyle} role="menu">
-          <button type="button" className="row-menu-item" role="menuitem" onClick={onEdit}>
-            <PencilIcon /> Edit OBIS Code
-          </button>
-          {status === 'Active' ? (
-            <button type="button" className="row-menu-item" role="menuitem" onClick={onDeprecate}>
-              <TrashIcon /> Deprecate OBIS
-            </button>
-          ) : (
-            <button type="button" className="row-menu-item" role="menuitem" onClick={onActivate}>
-              <BadgeCheckIcon /> Activate OBIS
-            </button>
-          )}
-        </div>
-      ) : null}
     </div>
   )
 }
@@ -555,48 +419,11 @@ function PencilSquareIcon() {
   )
 }
 
-function PencilIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-      <path d="m15 5 4 4" />
-    </svg>
-  )
-}
-
-function TrashIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-      <path d="M6 7v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7" />
-      <path d="M10 11v6M14 11v6" />
-    </svg>
-  )
-}
-
-function BadgeCheckIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <path d="m8.5 12.5 2.3 2.3 4.7-5" />
-    </svg>
-  )
-}
-
 function PlusIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="9" />
       <path d="M12 8v8M8 12h8" />
-    </svg>
-  )
-}
-
-function UploadIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 15V4m0 0-4 4m4-4 4 4" />
-      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
     </svg>
   )
 }
@@ -614,16 +441,6 @@ function SortIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3" />
-    </svg>
-  )
-}
-
-function KebabIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <circle cx="12" cy="5" r="1.6" />
-      <circle cx="12" cy="12" r="1.6" />
-      <circle cx="12" cy="19" r="1.6" />
     </svg>
   )
 }

@@ -31,8 +31,29 @@ export type MeterIntegration = {
   updatedAt: string
 }
 
+export type CreateObisCodeInput = {
+  action: string
+  code: string
+  description?: string
+}
+
+export type ObisCode = {
+  id: string
+  meterIntegrationId: string
+  action: string
+  code: string
+  description: string
+  status: 'ACTIVE' | 'DEPRECATED'
+  createdAt: string
+  updatedAt: string
+}
+
 type CreateMeterIntegrationResponse = {
   meterIntegration: MeterIntegration
+}
+
+type CreateObisCodeResponse = {
+  obisCode: ObisCode
 }
 
 type MeterIntegrationErrorPayload = {
@@ -55,8 +76,23 @@ async function createMeterIntegration(input: CreateMeterIntegrationInput) {
   return response.meterIntegration
 }
 
+async function createObisCode(
+  meterIntegrationId: string,
+  input: CreateObisCodeInput,
+) {
+  const response = await apiRequest<CreateObisCodeResponse>(
+    `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/obis-codes`,
+    {
+      method: 'POST',
+      json: input,
+    },
+  )
+  return response.obisCode
+}
+
 export const meterIntegrationKeys = {
   detail: (id: string) => ['admin-meter-integrations', 'detail', id] as const,
+  obisCodes: (id: string) => ['admin-meter-integrations', 'detail', id, 'obis-codes'] as const,
 }
 
 export function useCreateMeterIntegration() {
@@ -73,6 +109,21 @@ export function useCreateMeterIntegration() {
   })
 }
 
+export function useCreateObisCode(meterIntegrationId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: CreateObisCodeInput) =>
+      createObisCode(meterIntegrationId, input),
+    onSuccess: (obisCode) => {
+      queryClient.setQueryData<ObisCode[]>(
+        meterIntegrationKeys.obisCodes(meterIntegrationId),
+        (current = []) => [...current, obisCode],
+      )
+    },
+  })
+}
+
 export function getCachedMeterIntegration(
   queryClient: QueryClient,
   id: string,
@@ -80,6 +131,15 @@ export function getCachedMeterIntegration(
   return queryClient.getQueryData<MeterIntegration>(
     meterIntegrationKeys.detail(id),
   )
+}
+
+export function getCachedObisCodes(
+  queryClient: QueryClient,
+  meterIntegrationId: string,
+) {
+  return queryClient.getQueryData<ObisCode[]>(
+    meterIntegrationKeys.obisCodes(meterIntegrationId),
+  ) ?? []
 }
 
 export function getMeterIntegrationError(error: unknown) {
@@ -91,6 +151,21 @@ export function getMeterIntegrationError(error: unknown) {
     code: payload?.error?.code,
     message: payload?.error?.message ?? (
       error instanceof Error ? error.message : 'The meter integration could not be created.'
+    ),
+    fields: payload?.error?.fields ?? {},
+    requestId: payload?.error?.requestId,
+  }
+}
+
+export function getObisCodeError(error: unknown) {
+  const payload = error instanceof ApiError
+    ? error.details as MeterIntegrationErrorPayload | undefined
+    : undefined
+
+  return {
+    code: payload?.error?.code,
+    message: payload?.error?.message ?? (
+      error instanceof Error ? error.message : 'The OBIS code could not be created.'
     ),
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,

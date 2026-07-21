@@ -53,11 +53,15 @@ The Meter Integration form consumes the admin creation endpoint directly:
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `POST` | `/admin/meter-integrations` | Create a supported meter integration |
+| `POST` | `/admin/meter-integrations/:meterIntegrationId/obis-codes` | Add an OBIS/action code to a meter integration |
 
 The response is expected as `{ "meterIntegration": { ... } }`. Validation errors
 from `error.fields` are displayed on the matching form controls. The optional
 password is sent only in the create request and is not retained in client-side
 meter state.
+
+The OBIS form uses the returned `obisCode` as the source of truth. No seeded or
+mock OBIS records are used.
 
 ## Checks
 
