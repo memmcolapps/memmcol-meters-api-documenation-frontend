@@ -12,6 +12,14 @@ export type CurrentProfile = {
   role: string
 }
 
+export type UpdateProfileInput = {
+  firstName: string
+  lastName: string
+  businessName: string
+  dialCode: string
+  phone: string
+}
+
 export type ChangePasswordInput = {
   currentPassword: string
   newPassword: string
@@ -47,5 +55,18 @@ export function changePassword(input: ChangePasswordInput) {
 export function useChangePassword() {
   return useMutation({
     mutationFn: changePassword,
+  })
+}
+
+export function updateProfile(input: UpdateProfileInput) {
+  return apiRequest<CurrentProfile>('/profile', {
+    method: 'PATCH',
+    json: input,
+  })
+}
+
+export function useUpdateProfile() {
+  return useMutation({
+    mutationFn: updateProfile,
   })
 }
