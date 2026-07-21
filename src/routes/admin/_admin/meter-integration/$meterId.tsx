@@ -3,18 +3,14 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useDismiss } from '../../../../app/useDismiss'
 import { useToast } from '../../../../app/toastContext'
-import { MeterFormModal, type MeterFormValues } from '../../../../app/MeterFormModal'
-import {
-  formatAddedDate,
-  type SupportedMeter,
-} from '../../../../app/adminMeters'
+import { formatAddedDate } from '../../../../app/adminMeters'
 import {
   getCachedObisCodes,
   getCachedMeterIntegration,
   getObisCodeError,
   useCreateObisCode,
   type CreateObisCodeInput,
-  type MeterIntegration,
+  type MeterIntegrationSummary,
   type ObisCode,
 } from '../../../../features/admin-meters/adminMeterQueries'
 
@@ -25,31 +21,10 @@ export const Route = createFileRoute('/admin/_admin/meter-integration/$meterId')
 type ObisFormValues = Required<CreateObisCodeInput>
 type ObisFormField = keyof ObisFormValues
 
-function toSupportedMeter(integration: MeterIntegration): SupportedMeter {
-  return {
-    id: integration.id,
-    manufacturer: integration.manufacturer,
-    category: integration.category,
-    meterClass: integration.class,
-    model: integration.model,
-    protocol: integration.protocol,
-    authenticationType: integration.authenticationType,
-    description: integration.description,
-    addedBy: integration.addedBy.name,
-    addedDate: formatAddedDate(new Date(integration.createdAt)),
-    status: integration.status === 'ACTIVE' ? 'Active' : 'Deprecated',
-  }
-}
-
 function MeterViewPage() {
   const { meterId } = Route.useParams()
   const queryClient = useQueryClient()
-  const [meter, setMeter] = useState<SupportedMeter | undefined>(() =>
-    {
-      const integration = getCachedMeterIntegration(queryClient, meterId)
-      return integration ? toSupportedMeter(integration) : undefined
-    },
-  )
+  const meter = getCachedMeterIntegration(queryClient, meterId)
 
   if (!meter) {
     return (
@@ -62,24 +37,10 @@ function MeterViewPage() {
     )
   }
 
-  return <MeterView meter={meter} onUpdate={setMeter} />
+  return <MeterView meter={meter} />
 }
 
-function MeterView({
-  meter,
-  onUpdate,
-}: {
-  meter: SupportedMeter
-  onUpdate: (meter: SupportedMeter) => void
-}) {
-  const [editInfoOpen, setEditInfoOpen] = useState(false)
-
-  const saveInfo = (values: MeterFormValues) => {
-    const { password: _password, ...meterData } = values
-    onUpdate({ ...meter, ...meterData })
-    setEditInfoOpen(false)
-  }
-
+function MeterView({ meter }: { meter: MeterIntegrationSummary }) {
   return (
     <div className="dash">
       <header className="dash-head">
@@ -102,31 +63,20 @@ function MeterView({
             <p className="meter-view-name">
               {meter.model}{' '}
               <span
-                className={`code-badge${meter.status === 'Active' ? ' is-ok' : ' is-error'}`}
+                className={`code-badge${meter.status === 'ACTIVE' ? ' is-ok' : ' is-error'}`}
               >
                 {meter.status}
               </span>
             </p>
             <p className="meter-view-meta">{meter.manufacturer}</p>
-            <p className="meter-view-meta">Date Added {meter.addedDate}</p>
+            <p className="meter-view-meta">
+              Date Added {formatAddedDate(new Date(meter.createdAt))}
+            </p>
           </div>
         </div>
-        <button type="button" className="btn-neutral btn-icon" onClick={() => setEditInfoOpen(true)}>
-          Edit Info <PencilSquareIcon />
-        </button>
       </section>
 
       <ObisPanel meterIntegrationId={meter.id} />
-
-      {editInfoOpen ? (
-        <MeterFormModal
-          title="Edit Meter"
-          submitLabel="Save"
-          initial={meter}
-          onClose={() => setEditInfoOpen(false)}
-          onSubmit={saveInfo}
-        />
-      ) : null}
     </div>
   )
 }
@@ -406,15 +356,6 @@ function GaugeIcon() {
       <circle cx="12" cy="12" r="9" />
       <path d="M12 12 16 8" />
       <circle cx="12" cy="12" r="1" fill="currentColor" />
-    </svg>
-  )
-}
-
-function PencilSquareIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" />
-      <path d="M17.5 3.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z" />
     </svg>
   )
 }

@@ -1,4 +1,10 @@
-import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query'
 import { ApiError, apiRequest } from '../../lib/api/client'
 
 export type CreateMeterIntegrationInput = {
@@ -12,16 +18,15 @@ export type CreateMeterIntegrationInput = {
   description?: string
 }
 
-export type MeterIntegration = {
+export type MeterIntegrationStatus = 'ACTIVE' | 'DEPRECATED'
+
+export type MeterIntegrationSummary = {
   id: string
   manufacturer: string
   model: string
-  class: string
-  category: string
   protocol: string
   authenticationType: string
-  description: string
-  status: 'ACTIVE' | 'DEPRECATED'
+  status: MeterIntegrationStatus
   obisCodeCount: number
   addedBy: {
     id: string
@@ -29,6 +34,30 @@ export type MeterIntegration = {
   }
   createdAt: string
   updatedAt: string
+}
+
+export type MeterIntegration = MeterIntegrationSummary & {
+  class: string
+  category: string
+  description: string
+}
+
+export type MeterIntegrationListParams = {
+  search?: string
+  status?: MeterIntegrationStatus
+  manufacturer?: string
+  page: number
+  limit: number
+}
+
+export type MeterIntegrationListResponse = {
+  items: MeterIntegrationSummary[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
 }
 
 export type CreateObisCodeInput = {
@@ -76,6 +105,20 @@ async function createMeterIntegration(input: CreateMeterIntegrationInput) {
   return response.meterIntegration
 }
 
+async function listMeterIntegrations(params: MeterIntegrationListParams) {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    limit: String(params.limit),
+  })
+  if (params.search) query.set('search', params.search)
+  if (params.status) query.set('status', params.status)
+  if (params.manufacturer) query.set('manufacturer', params.manufacturer)
+
+  return apiRequest<MeterIntegrationListResponse>(
+    `/admin/meter-integrations?${query.toString()}`,
+  )
+}
+
 async function createObisCode(
   meterIntegrationId: string,
   input: CreateObisCodeInput,
@@ -91,6 +134,10 @@ async function createObisCode(
 }
 
 export const meterIntegrationKeys = {
+  all: ['admin-meter-integrations'] as const,
+  lists: () => ['admin-meter-integrations', 'list'] as const,
+  list: (params: MeterIntegrationListParams) =>
+    ['admin-meter-integrations', 'list', params] as const,
   detail: (id: string) => ['admin-meter-integrations', 'detail', id] as const,
   obisCodes: (id: string) => ['admin-meter-integrations', 'detail', id, 'obis-codes'] as const,
 }
@@ -100,12 +147,32 @@ export function useCreateMeterIntegration() {
 
   return useMutation({
     mutationFn: createMeterIntegration,
-    onSuccess: (integration) => {
+    onSuccess: async (integration) => {
       queryClient.setQueryData(
         meterIntegrationKeys.detail(integration.id),
         integration,
       )
+      await queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() })
     },
+  })
+}
+
+export function useMeterIntegrations(params: MeterIntegrationListParams) {
+  const queryClient = useQueryClient()
+
+  return useQuery({
+    queryKey: meterIntegrationKeys.list(params),
+    queryFn: async () => {
+      const response = await listMeterIntegrations(params)
+      response.items.forEach((integration) => {
+        queryClient.setQueryData(
+          meterIntegrationKeys.detail(integration.id),
+          integration,
+        )
+      })
+      return response
+    },
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -128,7 +195,7 @@ export function getCachedMeterIntegration(
   queryClient: QueryClient,
   id: string,
 ) {
-  return queryClient.getQueryData<MeterIntegration>(
+  return queryClient.getQueryData<MeterIntegrationSummary>(
     meterIntegrationKeys.detail(id),
   )
 }
