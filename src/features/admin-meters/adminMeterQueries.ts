@@ -14,7 +14,7 @@ export type CreateMeterIntegrationInput = {
   category: string
   protocol: string
   authenticationType: string
-  password?: string
+  password: string
   description?: string
 }
 

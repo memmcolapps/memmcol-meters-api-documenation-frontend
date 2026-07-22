@@ -65,7 +65,7 @@ function MeterIntegrationPage() {
         category: data.category.toLowerCase().replace('-', ''),
         protocol: data.protocol,
         authenticationType: data.authenticationType,
-        ...(data.password ? { password: data.password } : {}),
+        password: data.password,
         ...(data.description ? { description: data.description } : {}),
       })
 
