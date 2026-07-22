@@ -16,6 +16,7 @@ export class ApiError extends Error {
 
 type ApiRequestOptions = Omit<RequestInit, 'body'> & {
   json?: unknown
+  formData?: FormData
 }
 
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL
@@ -82,14 +83,17 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   const csrfToken = isUnsafeRequest ? getCookie('XSRF-TOKEN') : null
   if (csrfToken) headers.set('X-XSRF-TOKEN', csrfToken)
 
-  let body: string | undefined
+  let body: BodyInit | undefined
   if (options.json !== undefined) {
     headers.set('Content-Type', 'application/json')
     body = JSON.stringify(options.json)
+  } else if (options.formData !== undefined) {
+    body = options.formData
   }
 
+  const { json: _json, formData: _formData, ...requestOptions } = options
   const request: RequestInit = {
-    ...options,
+    ...requestOptions,
     credentials: options.credentials ?? 'include',
     headers,
     body,

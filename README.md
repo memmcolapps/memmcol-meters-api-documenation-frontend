@@ -55,6 +55,7 @@ The Meter Integration form consumes the admin creation endpoint directly:
 | `GET` | `/admin/meter-integrations` | List and filter paginated meter integrations |
 | `POST` | `/admin/meter-integrations` | Create a supported meter integration |
 | `POST` | `/admin/meter-integrations/:meterIntegrationId/obis-codes` | Add an OBIS/action code to a meter integration |
+| `POST` | `/admin/meter-integrations/:meterIntegrationId/obis-codes/upload` | Upload OBIS/action codes from CSV using append or replace mode |
 
 The response is expected as `{ "meterIntegration": { ... } }`. Validation errors
 from `error.fields` are displayed on the matching form controls. The optional
@@ -63,6 +64,19 @@ meter state.
 
 The OBIS form uses the returned `obisCode` as the source of truth. No seeded or
 mock OBIS records are used.
+
+CSV uploads are sent as `multipart/form-data` with `file` and `mode` fields. The
+mode must be `append` or `replace`.
+
+The customer meter form creates a meter using the selected integration ID:
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/meters` | Create a meter and submit its key-change values |
+
+`meterNumber`, `simNumber`, and `meterTypeId` are sent as strings so identifier
+formatting, including leading zeroes, is preserved. Meter types are loaded from
+the active meter integrations returned by `GET /admin/meter-integrations`.
 
 ## Checks
 
