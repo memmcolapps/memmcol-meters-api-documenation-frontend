@@ -3,6 +3,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from '@tanstack/react-query'
 import { ApiError, apiRequest } from '../../lib/api/client'
 
@@ -36,6 +37,15 @@ export type ChangeBillingPlanStatusInput = {
   reason?: string
 }
 
+export type UpdateBillingPlanInput = CreateBillingPlanInput & {
+  planId: string
+}
+
+export type BillingPlanUpdate = CreateBillingPlanInput & Pick<
+  BillingPlan,
+  'id' | 'updatedAt'
+>
+
 export type BillingPlanStatusUpdate = Pick<
   BillingPlan,
   'id' | 'status' | 'updatedAt'
@@ -49,6 +59,10 @@ type CreateBillingPlanResponse = {
 
 type ChangeBillingPlanStatusResponse = {
   plan: BillingPlanStatusUpdate
+}
+
+type UpdateBillingPlanResponse = {
+  plan: BillingPlanUpdate
 }
 
 type BillingPlanListResponse =
@@ -87,6 +101,7 @@ export const billingPlanKeys = {
   adminLists: () => ['billing-plans', 'admin-list'] as const,
   adminList: (params: AdminBillingPlanListParams) =>
     ['billing-plans', 'admin-list', params] as const,
+  detail: (id: string) => ['billing-plans', 'detail', id] as const,
   active: () => ['billing-plans', 'active'] as const,
 }
 
@@ -112,6 +127,18 @@ async function listAdminBillingPlans(params: AdminBillingPlanListParams) {
   return apiRequest<AdminBillingPlanListResponse>(
     `/admin/billing/plans?${query.toString()}`,
   )
+}
+
+async function updateBillingPlan(input: UpdateBillingPlanInput) {
+  const { planId, ...plan } = input
+  const response = await apiRequest<UpdateBillingPlanResponse>(
+    `/admin/billing/plans/${encodeURIComponent(planId)}`,
+    {
+      method: 'PATCH',
+      json: plan,
+    },
+  )
+  return response.plan
 }
 
 async function listActiveBillingPlans() {
@@ -144,6 +171,7 @@ export function useCreateBillingPlan() {
   return useMutation({
     mutationFn: createBillingPlan,
     onSuccess: async (plan) => {
+      queryClient.setQueryData(billingPlanKeys.detail(plan.id), plan)
       queryClient.setQueryData<BillingPlan[]>(
         billingPlanKeys.active(),
         (current) => {
@@ -162,10 +190,48 @@ export function useCreateBillingPlan() {
 }
 
 export function useAdminBillingPlans(params: AdminBillingPlanListParams) {
+  const queryClient = useQueryClient()
+
   return useQuery({
     queryKey: billingPlanKeys.adminList(params),
-    queryFn: () => listAdminBillingPlans(params),
+    queryFn: async () => {
+      const response = await listAdminBillingPlans(params)
+      response.items.forEach((plan) => {
+        queryClient.setQueryData(billingPlanKeys.detail(plan.id), plan)
+      })
+      return response
+    },
     placeholderData: keepPreviousData,
+  })
+}
+
+export function useUpdateBillingPlan() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: updateBillingPlan,
+    onSuccess: async (plan) => {
+      queryClient.setQueryData<BillingPlan>(
+        billingPlanKeys.detail(plan.id),
+        (current) => current ? { ...current, ...plan } : current,
+      )
+      queryClient.setQueryData<BillingPlan[]>(
+        billingPlanKeys.active(),
+        (current) => {
+          if (!current) return current
+          if (plan.status === 'INACTIVE') {
+            return current.filter((item) => item.id !== plan.id)
+          }
+          return current.map((item) => item.id === plan.id
+            ? { ...item, ...plan }
+            : item)
+        },
+      )
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: billingPlanKeys.adminLists() }),
+        queryClient.invalidateQueries({ queryKey: billingPlanKeys.active() }),
+      ])
+    },
   })
 }
 
@@ -182,6 +248,10 @@ export function useChangeBillingPlanStatus() {
   return useMutation({
     mutationFn: changeBillingPlanStatus,
     onSuccess: async (plan) => {
+      queryClient.setQueryData<BillingPlan>(
+        billingPlanKeys.detail(plan.id),
+        (current) => current ? { ...current, ...plan } : current,
+      )
       if (plan.status === 'INACTIVE') {
         queryClient.setQueryData<BillingPlan[]>(
           billingPlanKeys.active(),
@@ -224,4 +294,23 @@ export function getBillingPlanStatusError(error: unknown) {
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,
   }
+}
+
+export function getBillingPlanUpdateError(error: unknown) {
+  const payload = error instanceof ApiError
+    ? error.details as BillingPlanErrorPayload | undefined
+    : undefined
+
+  return {
+    code: payload?.error?.code,
+    message: payload?.error?.message ?? (
+      error instanceof Error ? error.message : 'The billing plan could not be updated.'
+    ),
+    fields: payload?.error?.fields ?? {},
+    requestId: payload?.error?.requestId,
+  }
+}
+
+export function getCachedBillingPlan(queryClient: QueryClient, id: string) {
+  return queryClient.getQueryData<BillingPlan>(billingPlanKeys.detail(id))
 }

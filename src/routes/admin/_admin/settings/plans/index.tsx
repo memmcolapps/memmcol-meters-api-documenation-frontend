@@ -15,9 +15,11 @@ import {
 import {
   getBillingPlanError,
   getBillingPlanStatusError,
+  getBillingPlanUpdateError,
   useAdminBillingPlans,
   useChangeBillingPlanStatus,
   useCreateBillingPlan,
+  useUpdateBillingPlan,
   type BillingPlan,
 } from '../../../../../features/billing/billingPlanQueries'
 
@@ -45,6 +47,7 @@ function toDisplayPlan(plan: BillingPlan): Plan {
 function SubscriptionManagementPage() {
   const navigate = useNavigate()
   const createPlan = useCreateBillingPlan()
+  const updatePlan = useUpdateBillingPlan()
   const changePlanStatus = useChangeBillingPlanStatus()
   const { showToast } = useToast()
   const [search, setSearch] = useState('')
@@ -53,13 +56,12 @@ function SubscriptionManagementPage() {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [formModal, setFormModal] = useState<FormModalState | null>(null)
   const [deactivating, setDeactivating] = useState<Plan | null>(null)
-  const [createFieldErrors, setCreateFieldErrors] = useState<
+  const [formFieldErrors, setFormFieldErrors] = useState<
     Partial<Record<PlanFormField, string>>
   >({})
   const [statusFieldErrors, setStatusFieldErrors] = useState<
     Partial<Record<StatusField, string>>
   >({})
-  const [planEdits, setPlanEdits] = useState<Record<string, PlanFormValues>>({})
   const deferredSearch = useDeferredValue(search.trim())
   const plansQuery = useAdminBillingPlans({
     search: deferredSearch || undefined,
@@ -67,27 +69,54 @@ function SubscriptionManagementPage() {
     page,
     limit: 20,
   })
-  const plans = (plansQuery.data?.items ?? []).map((plan) => ({
-    ...toDisplayPlan(plan),
-    ...(planEdits[plan.id] ?? {}),
-  }))
+  const plans = (plansQuery.data?.items ?? []).map(toDisplayPlan)
   const pagination = plansQuery.data?.pagination
 
   const openAddModal = () => {
     createPlan.reset()
-    setCreateFieldErrors({})
+    updatePlan.reset()
+    setFormFieldErrors({})
     setFormModal({ mode: 'add' })
+  }
+
+  const openEditModal = (plan: Plan) => {
+    updatePlan.reset()
+    setFormFieldErrors({})
+    setOpenMenu(null)
+    setFormModal({ mode: 'edit', plan })
   }
 
   const submitPlan = async (values: PlanFormValues) => {
     if (formModal?.mode === 'edit') {
-      const editedId = formModal.plan.id
-      setPlanEdits((current) => ({ ...current, [editedId]: values }))
-      setFormModal(null)
+      setFormFieldErrors({})
+      try {
+        const plan = await updatePlan.mutateAsync({
+          planId: formModal.plan.id,
+          ...values,
+        })
+        setFormModal(null)
+        showToast({
+          title: 'Credit plan updated',
+          message: `${plan.name} was updated successfully.`,
+          variant: 'success',
+        })
+      } catch (error) {
+        const apiError = getBillingPlanUpdateError(error)
+        const fields = apiError.fields as Partial<Record<PlanFormField, string>>
+        setFormFieldErrors(fields)
+        showToast({
+          title: apiError.message,
+          message: [
+            [...new Set(Object.values(fields))].join(' '),
+            apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
+          ].filter(Boolean).join(' · ') || undefined,
+          variant: 'error',
+        })
+      }
       return
     }
 
-    setCreateFieldErrors({})
+    setFormFieldErrors({})
     try {
       const plan = await createPlan.mutateAsync(values)
       setFormModal(null)
@@ -100,7 +129,7 @@ function SubscriptionManagementPage() {
       const apiError = getBillingPlanError(error)
       const fields = apiError.fields as Partial<Record<PlanFormField, string>>
       const fieldMessage = [...new Set(Object.values(fields))].join(' ')
-      setCreateFieldErrors(fields)
+      setFormFieldErrors(fields)
       showToast({
         title: apiError.message,
         message: [
@@ -287,10 +316,7 @@ function SubscriptionManagementPage() {
                           }
                           onClose={() => setOpenMenu(null)}
                           onView={() => goToPlan(plan.id)}
-                          onEdit={() => {
-                            setOpenMenu(null)
-                            setFormModal({ mode: 'edit', plan })
-                          }}
+                          onEdit={() => openEditModal(plan)}
                           onDeactivate={() => {
                             setOpenMenu(null)
                             changePlanStatus.reset()
@@ -340,10 +366,10 @@ function SubscriptionManagementPage() {
           title={formModal.mode === 'add' ? 'Add Subscription Plan' : 'Edit Subscription Plan'}
           submitLabel={formModal.mode === 'add' ? 'Add Plan' : 'Save Changes'}
           initial={formModal.mode === 'edit' ? formModal.plan : undefined}
-          isSubmitting={formModal.mode === 'add' && createPlan.isPending}
-          fieldErrors={formModal.mode === 'add' ? createFieldErrors : {}}
+          isSubmitting={formModal.mode === 'add' ? createPlan.isPending : updatePlan.isPending}
+          fieldErrors={formFieldErrors}
           onFieldChange={(field) => {
-            setCreateFieldErrors((current) => {
+            setFormFieldErrors((current) => {
               if (!current[field]) return current
               const next = { ...current }
               delete next[field]
@@ -351,7 +377,7 @@ function SubscriptionManagementPage() {
             })
           }}
           onClose={() => {
-            if (!createPlan.isPending) setFormModal(null)
+            if (!createPlan.isPending && !updatePlan.isPending) setFormModal(null)
           }}
           onSubmit={(values) => void submitPlan(values)}
         />
