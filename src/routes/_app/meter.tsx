@@ -39,6 +39,7 @@ function makeMeter(index: number): Meter {
     model: 'MMX-310-NG',
     meterClass: 'Single-phase',
     status: index === 1 ? 'Deactivated' : 'Active',
+    
   }
 }
 
