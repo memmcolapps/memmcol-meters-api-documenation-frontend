@@ -91,9 +91,11 @@ function UserManagementPage() {
             Try again
           </button>
         </div>
-      ) : membersQuery.data?.items.length ? (
+      ) : membersQuery.data?.items.filter((m) => m.status !== 'DISABLED').length ? (
         <section className="org-member-list" aria-label="Organisation members">
-          {membersQuery.data.items.map((member) => (
+          {membersQuery.data.items
+            .filter((m) => m.status !== 'DISABLED')
+            .map((member) => (
             <div className="org-member-row" key={member.id}>
               <div className="org-member-id">
                 <span className="org-member-avatar" aria-hidden="true">

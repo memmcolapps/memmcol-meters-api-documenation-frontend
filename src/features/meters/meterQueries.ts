@@ -16,6 +16,12 @@ export type Meter = {
   model: string
   meterClass: string
   status: MeterStatus
+  oldSgc?: string
+  newSgc?: string
+  oldKrn?: string
+  newKrn?: string
+  oldTariffIndex?: string
+  newTariffIndex?: string
   createdAt: string
   updatedAt: string
 }

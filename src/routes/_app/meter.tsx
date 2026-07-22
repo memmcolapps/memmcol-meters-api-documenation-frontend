@@ -47,6 +47,7 @@ function MeterPage() {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Meter | null>(null)
+  const [detailTarget, setDetailTarget] = useState<Meter | null>(null)
 
   const params = {
     page,
@@ -185,6 +186,7 @@ function MeterPage() {
                           setOpenMenu((prev) => (prev === meter.id ? null : meter.id))
                         }
                         onClose={() => setOpenMenu(null)}
+                        onViewDetails={() => { setDetailTarget(meter); setOpenMenu(null) }}
                         onToggleStatus={() => toggleStatus(meter.id, meter.status)}
                         onDelete={() => confirmDelete(meter)}
                       />
@@ -243,6 +245,13 @@ function MeterPage() {
         <DeleteMeterModal
           meter={deleteTarget}
           onClose={() => setDeleteTarget(null)}
+        />
+      ) : null}
+
+      {detailTarget ? (
+        <MeterDetailsDialog
+          meter={detailTarget}
+          onClose={() => setDetailTarget(null)}
         />
       ) : null}
     </div>
@@ -373,6 +382,175 @@ function AddMeterModal({
               Add Meters
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const overlayStyle: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(0,0,0,0.18)',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 999,
+}
+
+const dialogStyle: React.CSSProperties = {
+  width: 500,
+  background: '#fff',
+  borderRadius: 16,
+  padding: '20px 24px',
+  boxShadow: '0 15px 40px rgba(0,0,0,0.12)',
+  fontFamily: 'Inter, sans-serif',
+}
+
+const detailHeaderStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 24,
+}
+
+const detailTitleStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: 22,
+  fontWeight: 600,
+  color: '#333',
+}
+
+const closeBtnStyle: React.CSSProperties = {
+  border: 'none',
+  background: 'transparent',
+  fontSize: 26,
+  cursor: 'pointer',
+  color: '#667085',
+}
+
+const gridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: 40,
+}
+
+const itemStyle: React.CSSProperties = {
+  marginBottom: 16,
+}
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: 13,
+  fontWeight: 600,
+  color: '#404040',
+  marginBottom: 4,
+}
+
+const valueStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: 14,
+  color: '#6b7280',
+}
+
+const footerStyle: React.CSSProperties = {
+  marginTop: 16,
+}
+
+const cancelBtnStyle: React.CSSProperties = {
+  background: 'white',
+  border: '2px solid #0b6b3a',
+  color: '#0b6b3a',
+  padding: '12px 28px',
+  borderRadius: 6,
+  fontSize: 16,
+  cursor: 'pointer',
+}
+
+function MeterDetailsDialog({
+  meter,
+  onClose,
+}: {
+  meter: Meter
+  onClose: () => void
+}) {
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, onClose)
+
+  return (
+    <div style={overlayStyle}>
+      <div style={dialogStyle} ref={modalRef}>
+        <div style={detailHeaderStyle}>
+          <h2 style={detailTitleStyle}>Meter Details</h2>
+          <button style={closeBtnStyle} onClick={onClose}>✕</button>
+        </div>
+
+        <div style={gridStyle}>
+          <div>
+            <div style={itemStyle}>
+              <label style={labelStyle}>Meter Number</label>
+              <p style={valueStyle}>{meter.meterNumber}</p>
+            </div>
+            <div style={itemStyle}>
+              <label style={labelStyle}>Meter Manufacturer</label>
+              <p style={valueStyle}>{meter.manufacturer}</p>
+            </div>
+            <div style={itemStyle}>
+              <label style={labelStyle}>Meter Model</label>
+              <p style={valueStyle}>{meter.model}</p>
+            </div>
+            <div style={itemStyle}>
+              <label style={labelStyle}>Old SGC</label>
+              <p style={valueStyle}>{meter.oldSgc ?? '-'}</p>
+            </div>
+            <div style={itemStyle}>
+              <label style={labelStyle}>Old KRN</label>
+              <p style={valueStyle}>{meter.oldKrn ?? '-'}</p>
+            </div>
+            <div style={itemStyle}>
+              <label style={labelStyle}>Old Tariff Index</label>
+              <p style={valueStyle}>{meter.oldTariffIndex ?? '-'}</p>
+            </div>
+          </div>
+          <div>
+            <div style={itemStyle}>
+              <label style={labelStyle}>SIM Number</label>
+              <p style={valueStyle}>{meter.simNumber}</p>
+            </div>
+            <div style={itemStyle}>
+              <label style={labelStyle}>Meter Class</label>
+              <p style={valueStyle}>{meter.meterClass}</p>
+            </div>
+            <div style={itemStyle}>
+              <label style={labelStyle}>New SGC</label>
+              <p style={valueStyle}>{meter.newSgc ?? '-'}</p>
+            </div>
+            <div style={itemStyle}>
+              <label style={labelStyle}>New KRN</label>
+              <p style={valueStyle}>{meter.newKrn ?? '-'}</p>
+            </div>
+            <div style={itemStyle}>
+              <label style={labelStyle}>New Tariff Index</label>
+              <p style={valueStyle}>{meter.newTariffIndex ?? '-'}</p>
+            </div>
+          </div>
+        </div>
+
+        <div style={footerStyle}>
+          <button
+            style={cancelBtnStyle}
+            onClick={onClose}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#0b6b3a'
+              e.currentTarget.style.color = 'white'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'white'
+              e.currentTarget.style.color = '#0b6b3a'
+            }}
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>
@@ -528,6 +706,7 @@ function RowActions({
   status,
   onToggle,
   onClose,
+  onViewDetails,
   onToggleStatus,
   onDelete,
 }: {
@@ -535,6 +714,7 @@ function RowActions({
   status: MeterStatus
   onToggle: () => void
   onClose: () => void
+  onViewDetails: () => void
   onToggleStatus: () => void
   onDelete: () => void
 }) {
@@ -556,7 +736,7 @@ function RowActions({
       </button>
       {isOpen ? (
         <div className="row-menu" style={menuStyle} role="menu">
-          <button type="button" className="row-menu-item" role="menuitem">
+          <button type="button" className="row-menu-item" role="menuitem" onClick={onViewDetails}>
             View details
           </button>
           <button

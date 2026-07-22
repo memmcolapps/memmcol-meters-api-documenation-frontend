@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '../../lib/api/client'
 
 export type OrganisationMemberRole = 'OWNER' | 'ADMIN' | 'MEMBER'
-export type OrganisationMemberStatus = 'ACTIVE' | 'INVITED' | 'SUSPENDED'
+export type OrganisationMemberStatus = 'ACTIVE' | 'INVITED' | 'SUSPENDED' | 'DISABLED'
 
 export type OrganisationMember = {
   id: string
