@@ -82,6 +82,7 @@ Billing credit plans are created and consumed through these endpoints:
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
+| `GET` | `/admin/billing/plans` | Search, filter, and paginate admin billing plans |
 | `POST` | `/admin/billing/plans` | Create a billing credit plan |
 | `PATCH` | `/admin/billing/plans/:planId/status` | Activate or deactivate a billing plan |
 | `GET` | `/billing/plans` | List customer-visible billing plans |

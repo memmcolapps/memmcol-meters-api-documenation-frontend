@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { ApiError, apiRequest } from '../../lib/api/client'
 
 export type BillingPlanStatus = 'ACTIVE' | 'INACTIVE'
@@ -51,6 +56,23 @@ type BillingPlanListResponse =
   | { plans: BillingPlan[] }
   | { items: BillingPlan[] }
 
+export type AdminBillingPlanListParams = {
+  search?: string
+  status?: BillingPlanStatus
+  page: number
+  limit: number
+}
+
+export type AdminBillingPlanListResponse = {
+  items: BillingPlan[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
 type BillingPlanErrorPayload = {
   error?: {
     code?: string
@@ -63,6 +85,8 @@ type BillingPlanErrorPayload = {
 export const billingPlanKeys = {
   all: ['billing-plans'] as const,
   adminLists: () => ['billing-plans', 'admin-list'] as const,
+  adminList: (params: AdminBillingPlanListParams) =>
+    ['billing-plans', 'admin-list', params] as const,
   active: () => ['billing-plans', 'active'] as const,
 }
 
@@ -75,6 +99,19 @@ async function createBillingPlan(input: CreateBillingPlanInput) {
     },
   )
   return response.plan
+}
+
+async function listAdminBillingPlans(params: AdminBillingPlanListParams) {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    limit: String(params.limit),
+  })
+  if (params.search) query.set('search', params.search)
+  if (params.status) query.set('status', params.status)
+
+  return apiRequest<AdminBillingPlanListResponse>(
+    `/admin/billing/plans?${query.toString()}`,
+  )
 }
 
 async function listActiveBillingPlans() {
@@ -121,6 +158,14 @@ export function useCreateBillingPlan() {
         queryClient.invalidateQueries({ queryKey: billingPlanKeys.active() }),
       ])
     },
+  })
+}
+
+export function useAdminBillingPlans(params: AdminBillingPlanListParams) {
+  return useQuery({
+    queryKey: billingPlanKeys.adminList(params),
+    queryFn: () => listAdminBillingPlans(params),
+    placeholderData: keepPreviousData,
   })
 }
 
