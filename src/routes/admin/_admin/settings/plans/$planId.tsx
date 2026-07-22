@@ -1,7 +1,21 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { PlanFormModal, NigeriaFlagIcon } from '../../../../../app/PlanFormModal'
-import { seededPlans, type Plan } from '../../../../../app/adminPlans'
+import { useToast } from '../../../../../app/toastContext'
+import { formatAddedDate } from '../../../../../app/adminMeters'
+import {
+  seededPlans,
+  type Plan,
+  type PlanFormField,
+  type PlanFormValues,
+} from '../../../../../app/adminPlans'
+import {
+  getBillingPlanUpdateError,
+  getCachedBillingPlan,
+  useUpdateBillingPlan,
+  type BillingPlan,
+} from '../../../../../features/billing/billingPlanQueries'
 
 export const Route = createFileRoute(
   '/admin/_admin/settings/plans/$planId',
@@ -11,10 +25,44 @@ export const Route = createFileRoute(
 
 function PlanViewPage() {
   const { planId } = Route.useParams()
+  const queryClient = useQueryClient()
+  const updatePlan = useUpdateBillingPlan()
+  const { showToast } = useToast()
   const [plan, setPlan] = useState<Plan | undefined>(() =>
-    seededPlans.find((item) => item.id === planId),
+    toDisplayPlan(getCachedBillingPlan(queryClient, planId)) ??
+      seededPlans.find((item) => item.id === planId),
   )
   const [editing, setEditing] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<PlanFormField, string>>
+  >({})
+
+  const savePlan = async (values: PlanFormValues) => {
+    if (!plan) return
+    setFieldErrors({})
+    try {
+      const updated = await updatePlan.mutateAsync({ planId: plan.id, ...values })
+      setPlan((current) => current ? { ...current, ...updated } : current)
+      setEditing(false)
+      showToast({
+        title: 'Credit plan updated',
+        message: `${updated.name} was updated successfully.`,
+        variant: 'success',
+      })
+    } catch (error) {
+      const apiError = getBillingPlanUpdateError(error)
+      const fields = apiError.fields as Partial<Record<PlanFormField, string>>
+      setFieldErrors(fields)
+      showToast({
+        title: apiError.message,
+        message: [
+          [...new Set(Object.values(fields))].join(' '),
+          apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
+        ].filter(Boolean).join(' · ') || undefined,
+        variant: 'error',
+      })
+    }
+  }
 
   if (!plan) {
     return (
@@ -43,7 +91,15 @@ function PlanViewPage() {
       </div>
 
       <div className="api-view-actions">
-        <button type="button" className="btn-neutral" onClick={() => setEditing(true)}>
+        <button
+          type="button"
+          className="btn-neutral"
+          onClick={() => {
+            updatePlan.reset()
+            setFieldErrors({})
+            setEditing(true)
+          }}
+        >
           Edit
         </button>
       </div>
@@ -65,13 +121,13 @@ function PlanViewPage() {
             <span className="amount-prefix" aria-hidden="true">
               <NigeriaFlagIcon /> ₦
             </span>
-            <input value={plan.amount} readOnly aria-label="Amount in naira" />
+            <input value={plan.amount.toLocaleString()} readOnly aria-label="Amount in naira" />
           </div>
         </div>
 
         <div className="modal-field">
           <label>Credits</label>
-          <input className="modal-input" value={plan.credits} readOnly />
+          <input className="modal-input" value={plan.credits.toLocaleString()} readOnly />
         </div>
 
         <div className="modal-field">
@@ -86,8 +142,8 @@ function PlanViewPage() {
         <div className="modal-field">
           <label>Set Status</label>
           <label className="status-box">
-            {plan.status}
-            <input type="checkbox" checked={plan.status === 'Active'} readOnly disabled />
+            {plan.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+            <input type="checkbox" checked={plan.status === 'ACTIVE'} readOnly disabled />
           </label>
         </div>
 
@@ -102,13 +158,36 @@ function PlanViewPage() {
           title="Edit Subscription Plan"
           submitLabel="Save Changes"
           initial={plan}
-          onClose={() => setEditing(false)}
-          onSubmit={(values) => {
-            setPlan((prev) => (prev ? { ...prev, ...values } : prev))
-            setEditing(false)
+          isSubmitting={updatePlan.isPending}
+          fieldErrors={fieldErrors}
+          onFieldChange={(field) => {
+            setFieldErrors((current) => {
+              if (!current[field]) return current
+              const next = { ...current }
+              delete next[field]
+              return next
+            })
           }}
+          onClose={() => {
+            if (!updatePlan.isPending) setEditing(false)
+          }}
+          onSubmit={(values) => void savePlan(values)}
         />
       ) : null}
     </div>
   )
+}
+
+function toDisplayPlan(plan?: BillingPlan): Plan | undefined {
+  return plan ? {
+    id: plan.id,
+    name: plan.name,
+    description: plan.description,
+    amount: plan.amount,
+    credits: plan.credits,
+    features: plan.features,
+    cta: plan.cta,
+    status: plan.status,
+    addedDate: formatAddedDate(new Date(plan.createdAt)),
+  } : undefined
 }

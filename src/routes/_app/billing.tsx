@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { seededPlans, type Plan } from '../../app/adminPlans'
+import { AsyncState } from '../../app/AsyncState'
+import { useToast } from '../../app/toastContext'
+import {
+  useActiveBillingPlans,
+  type BillingPlan,
+} from '../../features/billing/billingPlanQueries'
 
 export const Route = createFileRoute('/_app/billing')({
   component: BillingPage,
@@ -42,10 +47,6 @@ const naira = (value: number) => `₦ ${value.toLocaleString('en-NG')}`
 
 const formatToday = () => new Date().toLocaleDateString('en-GB')
 
-const parsePlanNumber = (value: string) => Number(value.replaceAll(',', ''))
-
-const activePlans = seededPlans.filter((plan) => plan.status === 'Active')
-
 const sourceLabel = (source: CreditLedgerEntry['source']) => {
   switch (source) {
     case 'customer_purchase':
@@ -58,7 +59,11 @@ const sourceLabel = (source: CreditLedgerEntry['source']) => {
 }
 
 function BillingPage() {
+  const plansQuery = useActiveBillingPlans()
+  const activePlans = plansQuery.data ?? []
+  const { showToast } = useToast()
   const [account, setAccount] = useState(initialAccount)
+  const [purchasingPlanId, setPurchasingPlanId] = useState<string | null>(null)
   const [purchaseFlow, setPurchaseFlow] = useState<'idle' | 'selecting-plan'>(
     initialAccount.ledger.length > 0 ? 'idle' : 'selecting-plan',
   )
@@ -67,27 +72,51 @@ function BillingPage() {
   const hasCreditHistory = account.ledger.length > 0
   const lastCreditMovement = account.ledger[account.ledger.length - 1]
 
-  const buy = (plan: Plan) => {
-    const credits = parsePlanNumber(plan.credits)
-    const amount = parsePlanNumber(plan.amount)
-    if (!credits || !amount) return
+  const buy = async (plan: BillingPlan) => {
+    setPurchasingPlanId(plan.id)
+    try {
+      const refreshed = await plansQuery.refetch()
+      if (refreshed.error) {
+        showToast({
+          title: 'Could not verify this plan',
+          message: 'Please try again before starting your purchase.',
+          variant: 'error',
+        })
+        return
+      }
 
-    setAccount((value) => ({
-      ...value,
-      balance: value.balance + credits,
-      ledger: [
-        ...value.ledger,
-        {
-          id: `ledger-${Date.now()}`,
-          source: 'customer_purchase',
-          label: `${plan.name} plan`,
-          date: formatToday(),
-          credits,
-          amount,
-        },
-      ],
-    }))
-    setPurchaseFlow('idle')
+      const availablePlan = refreshed.data?.find((item) => item.id === plan.id)
+      if (!availablePlan) {
+        showToast({
+          title: 'Plan is no longer available',
+          message: 'Choose another active credit plan.',
+          variant: 'error',
+        })
+        return
+      }
+
+      const { credits, amount } = availablePlan
+      if (!credits || !amount) return
+
+      setAccount((value) => ({
+        ...value,
+        balance: value.balance + credits,
+        ledger: [
+          ...value.ledger,
+          {
+            id: `ledger-${Date.now()}`,
+            source: 'customer_purchase',
+            label: `${availablePlan.name} plan`,
+            date: formatToday(),
+            credits,
+            amount,
+          },
+        ],
+      }))
+      setPurchaseFlow('idle')
+    } finally {
+      setPurchasingPlanId(null)
+    }
   }
 
   return (
@@ -170,40 +199,53 @@ function BillingPage() {
       </div>
 
       {isBuying ? (
-        <section className="plans-grid plans-grid--bundles">
-          {activePlans.map((plan, index) => (
-            <article
-              className={`plan-card${index === 1 ? ' plan-card--featured' : ''}`}
-              key={plan.id}
-            >
-              <div className="plan-head">
-                <h2 className="plan-name">{plan.name}</h2>
-                {index === 1 ? (
-                  <span className="plan-badge">Most popular</span>
-                ) : null}
-              </div>
-              <p className="plan-desc">{plan.description}</p>
-              <div className="plan-pricing">
-                <p className="plan-price">{naira(parsePlanNumber(plan.amount))}</p>
-                <p className="plan-rate">{plan.credits} credits</p>
-              </div>
-              <ul className="plan-features">
-                {plan.features.map((feature) => (
-                  <li className="plan-feature" key={feature}>
-                    <CheckIcon /> {feature}
-                  </li>
-                ))}
-              </ul>
-              <button
-                type="button"
-                className="btn-primary btn-block plan-cta"
-                onClick={() => buy(plan)}
-              >
-                {plan.cta}
-              </button>
-            </article>
-          ))}
-        </section>
+        <AsyncState
+          isPending={plansQuery.isPending}
+          error={plansQuery.error}
+          onRetry={() => void plansQuery.refetch()}
+        >
+          {activePlans.length > 0 ? (
+            <section className="plans-grid plans-grid--bundles">
+              {activePlans.map((plan, index) => (
+                <article
+                  className={`plan-card${index === 1 ? ' plan-card--featured' : ''}`}
+                  key={plan.id}
+                >
+                  <div className="plan-head">
+                    <h2 className="plan-name">{plan.name}</h2>
+                    {index === 1 ? (
+                      <span className="plan-badge">Most popular</span>
+                    ) : null}
+                  </div>
+                  <p className="plan-desc">{plan.description}</p>
+                  <div className="plan-pricing">
+                    <p className="plan-price">{naira(plan.amount)}</p>
+                    <p className="plan-rate">{plan.credits.toLocaleString()} credits</p>
+                  </div>
+                  <ul className="plan-features">
+                    {plan.features.map((feature) => (
+                      <li className="plan-feature" key={feature}>
+                        <CheckIcon /> {feature}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    className="btn-primary btn-block plan-cta"
+                    disabled={purchasingPlanId !== null}
+                    onClick={() => void buy(plan)}
+                  >
+                    {purchasingPlanId === plan.id ? 'Checking availability…' : plan.cta}
+                  </button>
+                </article>
+              ))}
+            </section>
+          ) : (
+            <div className="meter-empty">
+              <p className="meter-empty-text">No active credit plans are available.</p>
+            </div>
+          )}
+        </AsyncState>
       ) : (
         <section className="dash-panel">
           <h2 className="panel-title">Credit History</h2>

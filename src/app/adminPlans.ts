@@ -1,11 +1,13 @@
-export type PlanStatus = 'Active' | 'Inactive'
+import type { BillingPlanStatus } from '../features/billing/billingPlanQueries'
+
+export type PlanStatus = BillingPlanStatus
 
 export type Plan = {
   id: string
   name: string
   description: string
-  credits: string
-  amount: string
+  credits: number
+  amount: number
   features: string[]
   status: PlanStatus
   cta: string
@@ -13,8 +15,9 @@ export type Plan = {
 }
 
 export type PlanFormValues = Omit<Plan, 'id' | 'addedDate'>
+export type PlanFormField = keyof PlanFormValues
 
-export const ctaOptions = ['Get Started', 'Contact Sales', 'Subscribe']
+export const ctaOptions = ['Buy Plan', 'Get Started', 'Contact Sales', 'Subscribe']
 
 const defaultFeatures = [
   '₦5 per call',
@@ -30,8 +33,8 @@ function makePlan(
   return {
     description: 'Great for small businesses',
     features: defaultFeatures,
-    status: 'Active',
-    cta: 'Get Started',
+    status: 'ACTIVE',
+    cta: 'Buy Plan',
     addedDate: '17-02-2026',
     ...overrides,
   }
@@ -42,19 +45,19 @@ function makePlan(
  * Fed by the API later; shared so the list and detail pages agree.
  */
 export const seededPlans: Plan[] = [
-  makePlan({ id: 'plan-1', name: 'Basic', credits: '25,000', amount: '250,000' }),
-  makePlan({ id: 'plan-2', name: 'Standard', credits: '50,000', amount: '500,000' }),
+  makePlan({ id: 'plan-1', name: 'Basic', credits: 25_000, amount: 250_000 }),
+  makePlan({ id: 'plan-2', name: 'Standard', credits: 50_000, amount: 500_000 }),
   makePlan({
     id: 'plan-3',
     name: 'Pay as you go',
-    credits: '100,000',
-    amount: '1,000,000',
-    status: 'Inactive',
+    credits: 100_000,
+    amount: 1_000_000,
+    status: 'INACTIVE',
   }),
   makePlan({
     id: 'plan-4',
     name: 'Enterprise',
-    credits: '500,000',
-    amount: '5,000,000',
+    credits: 500_000,
+    amount: 5_000_000,
   }),
 ]

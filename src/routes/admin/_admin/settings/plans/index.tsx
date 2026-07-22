@@ -1,29 +1,183 @@
-import { useRef, useState } from 'react'
+import { useDeferredValue, useRef, useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useDismiss } from '../../../../../app/useDismiss'
 import { useAnchoredMenu } from '../../../../../app/useAnchoredMenu'
-import { ConfirmModal } from '../../../../../app/ConfirmModal'
 import { PlanFormModal } from '../../../../../app/PlanFormModal'
+import { AsyncState } from '../../../../../app/AsyncState'
+import { useToast } from '../../../../../app/toastContext'
 import { formatAddedDate } from '../../../../../app/adminMeters'
-import { seededPlans, type Plan, type PlanStatus } from '../../../../../app/adminPlans'
+import {
+  type Plan,
+  type PlanFormField,
+  type PlanFormValues,
+  type PlanStatus,
+} from '../../../../../app/adminPlans'
+import {
+  getBillingPlanError,
+  getBillingPlanStatusError,
+  getBillingPlanUpdateError,
+  useAdminBillingPlans,
+  useChangeBillingPlanStatus,
+  useCreateBillingPlan,
+  useUpdateBillingPlan,
+  type BillingPlan,
+} from '../../../../../features/billing/billingPlanQueries'
 
 export const Route = createFileRoute('/admin/_admin/settings/plans/')({
   component: SubscriptionManagementPage,
 })
 
 type FormModalState = { mode: 'add' } | { mode: 'edit'; plan: Plan }
+type StatusField = 'status' | 'reason'
+
+function toDisplayPlan(plan: BillingPlan): Plan {
+  return {
+    id: plan.id,
+    name: plan.name,
+    description: plan.description,
+    amount: plan.amount,
+    credits: plan.credits,
+    features: plan.features,
+    cta: plan.cta,
+    status: plan.status,
+    addedDate: formatAddedDate(new Date(plan.createdAt)),
+  }
+}
 
 function SubscriptionManagementPage() {
   const navigate = useNavigate()
-  const [plans, setPlans] = useState<Plan[]>(seededPlans)
+  const createPlan = useCreateBillingPlan()
+  const updatePlan = useUpdateBillingPlan()
+  const changePlanStatus = useChangeBillingPlanStatus()
+  const { showToast } = useToast()
   const [search, setSearch] = useState('')
+  const [status, setStatus] = useState<PlanStatus | ''>('')
+  const [page, setPage] = useState(1)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [formModal, setFormModal] = useState<FormModalState | null>(null)
   const [deactivating, setDeactivating] = useState<Plan | null>(null)
+  const [formFieldErrors, setFormFieldErrors] = useState<
+    Partial<Record<PlanFormField, string>>
+  >({})
+  const [statusFieldErrors, setStatusFieldErrors] = useState<
+    Partial<Record<StatusField, string>>
+  >({})
+  const deferredSearch = useDeferredValue(search.trim())
+  const plansQuery = useAdminBillingPlans({
+    search: deferredSearch || undefined,
+    status: status || undefined,
+    page,
+    limit: 20,
+  })
+  const plans = (plansQuery.data?.items ?? []).map(toDisplayPlan)
+  const pagination = plansQuery.data?.pagination
 
-  const setStatus = (id: string, status: PlanStatus) => {
-    setPlans((prev) => prev.map((plan) => (plan.id === id ? { ...plan, status } : plan)))
+  const openAddModal = () => {
+    createPlan.reset()
+    updatePlan.reset()
+    setFormFieldErrors({})
+    setFormModal({ mode: 'add' })
+  }
+
+  const openEditModal = (plan: Plan) => {
+    updatePlan.reset()
+    setFormFieldErrors({})
     setOpenMenu(null)
+    setFormModal({ mode: 'edit', plan })
+  }
+
+  const submitPlan = async (values: PlanFormValues) => {
+    if (formModal?.mode === 'edit') {
+      setFormFieldErrors({})
+      try {
+        const plan = await updatePlan.mutateAsync({
+          planId: formModal.plan.id,
+          ...values,
+        })
+        setFormModal(null)
+        showToast({
+          title: 'Credit plan updated',
+          message: `${plan.name} was updated successfully.`,
+          variant: 'success',
+        })
+      } catch (error) {
+        const apiError = getBillingPlanUpdateError(error)
+        const fields = apiError.fields as Partial<Record<PlanFormField, string>>
+        setFormFieldErrors(fields)
+        showToast({
+          title: apiError.message,
+          message: [
+            [...new Set(Object.values(fields))].join(' '),
+            apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
+          ].filter(Boolean).join(' · ') || undefined,
+          variant: 'error',
+        })
+      }
+      return
+    }
+
+    setFormFieldErrors({})
+    try {
+      const plan = await createPlan.mutateAsync(values)
+      setFormModal(null)
+      showToast({
+        title: 'Credit plan created',
+        message: `${plan.name} was created with ${plan.credits.toLocaleString()} credits.`,
+        variant: 'success',
+      })
+    } catch (error) {
+      const apiError = getBillingPlanError(error)
+      const fields = apiError.fields as Partial<Record<PlanFormField, string>>
+      const fieldMessage = [...new Set(Object.values(fields))].join(' ')
+      setFormFieldErrors(fields)
+      showToast({
+        title: apiError.message,
+        message: [
+          fieldMessage,
+          apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
+        ].filter(Boolean).join(' · ') || undefined,
+        variant: 'error',
+      })
+    }
+  }
+
+  const updatePlanStatus = async (
+    plan: Plan,
+    status: PlanStatus,
+    reason?: string,
+  ) => {
+    if (status === 'INACTIVE' && !reason?.trim()) {
+      setStatusFieldErrors({ reason: 'Reason is required when deactivating a plan.' })
+      return
+    }
+
+    setStatusFieldErrors({})
+    try {
+      await changePlanStatus.mutateAsync({
+        planId: plan.id,
+        status,
+        ...(reason?.trim() ? { reason: reason.trim() } : {}),
+      })
+      setOpenMenu(null)
+      setDeactivating(null)
+      showToast({
+        title: status === 'ACTIVE' ? 'Plan activated' : 'Plan deactivated',
+        message: `${plan.name} is now ${status.toLowerCase()}.`,
+        variant: 'success',
+      })
+    } catch (error) {
+      const apiError = getBillingPlanStatusError(error)
+      const fields = apiError.fields as Partial<Record<StatusField, string>>
+      setStatusFieldErrors(fields)
+      showToast({
+        title: apiError.message,
+        message: [
+          [...new Set(Object.values(fields))].join(' '),
+          apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
+        ].filter(Boolean).join(' · ') || undefined,
+        variant: 'error',
+      })
+    }
   }
 
   const goToPlan = (id: string) => {
@@ -33,14 +187,7 @@ function SubscriptionManagementPage() {
     })
   }
 
-  const query = search.trim().toLowerCase()
-  const visiblePlans = query
-    ? plans.filter((plan) =>
-        `${plan.name} ${plan.description}`.toLowerCase().includes(query),
-      )
-    : plans
-
-  const isEmpty = plans.length === 0
+  const isEmpty = !plansQuery.isPending && plans.length === 0
 
   return (
     <div className="dash">
@@ -54,7 +201,7 @@ function SubscriptionManagementPage() {
         <button
           type="button"
           className="btn-primary"
-          onClick={() => setFormModal({ mode: 'add' })}
+          onClick={openAddModal}
         >
           Add Subscription Plan <PlusIcon />
         </button>
@@ -66,138 +213,262 @@ function SubscriptionManagementPage() {
         </button>
       </div>
 
-      {isEmpty ? (
-        <div className="meter-empty">
-          <p className="meter-empty-text">No subscription available</p>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => setFormModal({ mode: 'add' })}
+      <div className="dash-toolbar">
+        <div className="dash-filters">
+          <div className="table-search">
+            <input
+              type="search"
+              placeholder="Search name or description..."
+              aria-label="Search plans by name or description"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setPage(1)
+              }}
+            />
+            <SearchIcon />
+          </div>
+          <select
+            className="filter-btn"
+            aria-label="Filter plans by status"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value as PlanStatus | '')
+              setPage(1)
+            }}
           >
-            Add Subscription Plan <PlusIcon />
+            <option value="">All statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="INACTIVE">Inactive</option>
+          </select>
+          <button type="button" className="filter-btn">
+            Sort <SortIcon />
           </button>
         </div>
-      ) : (
-        <>
-          <div className="dash-toolbar">
-            <div className="dash-filters">
-              <div className="table-search">
-                <input
-                  type="search"
-                  placeholder="Search Plan..."
-                  aria-label="Search plans"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                />
-                <SearchIcon />
-              </div>
-              <button type="button" className="filter-btn">
-                Filter <ChevronRightIcon />
-              </button>
-              <button type="button" className="filter-btn">
-                Sort <SortIcon />
-              </button>
-            </div>
-          </div>
+      </div>
 
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th className="col-check">
-                    <input type="checkbox" aria-label="Select all rows" />
-                  </th>
-                  <th>S/N</th>
-                  <th>Name</th>
-                  <th>Description</th>
-                  <th>Credits</th>
-                  <th>Amount(₦)</th>
-                  <th>Added Date</th>
-                  <th>Status</th>
-                  <th className="col-actions">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visiblePlans.map((plan, index) => (
-                  <tr key={plan.id}>
-                    <td className="col-check">
-                      <input type="checkbox" aria-label={`Select plan ${index + 1}`} />
-                    </td>
-                    <td>{String(index + 1).padStart(2, '0')}</td>
-                    <td>{plan.name}</td>
-                    <td className="cell-truncate">{plan.description}</td>
-                    <td>{plan.credits}</td>
-                    <td>{plan.amount}</td>
-                    <td>{plan.addedDate}</td>
-                    <td>
-                      <span
-                        className={`code-badge${plan.status === 'Active' ? ' is-ok' : ' is-error'}`}
-                      >
-                        {plan.status}
-                      </span>
-                    </td>
-                    <td className="col-actions">
-                      <RowActions
-                        isOpen={openMenu === plan.id}
-                        status={plan.status}
-                        onToggle={() =>
-                          setOpenMenu((prev) => (prev === plan.id ? null : plan.id))
-                        }
-                        onClose={() => setOpenMenu(null)}
-                        onView={() => goToPlan(plan.id)}
-                        onEdit={() => {
-                          setOpenMenu(null)
-                          setFormModal({ mode: 'edit', plan })
-                        }}
-                        onDeactivate={() => {
-                          setOpenMenu(null)
-                          setDeactivating(plan)
-                        }}
-                        onActivate={() => setStatus(plan.id, 'Active')}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <AsyncState
+        isPending={plansQuery.isPending}
+        error={plansQuery.error}
+        onRetry={() => void plansQuery.refetch()}
+      >
+        {isEmpty ? (
+          <div className="meter-empty">
+            <p className="meter-empty-text">No billing plans found.</p>
+            {!search && !status ? (
+              <button type="button" className="btn-primary" onClick={openAddModal}>
+                Add Subscription Plan <PlusIcon />
+              </button>
+            ) : null}
           </div>
-        </>
-      )}
+        ) : (
+          <>
+            <div className="table-scroll" aria-busy={plansQuery.isFetching}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th className="col-check">
+                      <input type="checkbox" aria-label="Select all rows" />
+                    </th>
+                    <th>S/N</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Credits</th>
+                    <th>Amount(₦)</th>
+                    <th>Added Date</th>
+                    <th>Status</th>
+                    <th className="col-actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {plans.map((plan, index) => (
+                    <tr key={plan.id}>
+                      <td className="col-check">
+                        <input type="checkbox" aria-label={`Select plan ${index + 1}`} />
+                      </td>
+                      <td>
+                        {String(
+                          ((pagination?.page ?? page) - 1) *
+                            (pagination?.limit ?? 20) +
+                            index +
+                            1,
+                        ).padStart(2, '0')}
+                      </td>
+                      <td>{plan.name}</td>
+                      <td className="cell-truncate">{plan.description}</td>
+                      <td>{plan.credits.toLocaleString()}</td>
+                      <td>{plan.amount.toLocaleString()}</td>
+                      <td>{plan.addedDate}</td>
+                      <td>
+                        <span
+                          className={`code-badge${plan.status === 'ACTIVE' ? ' is-ok' : ' is-error'}`}
+                        >
+                          {plan.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="col-actions">
+                        <RowActions
+                          isOpen={openMenu === plan.id}
+                          status={plan.status}
+                          isStatusPending={changePlanStatus.isPending}
+                          onToggle={() =>
+                            setOpenMenu((prev) => (prev === plan.id ? null : plan.id))
+                          }
+                          onClose={() => setOpenMenu(null)}
+                          onView={() => goToPlan(plan.id)}
+                          onEdit={() => openEditModal(plan)}
+                          onDeactivate={() => {
+                            setOpenMenu(null)
+                            changePlanStatus.reset()
+                            setStatusFieldErrors({})
+                            setDeactivating(plan)
+                          }}
+                          onActivate={() => void updatePlanStatus(plan, 'ACTIVE')}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <nav className="pagination" aria-label="Billing plan pagination">
+              <button
+                type="button"
+                className="page-nav"
+                disabled={(pagination?.page ?? page) <= 1 || plansQuery.isFetching}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+              >
+                Previous
+              </button>
+              <span className="page-gap">
+                Page {pagination?.page ?? page} of {pagination?.totalPages ?? 1}
+                {' · '}{pagination?.total ?? plans.length} total
+              </span>
+              <button
+                type="button"
+                className="page-nav"
+                disabled={
+                  (pagination?.page ?? page) >= (pagination?.totalPages ?? 1) ||
+                  plansQuery.isFetching
+                }
+                onClick={() => setPage((current) => current + 1)}
+              >
+                Next
+              </button>
+            </nav>
+          </>
+        )}
+      </AsyncState>
 
       {formModal ? (
         <PlanFormModal
           title={formModal.mode === 'add' ? 'Add Subscription Plan' : 'Edit Subscription Plan'}
           submitLabel={formModal.mode === 'add' ? 'Add Plan' : 'Save Changes'}
           initial={formModal.mode === 'edit' ? formModal.plan : undefined}
-          onClose={() => setFormModal(null)}
-          onSubmit={(values) => {
-            if (formModal.mode === 'add') {
-              setPlans((prev) => [
-                ...prev,
-                { ...values, id: `plan-${Date.now()}`, addedDate: formatAddedDate() },
-              ])
-            } else {
-              const editedId = formModal.plan.id
-              setPlans((prev) =>
-                prev.map((plan) => (plan.id === editedId ? { ...plan, ...values } : plan)),
-              )
-            }
-            setFormModal(null)
+          isSubmitting={formModal.mode === 'add' ? createPlan.isPending : updatePlan.isPending}
+          fieldErrors={formFieldErrors}
+          onFieldChange={(field) => {
+            setFormFieldErrors((current) => {
+              if (!current[field]) return current
+              const next = { ...current }
+              delete next[field]
+              return next
+            })
           }}
+          onClose={() => {
+            if (!createPlan.isPending && !updatePlan.isPending) setFormModal(null)
+          }}
+          onSubmit={(values) => void submitPlan(values)}
         />
       ) : null}
 
       {deactivating ? (
-        <ConfirmModal
-          message={`Are you sure you want to deactivate ${deactivating.name}?`}
-          confirmLabel="Deactivate"
-          onCancel={() => setDeactivating(null)}
-          onConfirm={() => {
-            setStatus(deactivating.id, 'Inactive')
-            setDeactivating(null)
+        <DeactivatePlanModal
+          plan={deactivating}
+          isSubmitting={changePlanStatus.isPending}
+          fieldErrors={statusFieldErrors}
+          onReasonChange={() => {
+            setStatusFieldErrors((current) => {
+              if (!current.reason) return current
+              const next = { ...current }
+              delete next.reason
+              return next
+            })
           }}
+          onCancel={() => {
+            if (!changePlanStatus.isPending) setDeactivating(null)
+          }}
+          onConfirm={(reason) => void updatePlanStatus(deactivating, 'INACTIVE', reason)}
         />
       ) : null}
+    </div>
+  )
+}
+
+function DeactivatePlanModal({
+  plan,
+  isSubmitting,
+  fieldErrors,
+  onReasonChange,
+  onCancel,
+  onConfirm,
+}: {
+  plan: Plan
+  isSubmitting: boolean
+  fieldErrors: Partial<Record<StatusField, string>>
+  onReasonChange: () => void
+  onCancel: () => void
+  onConfirm: (reason: string) => void
+}) {
+  const [reason, setReason] = useState('')
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, onCancel)
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deactivate-plan-title">
+      <div className="modal" ref={modalRef}>
+        <div className="modal-head">
+          <div>
+            <h2 id="deactivate-plan-title" className="modal-title">Deactivate plan</h2>
+            <p className="modal-subtitle">{plan.name} will no longer be available for new purchases.</p>
+          </div>
+          <button type="button" className="modal-close" aria-label="Close" onClick={onCancel} disabled={isSubmitting}>
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div className="modal-body">
+          {fieldErrors.status ? (
+            <p className="modal-field-error" role="alert">{fieldErrors.status}</p>
+          ) : null}
+          <div className="modal-field">
+            <label htmlFor="deactivation-reason">Reason <span className="req">*</span></label>
+            <textarea
+              id="deactivation-reason"
+              className="modal-input"
+              rows={3}
+              placeholder="Explain why this plan is being deactivated"
+              value={reason}
+              aria-invalid={Boolean(fieldErrors.reason)}
+              disabled={isSubmitting}
+              onChange={(event) => {
+                setReason(event.target.value)
+                onReasonChange()
+              }}
+            />
+            {fieldErrors.reason ? (
+              <span className="modal-field-error" role="alert">{fieldErrors.reason}</span>
+            ) : null}
+          </div>
+          <div className="modal-foot">
+            <button type="button" className="btn-neutral" onClick={onCancel} disabled={isSubmitting}>Cancel</button>
+            <button type="button" className="btn-danger-solid" onClick={() => onConfirm(reason)} disabled={isSubmitting}>
+              {isSubmitting ? 'Deactivating…' : 'Deactivate'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -205,6 +476,7 @@ function SubscriptionManagementPage() {
 function RowActions({
   isOpen,
   status,
+  isStatusPending,
   onToggle,
   onClose,
   onView,
@@ -214,6 +486,7 @@ function RowActions({
 }: {
   isOpen: boolean
   status: PlanStatus
+  isStatusPending: boolean
   onToggle: () => void
   onClose: () => void
   onView: () => void
@@ -245,12 +518,12 @@ function RowActions({
           <button type="button" className="row-menu-item" role="menuitem" onClick={onEdit}>
             <PencilIcon /> Edit Plan
           </button>
-          {status === 'Active' ? (
-            <button type="button" className="row-menu-item" role="menuitem" onClick={onDeactivate}>
+          {status === 'ACTIVE' ? (
+            <button type="button" className="row-menu-item" role="menuitem" onClick={onDeactivate} disabled={isStatusPending}>
               <LockIcon /> Deactivate
             </button>
           ) : (
-            <button type="button" className="row-menu-item" role="menuitem" onClick={onActivate}>
+            <button type="button" className="row-menu-item" role="menuitem" onClick={onActivate} disabled={isStatusPending}>
               <BadgeCheckIcon /> Activate
             </button>
           )}
@@ -265,6 +538,14 @@ function PlusIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="9" />
       <path d="M12 8v8M8 12h8" />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 6 6 18M6 6l12 12" />
     </svg>
   )
 }
@@ -328,14 +609,6 @@ function BadgeCheckIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="9" />
       <path d="m8.5 12.5 2.3 2.3 4.7-5" />
-    </svg>
-  )
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m9 18 6-6-6-6" />
     </svg>
   )
 }

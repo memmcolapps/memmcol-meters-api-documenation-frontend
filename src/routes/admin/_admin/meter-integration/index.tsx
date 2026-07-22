@@ -28,7 +28,6 @@ function MeterIntegrationPage() {
   const createMeter = useCreateMeterIntegration()
   const { showToast } = useToast()
   const [search, setSearch] = useState('')
-  const [manufacturer, setManufacturer] = useState('')
   const [status, setStatus] = useState<MeterIntegrationStatus | ''>('')
   const [page, setPage] = useState(1)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
@@ -37,11 +36,9 @@ function MeterIntegrationPage() {
     Partial<Record<MeterFormField, string>>
   >({})
   const deferredSearch = useDeferredValue(search.trim())
-  const deferredManufacturer = useDeferredValue(manufacturer.trim())
   const metersQuery = useMeterIntegrations({
     search: deferredSearch || undefined,
     status: status || undefined,
-    manufacturer: deferredManufacturer || undefined,
     page,
     limit: 20,
   })
@@ -65,7 +62,7 @@ function MeterIntegrationPage() {
         category: data.category.toLowerCase().replace('-', ''),
         protocol: data.protocol,
         authenticationType: data.authenticationType,
-        ...(data.password ? { password: data.password } : {}),
+        password: data.password,
         ...(data.description ? { description: data.description } : {}),
       })
 
@@ -132,19 +129,6 @@ function MeterIntegrationPage() {
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value)
-                setPage(1)
-              }}
-            />
-            <SearchIcon />
-          </div>
-          <div className="table-search">
-            <input
-              type="search"
-              placeholder="Manufacturer..."
-              aria-label="Filter by manufacturer"
-              value={manufacturer}
-              onChange={(event) => {
-                setManufacturer(event.target.value)
                 setPage(1)
               }}
             />

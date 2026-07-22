@@ -61,7 +61,8 @@ export function MeterFormModal({
     form.meterClass.trim() &&
     form.model.trim() &&
     form.protocol.trim() &&
-    form.authenticationType.trim()
+    form.authenticationType.trim() &&
+    form.password.trim()
 
   const handleSubmit = () => {
     if (!canSubmit) return
@@ -183,10 +184,11 @@ export function MeterFormModal({
             </Field>
           </div>
 
-          <Field label="Password" error={fieldErrors.password}>
+          <Field label="Password" required error={fieldErrors.password}>
             <input
               className="modal-input"
               type="password"
+              required
               placeholder="Enter Password"
               value={form.password}
               onChange={(e) => set('password', e.target.value)}
@@ -224,16 +226,18 @@ export function MeterFormModal({
 
 function Field({
   label,
+  required,
   error,
   children,
 }: {
   label: string
+  required?: boolean
   error?: string
   children: React.ReactNode
 }) {
   return (
     <div className="modal-field">
-      <label>{label}</label>
+      <label>{label} {required ? <span className="req">*</span> : null}</label>
       {children}
       {error ? <span className="modal-field-error" role="alert">{error}</span> : null}
     </div>

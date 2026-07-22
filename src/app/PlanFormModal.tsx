@@ -1,27 +1,38 @@
 import { useRef, useState, type KeyboardEvent } from 'react'
 import { useDismiss } from './useDismiss'
-import { ctaOptions, type Plan, type PlanFormValues } from './adminPlans'
+import {
+  ctaOptions,
+  type Plan,
+  type PlanFormField,
+  type PlanFormValues,
+} from './adminPlans'
 
 export function PlanFormModal({
   title,
   submitLabel,
   initial,
+  isSubmitting = false,
+  fieldErrors = {},
+  onFieldChange,
   onClose,
   onSubmit,
 }: {
   title: string
   submitLabel: string
   initial?: Plan
+  isSubmitting?: boolean
+  fieldErrors?: Partial<Record<PlanFormField, string>>
+  onFieldChange?: (field: PlanFormField) => void
   onClose: () => void
   onSubmit: (values: PlanFormValues) => void
 }) {
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
-  const [amount, setAmount] = useState(initial?.amount ?? '')
-  const [credits, setCredits] = useState(initial?.credits ?? '')
+  const [amount, setAmount] = useState(initial ? String(initial.amount) : '')
+  const [credits, setCredits] = useState(initial ? String(initial.credits) : '')
   const [features, setFeatures] = useState<string[]>(initial?.features ?? [])
   const [featureDraft, setFeatureDraft] = useState('')
-  const [active, setActive] = useState(initial ? initial.status === 'Active' : true)
+  const [active, setActive] = useState(initial ? initial.status === 'ACTIVE' : true)
   const [cta, setCta] = useState(initial?.cta ?? ctaOptions[0])
   const modalRef = useRef<HTMLDivElement>(null)
   useDismiss(modalRef, onClose)
@@ -30,6 +41,7 @@ export function PlanFormModal({
     const value = featureDraft.trim()
     if (value && !features.includes(value)) {
       setFeatures((prev) => [...prev, value])
+      onFieldChange?.('features')
     }
     setFeatureDraft('')
   }
@@ -40,21 +52,33 @@ export function PlanFormModal({
       addFeature()
     } else if (event.key === 'Backspace' && featureDraft === '' && features.length > 0) {
       setFeatures((prev) => prev.slice(0, -1))
+      onFieldChange?.('features')
     }
   }
 
-  const canSubmit = name.trim() !== '' && amount.trim() !== '' && credits.trim() !== ''
+  const amountNumber = parsePlanNumber(amount)
+  const creditsNumber = parsePlanNumber(credits)
+  const canSubmit =
+    name.trim() !== '' &&
+    description.trim() !== '' &&
+    amountNumber > 0 &&
+    creditsNumber > 0 &&
+    cta.trim() !== ''
 
   const handleSubmit = () => {
     if (!canSubmit) return
+    const draft = featureDraft.trim()
+    const submittedFeatures = draft && !features.includes(draft)
+      ? [...features, draft]
+      : features
     onSubmit({
       name: name.trim(),
       description: description.trim(),
-      amount: amount.trim(),
-      credits: credits.trim(),
-      features,
-      status: active ? 'Active' : 'Inactive',
-      cta,
+      amount: amountNumber,
+      credits: creditsNumber,
+      features: submittedFeatures,
+      status: active ? 'ACTIVE' : 'INACTIVE',
+      cta: cta.trim(),
     })
   }
 
@@ -65,35 +89,47 @@ export function PlanFormModal({
           <h2 id="plan-form-title" className="modal-title">
             {title}
           </h2>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+          <button type="button" className="modal-close" aria-label="Close" onClick={onClose} disabled={isSubmitting}>
             <CloseIcon />
           </button>
         </div>
 
         <div className="modal-body">
           <div className="modal-field">
-            <label>Name</label>
+            <label>Name <span className="req">*</span></label>
             <input
               className="modal-input"
               placeholder="E.g. Gold Platter"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value)
+                onFieldChange?.('name')
+              }}
+              aria-invalid={Boolean(fieldErrors.name)}
+              disabled={isSubmitting}
             />
+            {fieldErrors.name ? <span className="modal-field-error" role="alert">{fieldErrors.name}</span> : null}
           </div>
 
           <div className="modal-field">
-            <label>Description</label>
+            <label>Description <span className="req">*</span></label>
             <textarea
               className="modal-input"
               rows={2}
               placeholder="E.g. Great for big enterprise looking to manage their facility"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value)
+                onFieldChange?.('description')
+              }}
+              aria-invalid={Boolean(fieldErrors.description)}
+              disabled={isSubmitting}
             />
+            {fieldErrors.description ? <span className="modal-field-error" role="alert">{fieldErrors.description}</span> : null}
           </div>
 
           <div className="modal-field">
-            <label>Amount</label>
+            <label>Amount <span className="req">*</span></label>
             <div className="amount-input">
               <span className="amount-prefix" aria-hidden="true">
                 <NigeriaFlagIcon /> ₦
@@ -103,20 +139,32 @@ export function PlanFormModal({
                 placeholder="E.g. 10,000,000"
                 aria-label="Amount in naira"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => {
+                  setAmount(e.target.value)
+                  onFieldChange?.('amount')
+                }}
+                aria-invalid={Boolean(fieldErrors.amount)}
+                disabled={isSubmitting}
               />
             </div>
+            {fieldErrors.amount ? <span className="modal-field-error" role="alert">{fieldErrors.amount}</span> : null}
           </div>
 
           <div className="modal-field">
-            <label>Credits</label>
+            <label>Credits <span className="req">*</span></label>
             <input
               className="modal-input"
               inputMode="numeric"
               placeholder="E.g. 100,000"
               value={credits}
-              onChange={(e) => setCredits(e.target.value)}
+              onChange={(e) => {
+                setCredits(e.target.value)
+                onFieldChange?.('credits')
+              }}
+              aria-invalid={Boolean(fieldErrors.credits)}
+              disabled={isSubmitting}
             />
+            {fieldErrors.credits ? <span className="modal-field-error" role="alert">{fieldErrors.credits}</span> : null}
           </div>
 
           <div className="modal-field">
@@ -127,9 +175,14 @@ export function PlanFormModal({
                 placeholder="Type here"
                 aria-label="Add a feature and press Enter"
                 value={featureDraft}
-                onChange={(e) => setFeatureDraft(e.target.value)}
+                onChange={(e) => {
+                  setFeatureDraft(e.target.value)
+                  onFieldChange?.('features')
+                }}
                 onKeyDown={handleFeatureKey}
                 onBlur={addFeature}
+                aria-invalid={Boolean(fieldErrors.features)}
+                disabled={isSubmitting}
               />
               {features.length > 0 ? (
                 <div className="tag-list">
@@ -139,9 +192,11 @@ export function PlanFormModal({
                       <button
                         type="button"
                         aria-label={`Remove ${feature}`}
-                        onClick={() =>
+                        disabled={isSubmitting}
+                        onClick={() => {
                           setFeatures((prev) => prev.filter((f) => f !== feature))
-                        }
+                          onFieldChange?.('features')
+                        }}
                       >
                         <SmallCloseIcon />
                       </button>
@@ -150,6 +205,7 @@ export function PlanFormModal({
                 </div>
               ) : null}
             </div>
+            {fieldErrors.features ? <span className="modal-field-error" role="alert">{fieldErrors.features}</span> : null}
           </div>
 
           <div className="modal-field">
@@ -159,17 +215,28 @@ export function PlanFormModal({
               <input
                 type="checkbox"
                 checked={active}
-                onChange={(e) => setActive(e.target.checked)}
+                onChange={(e) => {
+                  setActive(e.target.checked)
+                  onFieldChange?.('status')
+                }}
+                aria-invalid={Boolean(fieldErrors.status)}
+                disabled={isSubmitting}
               />
             </label>
+            {fieldErrors.status ? <span className="modal-field-error" role="alert">{fieldErrors.status}</span> : null}
           </div>
 
           <div className="modal-field">
-            <label>CTA</label>
+            <label>CTA <span className="req">*</span></label>
             <select
               className="modal-select"
               value={cta}
-              onChange={(e) => setCta(e.target.value)}
+              onChange={(e) => {
+                setCta(e.target.value)
+                onFieldChange?.('cta')
+              }}
+              aria-invalid={Boolean(fieldErrors.cta)}
+              disabled={isSubmitting}
             >
               {ctaOptions.map((option) => (
                 <option key={option} value={option}>
@@ -177,25 +244,31 @@ export function PlanFormModal({
                 </option>
               ))}
             </select>
+            {fieldErrors.cta ? <span className="modal-field-error" role="alert">{fieldErrors.cta}</span> : null}
           </div>
 
           <div className="modal-foot">
-            <button type="button" className="btn-neutral" onClick={onClose}>
+            <button type="button" className="btn-neutral" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </button>
             <button
               type="button"
               className="btn-primary"
-              disabled={!canSubmit}
+              disabled={!canSubmit || isSubmitting}
               onClick={handleSubmit}
             >
-              {submitLabel}
+              {isSubmitting ? 'Saving…' : submitLabel}
             </button>
           </div>
         </div>
       </div>
     </div>
   )
+}
+
+function parsePlanNumber(value: string) {
+  const parsed = Number(value.replaceAll(',', '').trim())
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 export function NigeriaFlagIcon() {
