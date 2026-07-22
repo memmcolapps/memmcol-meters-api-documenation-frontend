@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useToast } from '../../../app/toastContext'
 import { useDismiss } from '../../../app/useDismiss'
 import {
@@ -18,6 +18,7 @@ import {
 import {
   getSchemaFieldErrors,
   summarizeFieldErrors,
+  
 } from '../../../features/auth/schemas'
 import { getApiErrorMessage } from '../../../lib/api/client'
 
@@ -91,9 +92,11 @@ function UserManagementPage() {
             Try again
           </button>
         </div>
-      ) : membersQuery.data?.items.length ? (
+      ) : membersQuery.data?.items.filter((m) => m.status !== 'DISABLED').length ? (
         <section className="org-member-list" aria-label="Organisation members">
-          {membersQuery.data.items.map((member) => (
+          {membersQuery.data.items
+            .filter((m) => m.status !== 'DISABLED')
+            .map((member) => (
             <div className="org-member-row" key={member.id}>
               <div className="org-member-id">
                 <span className="org-member-avatar" aria-hidden="true">
@@ -226,7 +229,7 @@ function InviteMemberModal({
   }
 
   const roles: InvitationRole[] = canGrantAdmin
-    ? ['ADMIN', 'MEMBER']
+    ? ['OWNER', 'ADMIN', 'MEMBER']
     : ['MEMBER']
 
   return (
@@ -309,6 +312,7 @@ function LeaveConfirmationModal({
   member: OrganisationMember
   onClose: () => void
 }) {
+  const navigate = useNavigate()
   const leaveMember = useLeaveOrganisation()
   const { showToast } = useToast()
   const modalRef = useRef<HTMLDivElement>(null)
@@ -323,6 +327,7 @@ function LeaveConfirmationModal({
         variant: 'success',
       })
       onClose()
+      navigate({ to: '/login' })
     } catch (error) {
       showToast({
         title: 'Could not leave organisation',
