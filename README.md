@@ -78,6 +78,17 @@ The customer meter form creates a meter using the selected integration ID:
 formatting, including leading zeroes, is preserved. Meter types are loaded from
 the active meter integrations returned by `GET /admin/meter-integrations`.
 
+Billing credit plans are created and consumed through these endpoints:
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/admin/billing/plans` | Create a billing credit plan |
+| `PATCH` | `/admin/billing/plans/:planId/status` | Activate or deactivate a billing plan |
+| `GET` | `/billing/plans` | List customer-visible billing plans |
+
+Plan amounts and credit quantities are represented as numbers. The customer
+billing page also filters the list to `ACTIVE` plans before rendering it.
+
 ## Checks
 
 ```bash

@@ -65,13 +65,13 @@ function PlanViewPage() {
             <span className="amount-prefix" aria-hidden="true">
               <NigeriaFlagIcon /> ₦
             </span>
-            <input value={plan.amount} readOnly aria-label="Amount in naira" />
+            <input value={plan.amount.toLocaleString()} readOnly aria-label="Amount in naira" />
           </div>
         </div>
 
         <div className="modal-field">
           <label>Credits</label>
-          <input className="modal-input" value={plan.credits} readOnly />
+          <input className="modal-input" value={plan.credits.toLocaleString()} readOnly />
         </div>
 
         <div className="modal-field">
@@ -86,8 +86,8 @@ function PlanViewPage() {
         <div className="modal-field">
           <label>Set Status</label>
           <label className="status-box">
-            {plan.status}
-            <input type="checkbox" checked={plan.status === 'Active'} readOnly disabled />
+            {plan.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+            <input type="checkbox" checked={plan.status === 'ACTIVE'} readOnly disabled />
           </label>
         </div>
 

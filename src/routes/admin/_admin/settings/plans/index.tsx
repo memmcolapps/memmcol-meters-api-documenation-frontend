@@ -2,28 +2,142 @@ import { useRef, useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useDismiss } from '../../../../../app/useDismiss'
 import { useAnchoredMenu } from '../../../../../app/useAnchoredMenu'
-import { ConfirmModal } from '../../../../../app/ConfirmModal'
 import { PlanFormModal } from '../../../../../app/PlanFormModal'
+import { useToast } from '../../../../../app/toastContext'
 import { formatAddedDate } from '../../../../../app/adminMeters'
-import { seededPlans, type Plan, type PlanStatus } from '../../../../../app/adminPlans'
+import {
+  seededPlans,
+  type Plan,
+  type PlanFormField,
+  type PlanFormValues,
+  type PlanStatus,
+} from '../../../../../app/adminPlans'
+import {
+  getBillingPlanError,
+  getBillingPlanStatusError,
+  useChangeBillingPlanStatus,
+  useCreateBillingPlan,
+} from '../../../../../features/billing/billingPlanQueries'
 
 export const Route = createFileRoute('/admin/_admin/settings/plans/')({
   component: SubscriptionManagementPage,
 })
 
 type FormModalState = { mode: 'add' } | { mode: 'edit'; plan: Plan }
+type StatusField = 'status' | 'reason'
 
 function SubscriptionManagementPage() {
   const navigate = useNavigate()
+  const createPlan = useCreateBillingPlan()
+  const changePlanStatus = useChangeBillingPlanStatus()
+  const { showToast } = useToast()
   const [plans, setPlans] = useState<Plan[]>(seededPlans)
   const [search, setSearch] = useState('')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [formModal, setFormModal] = useState<FormModalState | null>(null)
   const [deactivating, setDeactivating] = useState<Plan | null>(null)
+  const [createFieldErrors, setCreateFieldErrors] = useState<
+    Partial<Record<PlanFormField, string>>
+  >({})
+  const [statusFieldErrors, setStatusFieldErrors] = useState<
+    Partial<Record<StatusField, string>>
+  >({})
 
-  const setStatus = (id: string, status: PlanStatus) => {
-    setPlans((prev) => prev.map((plan) => (plan.id === id ? { ...plan, status } : plan)))
-    setOpenMenu(null)
+  const openAddModal = () => {
+    createPlan.reset()
+    setCreateFieldErrors({})
+    setFormModal({ mode: 'add' })
+  }
+
+  const submitPlan = async (values: PlanFormValues) => {
+    if (formModal?.mode === 'edit') {
+      const editedId = formModal.plan.id
+      setPlans((current) =>
+        current.map((plan) => (plan.id === editedId ? { ...plan, ...values } : plan)),
+      )
+      setFormModal(null)
+      return
+    }
+
+    setCreateFieldErrors({})
+    try {
+      const plan = await createPlan.mutateAsync(values)
+      setPlans((current) => [
+        ...current,
+        {
+          id: plan.id,
+          name: plan.name,
+          description: plan.description,
+          amount: plan.amount,
+          credits: plan.credits,
+          features: plan.features,
+          cta: plan.cta,
+          status: plan.status,
+          addedDate: formatAddedDate(new Date(plan.createdAt)),
+        },
+      ])
+      setFormModal(null)
+      showToast({
+        title: 'Credit plan created',
+        message: `${plan.name} was created with ${plan.credits.toLocaleString()} credits.`,
+        variant: 'success',
+      })
+    } catch (error) {
+      const apiError = getBillingPlanError(error)
+      const fields = apiError.fields as Partial<Record<PlanFormField, string>>
+      const fieldMessage = [...new Set(Object.values(fields))].join(' ')
+      setCreateFieldErrors(fields)
+      showToast({
+        title: apiError.message,
+        message: [
+          fieldMessage,
+          apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
+        ].filter(Boolean).join(' · ') || undefined,
+        variant: 'error',
+      })
+    }
+  }
+
+  const updatePlanStatus = async (
+    plan: Plan,
+    status: PlanStatus,
+    reason?: string,
+  ) => {
+    if (status === 'INACTIVE' && !reason?.trim()) {
+      setStatusFieldErrors({ reason: 'Reason is required when deactivating a plan.' })
+      return
+    }
+
+    setStatusFieldErrors({})
+    try {
+      const updated = await changePlanStatus.mutateAsync({
+        planId: plan.id,
+        status,
+        ...(reason?.trim() ? { reason: reason.trim() } : {}),
+      })
+      setPlans((current) => current.map((item) =>
+        item.id === updated.id ? { ...item, status: updated.status } : item,
+      ))
+      setOpenMenu(null)
+      setDeactivating(null)
+      showToast({
+        title: status === 'ACTIVE' ? 'Plan activated' : 'Plan deactivated',
+        message: `${plan.name} is now ${status.toLowerCase()}.`,
+        variant: 'success',
+      })
+    } catch (error) {
+      const apiError = getBillingPlanStatusError(error)
+      const fields = apiError.fields as Partial<Record<StatusField, string>>
+      setStatusFieldErrors(fields)
+      showToast({
+        title: apiError.message,
+        message: [
+          [...new Set(Object.values(fields))].join(' '),
+          apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
+        ].filter(Boolean).join(' · ') || undefined,
+        variant: 'error',
+      })
+    }
   }
 
   const goToPlan = (id: string) => {
@@ -54,7 +168,7 @@ function SubscriptionManagementPage() {
         <button
           type="button"
           className="btn-primary"
-          onClick={() => setFormModal({ mode: 'add' })}
+          onClick={openAddModal}
         >
           Add Subscription Plan <PlusIcon />
         </button>
@@ -72,7 +186,7 @@ function SubscriptionManagementPage() {
           <button
             type="button"
             className="btn-primary"
-            onClick={() => setFormModal({ mode: 'add' })}
+            onClick={openAddModal}
           >
             Add Subscription Plan <PlusIcon />
           </button>
@@ -126,20 +240,21 @@ function SubscriptionManagementPage() {
                     <td>{String(index + 1).padStart(2, '0')}</td>
                     <td>{plan.name}</td>
                     <td className="cell-truncate">{plan.description}</td>
-                    <td>{plan.credits}</td>
-                    <td>{plan.amount}</td>
+                    <td>{plan.credits.toLocaleString()}</td>
+                    <td>{plan.amount.toLocaleString()}</td>
                     <td>{plan.addedDate}</td>
                     <td>
                       <span
-                        className={`code-badge${plan.status === 'Active' ? ' is-ok' : ' is-error'}`}
+                        className={`code-badge${plan.status === 'ACTIVE' ? ' is-ok' : ' is-error'}`}
                       >
-                        {plan.status}
+                        {plan.status === 'ACTIVE' ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td className="col-actions">
                       <RowActions
                         isOpen={openMenu === plan.id}
                         status={plan.status}
+                        isStatusPending={changePlanStatus.isPending}
                         onToggle={() =>
                           setOpenMenu((prev) => (prev === plan.id ? null : plan.id))
                         }
@@ -151,9 +266,11 @@ function SubscriptionManagementPage() {
                         }}
                         onDeactivate={() => {
                           setOpenMenu(null)
+                          changePlanStatus.reset()
+                          setStatusFieldErrors({})
                           setDeactivating(plan)
                         }}
-                        onActivate={() => setStatus(plan.id, 'Active')}
+                        onActivate={() => void updatePlanStatus(plan, 'ACTIVE')}
                       />
                     </td>
                   </tr>
@@ -169,35 +286,109 @@ function SubscriptionManagementPage() {
           title={formModal.mode === 'add' ? 'Add Subscription Plan' : 'Edit Subscription Plan'}
           submitLabel={formModal.mode === 'add' ? 'Add Plan' : 'Save Changes'}
           initial={formModal.mode === 'edit' ? formModal.plan : undefined}
-          onClose={() => setFormModal(null)}
-          onSubmit={(values) => {
-            if (formModal.mode === 'add') {
-              setPlans((prev) => [
-                ...prev,
-                { ...values, id: `plan-${Date.now()}`, addedDate: formatAddedDate() },
-              ])
-            } else {
-              const editedId = formModal.plan.id
-              setPlans((prev) =>
-                prev.map((plan) => (plan.id === editedId ? { ...plan, ...values } : plan)),
-              )
-            }
-            setFormModal(null)
+          isSubmitting={formModal.mode === 'add' && createPlan.isPending}
+          fieldErrors={formModal.mode === 'add' ? createFieldErrors : {}}
+          onFieldChange={(field) => {
+            setCreateFieldErrors((current) => {
+              if (!current[field]) return current
+              const next = { ...current }
+              delete next[field]
+              return next
+            })
           }}
+          onClose={() => {
+            if (!createPlan.isPending) setFormModal(null)
+          }}
+          onSubmit={(values) => void submitPlan(values)}
         />
       ) : null}
 
       {deactivating ? (
-        <ConfirmModal
-          message={`Are you sure you want to deactivate ${deactivating.name}?`}
-          confirmLabel="Deactivate"
-          onCancel={() => setDeactivating(null)}
-          onConfirm={() => {
-            setStatus(deactivating.id, 'Inactive')
-            setDeactivating(null)
+        <DeactivatePlanModal
+          plan={deactivating}
+          isSubmitting={changePlanStatus.isPending}
+          fieldErrors={statusFieldErrors}
+          onReasonChange={() => {
+            setStatusFieldErrors((current) => {
+              if (!current.reason) return current
+              const next = { ...current }
+              delete next.reason
+              return next
+            })
           }}
+          onCancel={() => {
+            if (!changePlanStatus.isPending) setDeactivating(null)
+          }}
+          onConfirm={(reason) => void updatePlanStatus(deactivating, 'INACTIVE', reason)}
         />
       ) : null}
+    </div>
+  )
+}
+
+function DeactivatePlanModal({
+  plan,
+  isSubmitting,
+  fieldErrors,
+  onReasonChange,
+  onCancel,
+  onConfirm,
+}: {
+  plan: Plan
+  isSubmitting: boolean
+  fieldErrors: Partial<Record<StatusField, string>>
+  onReasonChange: () => void
+  onCancel: () => void
+  onConfirm: (reason: string) => void
+}) {
+  const [reason, setReason] = useState('')
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, onCancel)
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deactivate-plan-title">
+      <div className="modal" ref={modalRef}>
+        <div className="modal-head">
+          <div>
+            <h2 id="deactivate-plan-title" className="modal-title">Deactivate plan</h2>
+            <p className="modal-subtitle">{plan.name} will no longer be available for new purchases.</p>
+          </div>
+          <button type="button" className="modal-close" aria-label="Close" onClick={onCancel} disabled={isSubmitting}>
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div className="modal-body">
+          {fieldErrors.status ? (
+            <p className="modal-field-error" role="alert">{fieldErrors.status}</p>
+          ) : null}
+          <div className="modal-field">
+            <label htmlFor="deactivation-reason">Reason <span className="req">*</span></label>
+            <textarea
+              id="deactivation-reason"
+              className="modal-input"
+              rows={3}
+              placeholder="Explain why this plan is being deactivated"
+              value={reason}
+              aria-invalid={Boolean(fieldErrors.reason)}
+              disabled={isSubmitting}
+              onChange={(event) => {
+                setReason(event.target.value)
+                onReasonChange()
+              }}
+            />
+            {fieldErrors.reason ? (
+              <span className="modal-field-error" role="alert">{fieldErrors.reason}</span>
+            ) : null}
+          </div>
+          <div className="modal-foot">
+            <button type="button" className="btn-neutral" onClick={onCancel} disabled={isSubmitting}>Cancel</button>
+            <button type="button" className="btn-danger-solid" onClick={() => onConfirm(reason)} disabled={isSubmitting}>
+              {isSubmitting ? 'Deactivating…' : 'Deactivate'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -205,6 +396,7 @@ function SubscriptionManagementPage() {
 function RowActions({
   isOpen,
   status,
+  isStatusPending,
   onToggle,
   onClose,
   onView,
@@ -214,6 +406,7 @@ function RowActions({
 }: {
   isOpen: boolean
   status: PlanStatus
+  isStatusPending: boolean
   onToggle: () => void
   onClose: () => void
   onView: () => void
@@ -245,12 +438,12 @@ function RowActions({
           <button type="button" className="row-menu-item" role="menuitem" onClick={onEdit}>
             <PencilIcon /> Edit Plan
           </button>
-          {status === 'Active' ? (
-            <button type="button" className="row-menu-item" role="menuitem" onClick={onDeactivate}>
+          {status === 'ACTIVE' ? (
+            <button type="button" className="row-menu-item" role="menuitem" onClick={onDeactivate} disabled={isStatusPending}>
               <LockIcon /> Deactivate
             </button>
           ) : (
-            <button type="button" className="row-menu-item" role="menuitem" onClick={onActivate}>
+            <button type="button" className="row-menu-item" role="menuitem" onClick={onActivate} disabled={isStatusPending}>
               <BadgeCheckIcon /> Activate
             </button>
           )}
@@ -265,6 +458,14 @@ function PlusIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="9" />
       <path d="M12 8v8M8 12h8" />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 6 6 18M6 6l12 12" />
     </svg>
   )
 }
