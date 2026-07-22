@@ -1,74 +1,84 @@
 import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { useToast } from '../../app/toastContext'
 import { useDismiss } from '../../app/useDismiss'
 import { useAnchoredMenu } from '../../app/useAnchoredMenu'
 import { DatePicker } from '../../app/DatePicker'
+import { getApiErrorMessage } from '../../lib/api/client'
+import {
+  useMeters,
+  useDeleteMeter,
+  useUpdateMeterStatus,
+  type Meter,
+  type MeterStatus,
+} from '../../features/meters/meterQueries'
 
 export const Route = createFileRoute('/_app/meter')({
   component: MeterPage,
 })
 
-type MeterStatus = 'Active' | 'Deactivated'
+const PAGE_SIZE = 10
 
-type Meter = {
-  id: string
-  meterNo: string
-  sim: string
-  manufacturer: string
-  model: string
-  meterClass: string
-  status: MeterStatus
-}
+function generatePages(current: number, total: number): (number | '…')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
 
-function makeMeter(index: number): Meter {
-  return {
-    id: `m-${index}`,
-    meterNo: '62526000005',
-    sim: '737842875239738',
-    manufacturer: 'Momas',
-    model: 'MMX-310-NG',
-    meterClass: 'Single-phase',
-    status: index === 1 ? 'Deactivated' : 'Active',
+  const pages: (number | '…')[] = []
+  if (current <= 4) {
+    for (let i = 1; i <= 5; i++) pages.push(i)
+    pages.push('…', total)
+  } else if (current >= total - 3) {
+    pages.push(1, '…')
+    for (let i = total - 4; i <= total; i++) pages.push(i)
+  } else {
+    pages.push(1, '…')
+    for (let i = current - 1; i <= current + 1; i++) pages.push(i)
+    pages.push('…', total)
   }
+  return pages
 }
-
-const seededMeters: Meter[] = Array.from({ length: 10 }, (_, i) => makeMeter(i + 1))
-
-const pages = [1, 2, 3, '…', 5, 6, 7]
-const currentPage = 1
-
-type NewMeter = Omit<Meter, 'id' | 'status'>
 
 function MeterPage() {
-  const [meters, setMeters] = useState<Meter[]>(seededMeters)
+  const [page, setPage] = useState(1)
+  const [status, setStatus] = useState<MeterStatus | ''>('')
+  const search = ''
+  const sortBy = 'createdAt'
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [date, setDate] = useState<Date | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Meter | null>(null)
 
-  const addMeter = (data: NewMeter) => {
-    setMeters((prev) => [
-      ...prev,
-      { id: `m-${Date.now()}`, status: 'Active', ...data },
-    ])
-    setAddOpen(false)
+  const params = {
+    page,
+    pageSize: PAGE_SIZE,
+    ...(status ? { status: status as MeterStatus } : {}),
+    ...(search ? { search } : {}),
+    sortBy,
+    sortOrder,
+    ...(date ? { date: date.toISOString().split('T')[0] } : {}),
   }
 
-  const toggleStatus = (id: string) => {
-    setMeters((prev) =>
-      prev.map((m) =>
-        m.id === id
-          ? { ...m, status: m.status === 'Active' ? 'Deactivated' : 'Active' }
-          : m,
-      ),
-    )
+  const { data, isLoading, isError } = useMeters(params)
+  const updateMeterStatus = useUpdateMeterStatus()
+
+  const meters = data?.items ?? []
+  const pagination = data?.pagination
+  const isEmpty = !isLoading && !isError && meters.length === 0
+
+  const toggleStatus = (id: string, currentStatus: MeterStatus) => {
+    const newStatus: MeterStatus = currentStatus === 'ACTIVE' ? 'DEACTIVATED' : 'ACTIVE'
+    updateMeterStatus.mutate({ id, status: newStatus })
     setOpenMenu(null)
   }
 
-  const removeMeter = (id: string) => {
-    setMeters((prev) => prev.filter((m) => m.id !== id))
+  const confirmDelete = (meter: Meter) => {
+    setDeleteTarget(meter)
     setOpenMenu(null)
   }
 
-  const isEmpty = meters.length === 0
+  const allPages = pagination ? generatePages(page, pagination.totalPages) : []
+  const hasNext = pagination ? page < pagination.totalPages : false
+  const hasPrev = page > 1
 
   return (
     <div className="dash">
@@ -88,7 +98,15 @@ function MeterPage() {
         </button>
       </div>
 
-      {isEmpty ? (
+      {isLoading ? (
+        <div className="meter-empty">
+          <p className="meter-empty-text">Loading meters...</p>
+        </div>
+      ) : isError ? (
+        <div className="meter-empty">
+          <p className="meter-empty-text">Failed to load meters. Please try again.</p>
+        </div>
+      ) : isEmpty ? (
         <div className="meter-empty">
           <p className="meter-empty-text">No meters Available</p>
           <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
@@ -99,13 +117,24 @@ function MeterPage() {
         <>
           <div className="dash-toolbar">
             <div className="dash-filters">
-              <DatePicker placeholder="Today" />
-              <button type="button" className="filter-btn">
-                All code <ChevronRightIcon />
-              </button>
-              <button type="button" className="filter-btn">
-                Sort <SortIcon />
-              </button>
+              <DatePicker
+                placeholder="Today"
+                initialDate={date ?? undefined}
+                onChange={(d) => { setDate(d); setPage(1) }}
+              />
+              <select
+                className="filter-btn filter-select"
+                value={status}
+                onChange={(e) => { setStatus(e.target.value as MeterStatus | ''); setPage(1) }}
+              >
+                <option value="">All status</option>
+                <option value="ACTIVE">Active</option>
+                <option value="DEACTIVATED">Deactivated</option>
+              </select>
+              <SortDropdown
+                value={sortOrder}
+                onChange={(order) => { setSortOrder(order); setPage(1) }}
+              />
             </div>
             <button type="button" className="btn-outline btn-icon">
               Download <DownloadIcon />
@@ -133,19 +162,19 @@ function MeterPage() {
                 {meters.map((meter, index) => (
                   <tr key={meter.id}>
                     <td className="col-check">
-                      <input type="checkbox" aria-label={`Select meter ${index + 1}`} />
+                      <input type="checkbox" aria-label={`Select meter ${(page - 1) * PAGE_SIZE + index + 1}`} />
                     </td>
-                    <td>{String(index + 1).padStart(2, '0')}</td>
-                    <td>{meter.meterNo}</td>
-                    <td>{meter.sim}</td>
+                    <td>{String((page - 1) * PAGE_SIZE + index + 1).padStart(2, '0')}</td>
+                    <td>{meter.meterNumber}</td>
+                    <td>{meter.simNumber}</td>
                     <td>{meter.manufacturer}</td>
                     <td>{meter.model}</td>
                     <td>{meter.meterClass}</td>
                     <td>
                       <span
-                        className={`code-badge${meter.status === 'Active' ? ' is-ok' : ' is-error'}`}
+                        className={`code-badge${meter.status === 'ACTIVE' ? ' is-ok' : ' is-error'}`}
                       >
-                        {meter.status}
+                        {meter.status === 'ACTIVE' ? 'Active' : 'Deactivated'}
                       </span>
                     </td>
                     <td className="col-actions">
@@ -156,8 +185,8 @@ function MeterPage() {
                           setOpenMenu((prev) => (prev === meter.id ? null : meter.id))
                         }
                         onClose={() => setOpenMenu(null)}
-                        onToggleStatus={() => toggleStatus(meter.id)}
-                        onDelete={() => removeMeter(meter.id)}
+                        onToggleStatus={() => toggleStatus(meter.id, meter.status)}
+                        onDelete={() => confirmDelete(meter)}
                       />
                     </td>
                   </tr>
@@ -167,28 +196,39 @@ function MeterPage() {
           </div>
 
           <nav className="pagination" aria-label="Pagination">
-            <button type="button" className="page-nav" disabled>
+            <button
+              type="button"
+              className="page-nav"
+              disabled={!hasPrev}
+              onClick={() => setPage((p) => p - 1)}
+            >
               <ChevronLeftIcon /> Previous
             </button>
             <div className="page-numbers">
-              {pages.map((page, index) =>
-                page === '…' ? (
+              {allPages.map((p, index) =>
+                p === '…' ? (
                   <span key={`gap-${index}`} className="page-gap">
                     …
                   </span>
                 ) : (
                   <button
                     type="button"
-                    key={page}
-                    className={`page-num${page === currentPage ? ' is-active' : ''}`}
-                    aria-current={page === currentPage ? 'page' : undefined}
+                    key={p}
+                    className={`page-num${p === page ? ' is-active' : ''}`}
+                    aria-current={p === page ? 'page' : undefined}
+                    onClick={() => setPage(p)}
                   >
-                    {page}
+                    {p}
                   </button>
                 ),
               )}
             </div>
-            <button type="button" className="page-nav">
+            <button
+              type="button"
+              className="page-nav"
+              disabled={!hasNext}
+              onClick={() => setPage((p) => p + 1)}
+            >
               Next <ChevronRightIcon />
             </button>
           </nav>
@@ -196,7 +236,14 @@ function MeterPage() {
       )}
 
       {addOpen ? (
-        <AddMeterModal onClose={() => setAddOpen(false)} onAdd={addMeter} />
+        <AddMeterModal onClose={() => setAddOpen(false)} />
+      ) : null}
+
+      {deleteTarget ? (
+        <DeleteMeterModal
+          meter={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+        />
       ) : null}
     </div>
   )
@@ -215,10 +262,8 @@ const activeSupportedMeters = supportedMeters.filter((m) => m.status === 'Active
 
 function AddMeterModal({
   onClose,
-  onAdd,
 }: {
   onClose: () => void
-  onAdd: (meter: NewMeter) => void
 }) {
   const [form, setForm] = useState({
     meterNo: '',
@@ -243,13 +288,8 @@ function AddMeterModal({
 
   const handleSubmit = () => {
     if (!selectedType || !canSubmit) return
-    onAdd({
-      meterNo: form.meterNo,
-      sim: form.sim,
-      meterClass: selectedType.meterClass,
-      model: selectedType.model,
-      manufacturer: selectedType.manufacturer,
-    })
+    // TODO: implement create meter API call when endpoint is available
+    onClose()
   }
 
   return (
@@ -339,6 +379,123 @@ function AddMeterModal({
   )
 }
 
+function SortDropdown({
+  value,
+  onChange,
+}: {
+  value: 'asc' | 'desc'
+  onChange: (value: 'asc' | 'desc') => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useDismiss(ref, () => setOpen(false), open)
+  const { anchorRef, menuStyle } = useAnchoredMenu(open)
+
+  const select = (order: 'asc' | 'desc') => {
+    onChange(order)
+    setOpen(false)
+  }
+
+  return (
+    <div className="filter-dropdown" ref={ref}>
+      <button
+        type="button"
+        ref={anchorRef}
+        className="filter-btn"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        Sort <SortIcon />
+      </button>
+      {open ? (
+        <div className="row-menu" style={menuStyle} role="menu">
+          <button
+            type="button"
+            className={`row-menu-item${value === 'desc' ? ' is-active' : ''}`}
+            role="menuitem"
+            onClick={() => select('desc')}
+          >
+            Descending
+          </button>
+          <button
+            type="button"
+            className={`row-menu-item${value === 'asc' ? ' is-active' : ''}`}
+            role="menuitem"
+            onClick={() => select('asc')}
+          >
+            Ascending
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function DeleteMeterModal({
+  meter,
+  onClose,
+}: {
+  meter: Meter
+  onClose: () => void
+}) {
+  const deleteMeter = useDeleteMeter()
+  const { showToast } = useToast()
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, onClose)
+
+  const handleDelete = async () => {
+    try {
+      await deleteMeter.mutateAsync(meter.id)
+      showToast({
+        title: 'Meter deleted',
+        message: `${meter.meterNumber} has been deleted.`,
+        variant: 'success',
+      })
+      onClose()
+    } catch (error) {
+      showToast({
+        title: 'Could not delete meter',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
+  }
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-meter-title">
+      <div className="modal" ref={modalRef}>
+        <div className="modal-head">
+          <h2 id="delete-meter-title" className="modal-title">Confirm Action</h2>
+          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+            <CloseIcon />
+          </button>
+        </div>
+        <div className="modal-body">
+          <p>Are you sure you want to delete this meter?</p>
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn-neutral"
+              onClick={onClose}
+              disabled={deleteMeter.isPending}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-remove"
+              onClick={handleDelete}
+              disabled={deleteMeter.isPending}
+            >
+              {deleteMeter.isPending ? 'Deleting…' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Field({
   label,
   required,
@@ -408,7 +565,7 @@ function RowActions({
             role="menuitem"
             onClick={onToggleStatus}
           >
-            {status === 'Active' ? 'Deactivate' : 'Activate'}
+            {status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
           </button>
           <button
             type="button"

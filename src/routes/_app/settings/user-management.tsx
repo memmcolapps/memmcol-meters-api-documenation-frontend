@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useToast } from '../../../app/toastContext'
 import { useDismiss } from '../../../app/useDismiss'
 import {
@@ -226,7 +226,7 @@ function InviteMemberModal({
   }
 
   const roles: InvitationRole[] = canGrantAdmin
-    ? ['ADMIN', 'MEMBER']
+    ? ['OWNER', 'ADMIN', 'MEMBER']
     : ['MEMBER']
 
   return (
@@ -309,6 +309,7 @@ function LeaveConfirmationModal({
   member: OrganisationMember
   onClose: () => void
 }) {
+  const navigate = useNavigate()
   const leaveMember = useLeaveOrganisation()
   const { showToast } = useToast()
   const modalRef = useRef<HTMLDivElement>(null)
@@ -323,6 +324,7 @@ function LeaveConfirmationModal({
         variant: 'success',
       })
       onClose()
+      navigate({ to: '/login' })
     } catch (error) {
       showToast({
         title: 'Could not leave organisation',

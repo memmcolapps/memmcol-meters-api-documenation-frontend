@@ -19,7 +19,7 @@ export type OrganisationMembersResponse = {
   items: OrganisationMember[]
 }
 
-export type InvitationRole = 'ADMIN' | 'MEMBER'
+export type InvitationRole = 'OWNER' | 'ADMIN' | 'MEMBER'
 
 export type InviteOrganisationMemberInput = {
   email: string

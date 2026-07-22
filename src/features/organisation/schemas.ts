@@ -6,7 +6,7 @@ export const inviteOrganisationMemberSchema = z.object({
     .min(1, 'Email is required')
     .email('Enter a valid email address')
     .transform((email) => email.toLowerCase()),
-  role: z.enum(['ADMIN', 'MEMBER'], {
+  role: z.enum(['OWNER', 'ADMIN', 'MEMBER'], {
     message: 'Select a role',
   }),
 })
