@@ -14,7 +14,7 @@ export type CreateMeterIntegrationInput = {
   category: string
   protocol: string
   authenticationType: string
-  password?: string
+  password: string
   description?: string
 }
 
@@ -66,15 +66,74 @@ export type CreateObisCodeInput = {
   description?: string
 }
 
+export type UpdateObisCodeInput = CreateObisCodeInput & {
+  obisCodeId: string
+}
+
+export type ObisCodeStatus = 'ACTIVE' | 'DEPRECATED'
+
 export type ObisCode = {
   id: string
-  meterIntegrationId: string
+  meterIntegrationId?: string
   action: string
   code: string
   description: string
-  status: 'ACTIVE' | 'DEPRECATED'
+  status: ObisCodeStatus
+  statusReason?: string
+  addedBy?: {
+    id: string
+    name: string
+  }
   createdAt: string
   updatedAt: string
+}
+
+export type ChangeObisCodeStatusInput = {
+  obisCodeId: string
+  status: ObisCodeStatus
+  reason?: string
+}
+
+export type ObisCodeListParams = {
+  search?: string
+  status?: ObisCodeStatus
+  page: number
+  limit: number
+}
+
+export type ObisCodeListResponse = {
+  items: ObisCode[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
+export type ObisUploadMode = 'append' | 'replace'
+
+export type ObisUploadError = {
+  row: number
+  field: string
+  message: string
+}
+
+export type ObisUpload = {
+  id: string
+  status: string
+  mode: ObisUploadMode
+  totalRows: number
+  created: number
+  updated: number
+  failed: number
+  errors: ObisUploadError[]
+  uploadedAt: string
+}
+
+export type UploadObisCodesInput = {
+  file: File
+  mode: ObisUploadMode
 }
 
 type CreateMeterIntegrationResponse = {
@@ -83,6 +142,27 @@ type CreateMeterIntegrationResponse = {
 
 type CreateObisCodeResponse = {
   obisCode: ObisCode
+}
+
+type UpdateObisCodeResponse = {
+  obisCode: Pick<
+    ObisCode,
+    | 'id'
+    | 'meterIntegrationId'
+    | 'action'
+    | 'code'
+    | 'description'
+    | 'status'
+    | 'updatedAt'
+  >
+}
+
+type ChangeObisCodeStatusResponse = {
+  obisCode: Pick<ObisCode, 'id' | 'status' | 'statusReason' | 'updatedAt'>
+}
+
+type UploadObisCodesResponse = {
+  upload: ObisUpload
 }
 
 type MeterIntegrationErrorPayload = {
@@ -133,13 +213,87 @@ async function createObisCode(
   return response.obisCode
 }
 
+async function listObisCodes(
+  meterIntegrationId: string,
+  params: ObisCodeListParams,
+) {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    limit: String(params.limit),
+  })
+  if (params.search) query.set('search', params.search)
+  if (params.status) query.set('status', params.status)
+
+  return apiRequest<ObisCodeListResponse>(
+    `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/obis-codes?${query.toString()}`,
+  )
+}
+
+async function updateObisCode(
+  meterIntegrationId: string,
+  input: UpdateObisCodeInput,
+) {
+  const response = await apiRequest<UpdateObisCodeResponse>(
+    `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/obis-codes/${encodeURIComponent(input.obisCodeId)}`,
+    {
+      method: 'PATCH',
+      json: {
+        action: input.action,
+        code: input.code,
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
+      },
+    },
+  )
+  return response.obisCode
+}
+
+async function changeObisCodeStatus(
+  meterIntegrationId: string,
+  input: ChangeObisCodeStatusInput,
+) {
+  const response = await apiRequest<ChangeObisCodeStatusResponse>(
+    `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/obis-codes/${encodeURIComponent(input.obisCodeId)}/status`,
+    {
+      method: 'PATCH',
+      json: {
+        status: input.status,
+        ...(input.reason ? { reason: input.reason } : {}),
+      },
+    },
+  )
+  return response.obisCode
+}
+
+async function uploadObisCodes(
+  meterIntegrationId: string,
+  input: UploadObisCodesInput,
+) {
+  const formData = new FormData()
+  formData.append('file', input.file)
+  formData.append('mode', input.mode)
+
+  const response = await apiRequest<UploadObisCodesResponse>(
+    `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/obis-codes/upload`,
+    {
+      method: 'POST',
+      formData,
+    },
+  )
+  return response.upload
+}
+
 export const meterIntegrationKeys = {
   all: ['admin-meter-integrations'] as const,
   lists: () => ['admin-meter-integrations', 'list'] as const,
+  options: () => ['admin-meter-integrations', 'options'] as const,
   list: (params: MeterIntegrationListParams) =>
     ['admin-meter-integrations', 'list', params] as const,
   detail: (id: string) => ['admin-meter-integrations', 'detail', id] as const,
   obisCodes: (id: string) => ['admin-meter-integrations', 'detail', id, 'obis-codes'] as const,
+  obisCodeList: (id: string, params: ObisCodeListParams) =>
+    [...meterIntegrationKeys.obisCodes(id), params] as const,
 }
 
 export function useCreateMeterIntegration() {
@@ -152,7 +306,10 @@ export function useCreateMeterIntegration() {
         meterIntegrationKeys.detail(integration.id),
         integration,
       )
-      await queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() }),
+        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.options() }),
+      ])
     },
   })
 }
@@ -176,17 +333,110 @@ export function useMeterIntegrations(params: MeterIntegrationListParams) {
   })
 }
 
+export function useActiveMeterIntegrationOptions() {
+  const queryClient = useQueryClient()
+
+  return useQuery({
+    queryKey: meterIntegrationKeys.options(),
+    queryFn: async () => {
+      const firstPage = await listMeterIntegrations({
+        status: 'ACTIVE',
+        page: 1,
+        limit: 100,
+      })
+      const remainingPages = firstPage.pagination.totalPages > 1
+        ? await Promise.all(
+            Array.from(
+              { length: firstPage.pagination.totalPages - 1 },
+              (_, index) => listMeterIntegrations({
+                status: 'ACTIVE',
+                page: index + 2,
+                limit: 100,
+              }),
+            ),
+          )
+        : []
+      const integrations = [
+        ...firstPage.items,
+        ...remainingPages.flatMap((page) => page.items),
+      ]
+      integrations.forEach((integration) => {
+        queryClient.setQueryData(
+          meterIntegrationKeys.detail(integration.id),
+          integration,
+        )
+      })
+      return integrations
+    },
+  })
+}
+
 export function useCreateObisCode(meterIntegrationId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: (input: CreateObisCodeInput) =>
       createObisCode(meterIntegrationId, input),
-    onSuccess: (obisCode) => {
-      queryClient.setQueryData<ObisCode[]>(
-        meterIntegrationKeys.obisCodes(meterIntegrationId),
-        (current = []) => [...current, obisCode],
-      )
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: meterIntegrationKeys.obisCodes(meterIntegrationId),
+      })
+    },
+  })
+}
+
+export function useObisCodes(
+  meterIntegrationId: string,
+  params: ObisCodeListParams,
+) {
+  return useQuery({
+    queryKey: meterIntegrationKeys.obisCodeList(meterIntegrationId, params),
+    queryFn: () => listObisCodes(meterIntegrationId, params),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useUpdateObisCode(meterIntegrationId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: UpdateObisCodeInput) =>
+      updateObisCode(meterIntegrationId, input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: meterIntegrationKeys.obisCodes(meterIntegrationId),
+      })
+    },
+  })
+}
+
+export function useChangeObisCodeStatus(meterIntegrationId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: ChangeObisCodeStatusInput) =>
+      changeObisCodeStatus(meterIntegrationId, input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: meterIntegrationKeys.obisCodes(meterIntegrationId),
+      })
+    },
+  })
+}
+
+export function useUploadObisCodes(meterIntegrationId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: UploadObisCodesInput) =>
+      uploadObisCodes(meterIntegrationId, input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: meterIntegrationKeys.obisCodes(meterIntegrationId),
+        }),
+        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() }),
+      ])
     },
   })
 }
@@ -198,15 +448,6 @@ export function getCachedMeterIntegration(
   return queryClient.getQueryData<MeterIntegrationSummary>(
     meterIntegrationKeys.detail(id),
   )
-}
-
-export function getCachedObisCodes(
-  queryClient: QueryClient,
-  meterIntegrationId: string,
-) {
-  return queryClient.getQueryData<ObisCode[]>(
-    meterIntegrationKeys.obisCodes(meterIntegrationId),
-  ) ?? []
 }
 
 export function getMeterIntegrationError(error: unknown) {
@@ -233,6 +474,51 @@ export function getObisCodeError(error: unknown) {
     code: payload?.error?.code,
     message: payload?.error?.message ?? (
       error instanceof Error ? error.message : 'The OBIS code could not be created.'
+    ),
+    fields: payload?.error?.fields ?? {},
+    requestId: payload?.error?.requestId,
+  }
+}
+
+export function getObisCodeStatusError(error: unknown) {
+  const payload = error instanceof ApiError
+    ? error.details as MeterIntegrationErrorPayload | undefined
+    : undefined
+
+  return {
+    code: payload?.error?.code,
+    message: payload?.error?.message ?? (
+      error instanceof Error ? error.message : 'The OBIS code status could not be changed.'
+    ),
+    fields: payload?.error?.fields ?? {},
+    requestId: payload?.error?.requestId,
+  }
+}
+
+export function getObisCodeUpdateError(error: unknown) {
+  const payload = error instanceof ApiError
+    ? error.details as MeterIntegrationErrorPayload | undefined
+    : undefined
+
+  return {
+    code: payload?.error?.code,
+    message: payload?.error?.message ?? (
+      error instanceof Error ? error.message : 'The OBIS code could not be updated.'
+    ),
+    fields: payload?.error?.fields ?? {},
+    requestId: payload?.error?.requestId,
+  }
+}
+
+export function getObisUploadError(error: unknown) {
+  const payload = error instanceof ApiError
+    ? error.details as MeterIntegrationErrorPayload | undefined
+    : undefined
+
+  return {
+    code: payload?.error?.code,
+    message: payload?.error?.message ?? (
+      error instanceof Error ? error.message : 'The OBIS codes could not be uploaded.'
     ),
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,
