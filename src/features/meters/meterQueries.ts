@@ -81,6 +81,10 @@ export type CreatedMeter = Omit<
   keyChange: MeterKeyChange
 }
 
+export type MeterDetails = CreatedMeter & {
+  meterCategory: string
+}
+
 export type UpdateMeterStatusInput = {
   status: MeterStatus
 }
@@ -125,6 +129,10 @@ async function exportMeters(params: MeterExportParams) {
   return apiDownload(`/meters/export?${query.toString()}`)
 }
 
+async function getMeter(meterId: string) {
+  return apiRequest<MeterDetails>(`/meters/${encodeURIComponent(meterId)}`)
+}
+
 async function deleteMeter(id: string) {
   await apiRequest<void>(`/meters/${encodeURIComponent(id)}`, {
     method: 'DELETE',
@@ -152,6 +160,7 @@ export const meterKeys = {
   all: ['meters'] as const,
   lists: () => ['meters', 'list'] as const,
   list: (params: MeterListParams) => ['meters', 'list', params] as const,
+  detail: (meterId: string) => ['meters', 'detail', meterId] as const,
 }
 
 export function useMeters(params: MeterListParams) {
@@ -159,6 +168,13 @@ export function useMeters(params: MeterListParams) {
     queryKey: meterKeys.list(params),
     queryFn: () => listMeters(params),
     placeholderData: keepPreviousData,
+  })
+}
+
+export function useMeterDetails(meterId: string) {
+  return useQuery({
+    queryKey: meterKeys.detail(meterId),
+    queryFn: () => getMeter(meterId),
   })
 }
 
@@ -197,6 +213,12 @@ export function useUpdateMeterStatus() {
     mutationFn: ({ id, status }: { id: string; status: MeterStatus }) =>
       updateMeterStatus(id, { status }),
     onSuccess: (response) => {
+      queryClient.setQueryData<MeterDetails | undefined>(
+        meterKeys.detail(response.id),
+        (current) => current
+          ? { ...current, status: response.status, updatedAt: response.updatedAt }
+          : current,
+      )
       queryClient.setQueryData<MeterListResponse | undefined>(
         meterKeys.lists(),
         (current) => {

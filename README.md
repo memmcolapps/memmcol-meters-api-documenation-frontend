@@ -76,6 +76,7 @@ The customer meter form creates a meter using the selected integration ID:
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `POST` | `/meters` | Create a meter and submit its key-change values |
+| `GET` | `/meters/:meterId` | Retrieve a meter and its key-change details |
 | `GET` | `/meters/export` | Export all meters matching the active filters as CSV |
 
 `meterNumber`, `simNumber`, and `meterTypeId` are sent as strings so identifier

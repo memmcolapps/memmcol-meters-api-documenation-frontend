@@ -12,6 +12,7 @@ import {
   getCreateMeterError,
   useCreateMeter,
   useExportMeters,
+  useMeterDetails,
   useMeters,
   useDeleteMeter,
   useUpdateMeterStatus,
@@ -133,7 +134,7 @@ function MeterPage() {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Meter | null>(null)
-  const [detailTarget, setDetailTarget] = useState<Meter | null>(null)
+  const [detailMeterId, setDetailMeterId] = useState<string | null>(null)
   const deferredSearch = useDeferredValue(search.trim())
 
   const params = {
@@ -318,7 +319,7 @@ function MeterPage() {
                           setOpenMenu((prev) => (prev === meter.id ? null : meter.id))
                         }
                         onClose={() => setOpenMenu(null)}
-                        onViewDetails={() => { setDetailTarget(meter); setOpenMenu(null) }}
+                        onViewDetails={() => { setDetailMeterId(meter.id); setOpenMenu(null) }}
                         onToggleStatus={() => toggleStatus(meter.id, meter.status)}
                         onDelete={() => confirmDelete(meter)}
                       />
@@ -380,10 +381,10 @@ function MeterPage() {
         />
       ) : null}
 
-      {detailTarget ? (
+      {detailMeterId ? (
         <MeterDetailsDialog
-          meter={detailTarget}
-          onClose={() => setDetailTarget(null)}
+          meterId={detailMeterId}
+          onClose={() => setDetailMeterId(null)}
         />
       ) : null}
     </div>
@@ -637,6 +638,8 @@ const overlayStyle: React.CSSProperties = {
 
 const dialogStyle: React.CSSProperties = {
   width: 500,
+  maxHeight: '90vh',
+  overflowY: 'auto',
   background: '#fff',
   borderRadius: 16,
   padding: '20px 24px',
@@ -705,93 +708,126 @@ const cancelBtnStyle: React.CSSProperties = {
 }
 
 function MeterDetailsDialog({
-  meter,
+  meterId,
   onClose,
 }: {
-  meter: Meter
+  meterId: string
   onClose: () => void
 }) {
+  const meterQuery = useMeterDetails(meterId)
+  const meter = meterQuery.data
   const modalRef = useRef<HTMLDivElement>(null)
   useDismiss(modalRef, onClose)
 
   return (
-    <div style={overlayStyle}>
+    <div style={overlayStyle} role="dialog" aria-modal="true" aria-labelledby="meter-details-title">
       <div style={dialogStyle} ref={modalRef}>
         <div style={detailHeaderStyle}>
-          <h2 style={detailTitleStyle}>Meter Details</h2>
-          <button style={closeBtnStyle} onClick={onClose}>✕</button>
+          <h2 id="meter-details-title" style={detailTitleStyle}>Meter Details</h2>
+          <button type="button" style={closeBtnStyle} aria-label="Close" onClick={onClose}>✕</button>
         </div>
 
-        <div style={gridStyle}>
+        {meterQuery.isPending ? (
+          <p style={valueStyle}>Loading meter details…</p>
+        ) : meterQuery.isError ? (
           <div>
-            <div style={itemStyle}>
-              <label style={labelStyle}>Meter Number</label>
-              <p style={valueStyle}>{meter.meterNumber}</p>
-            </div>
-            <div style={itemStyle}>
-              <label style={labelStyle}>Meter Manufacturer</label>
-              <p style={valueStyle}>{meter.manufacturer}</p>
-            </div>
-            <div style={itemStyle}>
-              <label style={labelStyle}>Meter Model</label>
-              <p style={valueStyle}>{meter.model}</p>
-            </div>
-            <div style={itemStyle}>
-              <label style={labelStyle}>Old SGC</label>
-              <p style={valueStyle}>{meter.oldSgc ?? '-'}</p>
-            </div>
-            <div style={itemStyle}>
-              <label style={labelStyle}>Old KRN</label>
-              <p style={valueStyle}>{meter.oldKrn ?? '-'}</p>
-            </div>
-            <div style={itemStyle}>
-              <label style={labelStyle}>Old Tariff Index</label>
-              <p style={valueStyle}>{meter.oldTariffIndex ?? '-'}</p>
-            </div>
+            <p className="modal-field-error" role="alert">
+              {getApiErrorMessage(meterQuery.error)}
+            </p>
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={() => void meterQuery.refetch()}
+            >
+              Try again
+            </button>
           </div>
-          <div>
-            <div style={itemStyle}>
-              <label style={labelStyle}>SIM Number</label>
-              <p style={valueStyle}>{meter.simNumber}</p>
+        ) : meter ? (
+          <>
+            <div style={gridStyle}>
+              <div>
+                <DetailItem label="Meter Number" value={meter.meterNumber} />
+                <DetailItem label="Manufacturer" value={meter.manufacturer} />
+                <DetailItem label="Model" value={meter.model} />
+                <DetailItem
+                  label="Category"
+                  value={formatMeterCategory(meter.meterCategory)}
+                />
+                <DetailItem label="Status" value={formatMeterEnum(meter.status)} />
+                <DetailItem label="Old SGC" value={meter.keyChange.oldSgc} />
+                <DetailItem label="Old KRN" value={meter.keyChange.oldKrn} />
+                <DetailItem
+                  label="Old Tariff Index"
+                  value={meter.keyChange.oldTariffIndex}
+                />
+                <DetailItem label="Created" value={formatMeterDate(meter.createdAt)} />
+              </div>
+              <div>
+                <DetailItem label="SIM Number" value={meter.simNumber} />
+                <DetailItem
+                  label="Meter Class"
+                  value={formatMeterEnum(meter.meterClass)}
+                />
+                <DetailItem label="New SGC" value={meter.keyChange.newSgc} />
+                <DetailItem label="New KRN" value={meter.keyChange.newKrn} />
+                <DetailItem
+                  label="New Tariff Index"
+                  value={meter.keyChange.newTariffIndex}
+                />
+                <DetailItem label="Updated" value={formatMeterDate(meter.updatedAt)} />
+              </div>
             </div>
-            <div style={itemStyle}>
-              <label style={labelStyle}>Meter Class</label>
-              <p style={valueStyle}>{meter.meterClass}</p>
-            </div>
-            <div style={itemStyle}>
-              <label style={labelStyle}>New SGC</label>
-              <p style={valueStyle}>{meter.newSgc ?? '-'}</p>
-            </div>
-            <div style={itemStyle}>
-              <label style={labelStyle}>New KRN</label>
-              <p style={valueStyle}>{meter.newKrn ?? '-'}</p>
-            </div>
-            <div style={itemStyle}>
-              <label style={labelStyle}>New Tariff Index</label>
-              <p style={valueStyle}>{meter.newTariffIndex ?? '-'}</p>
-            </div>
-          </div>
-        </div>
 
-        <div style={footerStyle}>
-          <button
-            style={cancelBtnStyle}
-            onClick={onClose}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#0b6b3a'
-              e.currentTarget.style.color = 'white'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'white'
-              e.currentTarget.style.color = '#0b6b3a'
-            }}
-          >
-            Cancel
-          </button>
-        </div>
+            <div style={footerStyle}>
+              <button
+                type="button"
+                style={cancelBtnStyle}
+                onClick={onClose}
+                onMouseEnter={(event) => {
+                  event.currentTarget.style.background = '#0b6b3a'
+                  event.currentTarget.style.color = 'white'
+                }}
+                onMouseLeave={(event) => {
+                  event.currentTarget.style.background = 'white'
+                  event.currentTarget.style.color = '#0b6b3a'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   )
+}
+
+function DetailItem({
+  label,
+  value,
+}: {
+  label: string
+  value: string | number
+}) {
+  return (
+    <div style={itemStyle}>
+      <span style={labelStyle}>{label}</span>
+      <p style={valueStyle}>{value}</p>
+    </div>
+  )
+}
+
+function formatMeterEnum(value: string) {
+  return value
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function formatMeterDate(value: string) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
 }
 
 function SortDropdown({
