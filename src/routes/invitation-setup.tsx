@@ -112,6 +112,8 @@ function InvitationSetupPage() {
       return
     }
 
+    if (!invitationData) return
+
     try {
       await acceptInvitation.mutateAsync({
         email: invitationData.email,
