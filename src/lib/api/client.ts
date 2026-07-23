@@ -127,6 +127,47 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   return payload as T
 }
 
+export async function apiDownload(path: string) {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    credentials: 'include',
+    headers: {
+      Accept: 'text/csv, application/octet-stream',
+    },
+  })
+
+  if (!response.ok) {
+    const contentType = response.headers.get('content-type') ?? ''
+    const payload: unknown = contentType.includes('application/json')
+      ? await response.json()
+      : await response.text()
+    throw new ApiError(
+      getErrorMessage(payload, response.statusText),
+      response.status,
+      payload,
+    )
+  }
+
+  const disposition = response.headers.get('content-disposition') ?? ''
+  const encodedFilename = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+  const plainFilename = disposition.match(/filename="?([^";]+)"?/i)?.[1]
+  let filename: string | undefined
+
+  if (encodedFilename) {
+    try {
+      filename = decodeURIComponent(encodedFilename)
+    } catch {
+      filename = encodedFilename
+    }
+  } else {
+    filename = plainFilename
+  }
+
+  return {
+    blob: await response.blob(),
+    filename,
+  }
+}
+
 export function getApiErrorMessage(error: unknown) {
   return error instanceof Error
     ? error.message

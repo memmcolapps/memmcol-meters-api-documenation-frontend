@@ -11,6 +11,7 @@ import {
 import {
   getCreateMeterError,
   useCreateMeter,
+  useExportMeters,
   useMeters,
   useDeleteMeter,
   useUpdateMeterStatus,
@@ -146,6 +147,8 @@ function MeterPage() {
 
   const { data, isLoading, isError } = useMeters(params)
   const updateMeterStatus = useUpdateMeterStatus()
+  const exportMeters = useExportMeters()
+  const { showToast } = useToast()
 
   const meters = data?.items ?? []
   const pagination = data?.pagination
@@ -160,6 +163,31 @@ function MeterPage() {
   const confirmDelete = (meter: Meter) => {
     setDeleteTarget(meter)
     setOpenMenu(null)
+  }
+
+  const handleExport = async () => {
+    try {
+      const { blob, filename } = await exportMeters.mutateAsync({
+        ...(status ? { status } : {}),
+        ...(deferredSearch ? { search: deferredSearch } : {}),
+        sortBy,
+        sortOrder,
+      })
+      const downloadUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = filename || `meters-${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1_000)
+    } catch (error) {
+      showToast({
+        title: 'Could not export meters',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
   }
 
   const allPages = pagination ? generatePages(page, pagination.totalPages) : []
@@ -219,8 +247,13 @@ function MeterPage() {
             }}
           />
         </div>
-        <button type="button" className="btn-outline btn-icon">
-          Download <DownloadIcon />
+        <button
+          type="button"
+          className="btn-outline btn-icon"
+          disabled={exportMeters.isPending}
+          onClick={() => void handleExport()}
+        >
+          {exportMeters.isPending ? 'Exporting…' : 'Download'} <DownloadIcon />
         </button>
       </div>
 

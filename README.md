@@ -76,10 +76,13 @@ The customer meter form creates a meter using the selected integration ID:
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `POST` | `/meters` | Create a meter and submit its key-change values |
+| `GET` | `/meters/export` | Export all meters matching the active filters as CSV |
 
 `meterNumber`, `simNumber`, and `meterTypeId` are sent as strings so identifier
 formatting, including leading zeroes, is preserved. Meter types are loaded from
 the active meter integrations returned by `GET /organisation/meter-integration`.
+Meter exports include the active search, status, and sort filters without page or
+page-size parameters.
 
 Billing credit plans are created and consumed through these endpoints:
 

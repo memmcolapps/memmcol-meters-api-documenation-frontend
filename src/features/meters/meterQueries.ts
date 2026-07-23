@@ -4,7 +4,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-import { ApiError, apiRequest } from '../../lib/api/client'
+import { ApiError, apiDownload, apiRequest } from '../../lib/api/client'
 
 export type MeterStatus = 'ACTIVE' | 'DEACTIVATED'
 
@@ -47,6 +47,11 @@ export type MeterListParams = {
   sortOrder?: 'asc' | 'desc'
   date?: string
 }
+
+export type MeterExportParams = Pick<
+  MeterListParams,
+  'status' | 'search' | 'sortBy' | 'sortOrder' | 'date'
+>
 
 export type MeterKeyChange = {
   oldSgc: number
@@ -109,6 +114,17 @@ async function listMeters(params: MeterListParams) {
   return apiRequest<MeterListResponse>(`/meters?${query.toString()}`)
 }
 
+async function exportMeters(params: MeterExportParams) {
+  const query = new URLSearchParams({ format: 'csv' })
+  if (params.status) query.set('status', params.status)
+  if (params.search) query.set('search', params.search)
+  if (params.sortBy) query.set('sortBy', params.sortBy)
+  if (params.sortOrder) query.set('sortOrder', params.sortOrder)
+  if (params.date) query.set('date', params.date)
+
+  return apiDownload(`/meters/export?${query.toString()}`)
+}
+
 async function deleteMeter(id: string) {
   await apiRequest<void>(`/meters/${encodeURIComponent(id)}`, {
     method: 'DELETE',
@@ -143,6 +159,12 @@ export function useMeters(params: MeterListParams) {
     queryKey: meterKeys.list(params),
     queryFn: () => listMeters(params),
     placeholderData: keepPreviousData,
+  })
+}
+
+export function useExportMeters() {
+  return useMutation({
+    mutationFn: exportMeters,
   })
 }
 
