@@ -79,7 +79,7 @@ The customer meter form creates a meter using the selected integration ID:
 
 `meterNumber`, `simNumber`, and `meterTypeId` are sent as strings so identifier
 formatting, including leading zeroes, is preserved. Meter types are loaded from
-the active meter integrations returned by `GET /admin/meter-integrations`.
+the active meter integrations returned by `GET /organisation/meter-integration`.
 
 Billing credit plans are created and consumed through these endpoints:
 

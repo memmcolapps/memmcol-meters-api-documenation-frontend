@@ -24,6 +24,7 @@ export type MeterIntegrationSummary = {
   id: string
   manufacturer: string
   model: string
+  category?: string
   protocol: string
   authenticationType: string
   status: MeterIntegrationStatus
@@ -199,6 +200,34 @@ async function listMeterIntegrations(params: MeterIntegrationListParams) {
   )
 }
 
+async function listOrganisationMeterIntegrations() {
+  const response = await apiRequest<unknown>(
+    '/organisation/meter-integration',
+  )
+  const payload = (
+    response &&
+    typeof response === 'object' &&
+    'data' in response
+  )
+    ? response.data
+    : response
+
+  if (Array.isArray(payload)) {
+    return payload as MeterIntegrationSummary[]
+  }
+
+  if (payload && typeof payload === 'object') {
+    for (const key of ['items', 'meterIntegrations', 'meterIntegration', 'content']) {
+      const integrations = (payload as Record<string, unknown>)[key]
+      if (Array.isArray(integrations)) {
+        return integrations as MeterIntegrationSummary[]
+      }
+    }
+  }
+
+  throw new Error('The meter integrations response has an invalid format.')
+}
+
 async function createObisCode(
   meterIntegrationId: string,
   input: CreateObisCodeInput,
@@ -339,27 +368,7 @@ export function useActiveMeterIntegrationOptions() {
   return useQuery({
     queryKey: meterIntegrationKeys.options(),
     queryFn: async () => {
-      const firstPage = await listMeterIntegrations({
-        status: 'ACTIVE',
-        page: 1,
-        limit: 100,
-      })
-      const remainingPages = firstPage.pagination.totalPages > 1
-        ? await Promise.all(
-            Array.from(
-              { length: firstPage.pagination.totalPages - 1 },
-              (_, index) => listMeterIntegrations({
-                status: 'ACTIVE',
-                page: index + 2,
-                limit: 100,
-              }),
-            ),
-          )
-        : []
-      const integrations = [
-        ...firstPage.items,
-        ...remainingPages.flatMap((page) => page.items),
-      ]
+      const integrations = await listOrganisationMeterIntegrations()
       integrations.forEach((integration) => {
         queryClient.setQueryData(
           meterIntegrationKeys.detail(integration.id),

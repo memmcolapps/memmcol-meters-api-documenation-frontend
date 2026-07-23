@@ -4,7 +4,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-import { apiRequest } from '../../lib/api/client'
+import { ApiError, apiRequest } from '../../lib/api/client'
 
 export type MeterStatus = 'ACTIVE' | 'DEACTIVATED'
 
@@ -48,6 +48,34 @@ export type MeterListParams = {
   date?: string
 }
 
+export type MeterKeyChange = {
+  oldSgc: number
+  newSgc: number
+  oldKrn: number
+  newKrn: number
+  oldTariffIndex: number
+  newTariffIndex: number
+}
+
+export type CreateMeterInput = {
+  meterNumber: string
+  simNumber: string
+  meterTypeId: string
+  keyChange: MeterKeyChange
+}
+
+export type CreatedMeter = Omit<
+  Meter,
+  | 'oldSgc'
+  | 'newSgc'
+  | 'oldKrn'
+  | 'newKrn'
+  | 'oldTariffIndex'
+  | 'newTariffIndex'
+> & {
+  keyChange: MeterKeyChange
+}
+
 export type UpdateMeterStatusInput = {
   status: MeterStatus
 }
@@ -56,6 +84,15 @@ export type UpdateMeterStatusResponse = {
   id: string
   status: MeterStatus
   updatedAt: string
+}
+
+type MeterErrorPayload = {
+  error?: {
+    code?: string
+    message?: string
+    fields?: Record<string, string>
+    requestId?: string
+  }
 }
 
 async function listMeters(params: MeterListParams) {
@@ -75,6 +112,13 @@ async function listMeters(params: MeterListParams) {
 async function deleteMeter(id: string) {
   await apiRequest<void>(`/meters/${encodeURIComponent(id)}`, {
     method: 'DELETE',
+  })
+}
+
+async function createMeter(input: CreateMeterInput) {
+  return apiRequest<CreatedMeter>('/meters', {
+    method: 'POST',
+    json: input,
   })
 }
 
@@ -113,6 +157,17 @@ export function useDeleteMeter() {
   })
 }
 
+export function useCreateMeter() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: createMeter,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: meterKeys.lists() })
+    },
+  })
+}
+
 export function useUpdateMeterStatus() {
   const queryClient = useQueryClient()
 
@@ -137,4 +192,20 @@ export function useUpdateMeterStatus() {
       queryClient.invalidateQueries({ queryKey: meterKeys.lists() })
     },
   })
+}
+
+export function getCreateMeterError(error: unknown) {
+  const payload = error instanceof ApiError
+    ? error.details as MeterErrorPayload | undefined
+    : undefined
+
+  return {
+    status: error instanceof ApiError ? error.status : undefined,
+    code: payload?.error?.code,
+    message: payload?.error?.message ?? (
+      error instanceof Error ? error.message : 'The meter could not be created.'
+    ),
+    fields: payload?.error?.fields ?? {},
+    requestId: payload?.error?.requestId,
+  }
 }

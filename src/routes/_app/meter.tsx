@@ -1,14 +1,20 @@
-import { useRef, useState } from 'react'
+import { useDeferredValue, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useToast } from '../../app/toastContext'
 import { useDismiss } from '../../app/useDismiss'
 import { useAnchoredMenu } from '../../app/useAnchoredMenu'
-import { DatePicker } from '../../app/DatePicker'
 import { getApiErrorMessage } from '../../lib/api/client'
 import {
+  getMeterIntegrationError,
+  useActiveMeterIntegrationOptions,
+} from '../../features/admin-meters/adminMeterQueries'
+import {
+  getCreateMeterError,
+  useCreateMeter,
   useMeters,
   useDeleteMeter,
   useUpdateMeterStatus,
+  type CreateMeterInput,
   type Meter,
   type MeterStatus,
 } from '../../features/meters/meterQueries'
@@ -37,26 +43,105 @@ function generatePages(current: number, total: number): (number | '…')[] {
   return pages
 }
 
+type MeterFormField =
+  | 'meterNumber'
+  | 'simNumber'
+  | 'meterTypeId'
+  | 'oldSgc'
+  | 'newSgc'
+  | 'oldKrn'
+  | 'newKrn'
+  | 'oldTariffIndex'
+  | 'newTariffIndex'
+
+type MeterFormValues = Record<MeterFormField, string>
+type MeterFormErrors = Partial<Record<MeterFormField, string>>
+
+const meterFormFieldAliases: Record<string, MeterFormField> = {
+  meterNumber: 'meterNumber',
+  simNumber: 'simNumber',
+  meterTypeId: 'meterTypeId',
+  oldSgc: 'oldSgc',
+  newSgc: 'newSgc',
+  oldKrn: 'oldKrn',
+  newKrn: 'newKrn',
+  oldTariffIndex: 'oldTariffIndex',
+  newTariffIndex: 'newTariffIndex',
+  'keyChange.oldSgc': 'oldSgc',
+  'keyChange.newSgc': 'newSgc',
+  'keyChange.oldKrn': 'oldKrn',
+  'keyChange.newKrn': 'newKrn',
+  'keyChange.oldTariffIndex': 'oldTariffIndex',
+  'keyChange.newTariffIndex': 'newTariffIndex',
+}
+
+const keyChangeFields: Array<{ field: MeterFormField; label: string }> = [
+  { field: 'oldSgc', label: 'Old SGC' },
+  { field: 'newSgc', label: 'New SGC' },
+  { field: 'oldKrn', label: 'Old KRN' },
+  { field: 'newKrn', label: 'New KRN' },
+  { field: 'oldTariffIndex', label: 'Old tariff index' },
+  { field: 'newTariffIndex', label: 'New tariff index' },
+]
+
+function normalizeMeterFieldErrors(fields: Record<string, string>) {
+  return Object.entries(fields).reduce<MeterFormErrors>((errors, [field, message]) => {
+    const formField = meterFormFieldAliases[field]
+    if (formField) errors[formField] = message
+    return errors
+  }, {})
+}
+
+function validateMeterForm(form: MeterFormValues) {
+  const errors: MeterFormErrors = {}
+
+  if (!form.meterNumber.trim()) {
+    errors.meterNumber = 'Meter number is required.'
+  } else if (!/^\d+$/.test(form.meterNumber.trim())) {
+    errors.meterNumber = 'Meter number must contain digits only.'
+  }
+
+  if (!form.simNumber.trim()) {
+    errors.simNumber = 'SIM number is required.'
+  } else if (!/^\d+$/.test(form.simNumber.trim())) {
+    errors.simNumber = 'SIM number must contain digits only.'
+  }
+
+  if (!form.meterTypeId) errors.meterTypeId = 'Select a meter type.'
+
+  keyChangeFields.forEach(({ field, label }) => {
+    const value = form[field].trim()
+    if (!value) {
+      errors[field] = `${label} is required.`
+    } else if (!/^\d+$/.test(value)) {
+      errors[field] = `${label} must be a whole number.`
+    } else if (!Number.isSafeInteger(Number(value))) {
+      errors[field] = `${label} is too large.`
+    }
+  })
+
+  return errors
+}
+
 function MeterPage() {
   const [page, setPage] = useState(1)
   const [status, setStatus] = useState<MeterStatus | ''>('')
-  const search = ''
+  const [search, setSearch] = useState('')
   const sortBy = 'createdAt'
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [date, setDate] = useState<Date | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Meter | null>(null)
   const [detailTarget, setDetailTarget] = useState<Meter | null>(null)
+  const deferredSearch = useDeferredValue(search.trim())
 
   const params = {
     page,
     pageSize: PAGE_SIZE,
     ...(status ? { status: status as MeterStatus } : {}),
-    ...(search ? { search } : {}),
+    ...(deferredSearch ? { search: deferredSearch } : {}),
     sortBy,
     sortOrder,
-    ...(date ? { date: date.toISOString().split('T')[0] } : {}),
   }
 
   const { data, isLoading, isError } = useMeters(params)
@@ -99,6 +184,46 @@ function MeterPage() {
         </button>
       </div>
 
+      <div className="dash-toolbar">
+        <div className="dash-filters">
+          <div className="table-search">
+            <input
+              type="search"
+              placeholder="Search meter or SIM number..."
+              aria-label="Search by meter or SIM number"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setPage(1)
+              }}
+            />
+            <SearchIcon />
+          </div>
+          <select
+            className="filter-btn filter-select"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value as MeterStatus | '')
+              setPage(1)
+            }}
+          >
+            <option value="">All status</option>
+            <option value="ACTIVE">Active</option>
+            <option value="DEACTIVATED">Deactivated</option>
+          </select>
+          <SortDropdown
+            value={sortOrder}
+            onChange={(order) => {
+              setSortOrder(order)
+              setPage(1)
+            }}
+          />
+        </div>
+        <button type="button" className="btn-outline btn-icon">
+          Download <DownloadIcon />
+        </button>
+      </div>
+
       {isLoading ? (
         <div className="meter-empty">
           <p className="meter-empty-text">Loading meters...</p>
@@ -116,32 +241,6 @@ function MeterPage() {
         </div>
       ) : (
         <>
-          <div className="dash-toolbar">
-            <div className="dash-filters">
-              <DatePicker
-                placeholder="Today"
-                initialDate={date ?? undefined}
-                onChange={(d) => { setDate(d); setPage(1) }}
-              />
-              <select
-                className="filter-btn filter-select"
-                value={status}
-                onChange={(e) => { setStatus(e.target.value as MeterStatus | ''); setPage(1) }}
-              >
-                <option value="">All status</option>
-                <option value="ACTIVE">Active</option>
-                <option value="DEACTIVATED">Deactivated</option>
-              </select>
-              <SortDropdown
-                value={sortOrder}
-                onChange={(order) => { setSortOrder(order); setPage(1) }}
-              />
-            </div>
-            <button type="button" className="btn-outline btn-icon">
-              Download <DownloadIcon />
-            </button>
-          </div>
-
           <div className="table-scroll">
             <table className="data-table">
               <thead>
@@ -258,47 +357,100 @@ function MeterPage() {
   )
 }
 
-// Meter types integrated by admins (see /admin/meter-integration).
-// Fed by the API later; only Active types are selectable here.
-const supportedMeters = [
-  { manufacturer: 'Momas', meterClass: 'MD', model: 'MMX-313-CT', status: 'Active' },
-  { manufacturer: 'Momas', meterClass: 'Single-Phase', model: 'MMX-110NG', status: 'Active' },
-  { manufacturer: 'Momas', meterClass: 'Three-Phase', model: 'MMX-310-NG', status: 'Deprecated' },
-  { manufacturer: 'Momas', meterClass: 'MD', model: 'MMX-312-CT', status: 'Active' },
-]
-
-const activeSupportedMeters = supportedMeters.filter((m) => m.status === 'Active')
-
 function AddMeterModal({
   onClose,
 }: {
   onClose: () => void
 }) {
-  const [form, setForm] = useState({
-    meterNo: '',
-    sim: '',
-    meterType: '',
+  const [form, setForm] = useState<MeterFormValues>({
+    meterNumber: '',
+    simNumber: '',
+    meterTypeId: '',
     oldSgc: '',
     newSgc: '',
     oldKrn: '',
     newKrn: '',
-    oldTariff: '',
-    newTariff: '',
+    oldTariffIndex: '',
+    newTariffIndex: '',
   })
+  const [fieldErrors, setFieldErrors] = useState<MeterFormErrors>({})
+  const createMeter = useCreateMeter()
+  const meterTypesQuery = useActiveMeterIntegrationOptions()
+  const meterTypes = meterTypesQuery.data ?? []
+  const { showToast } = useToast()
   const modalRef = useRef<HTMLDivElement>(null)
-  useDismiss(modalRef, onClose)
+  const isSubmitting = createMeter.isPending
+  const requestClose = () => {
+    if (!isSubmitting) onClose()
+  }
+  useDismiss(modalRef, requestClose)
 
-  const set = (key: keyof typeof form, value: string) =>
+  const set = (key: MeterFormField, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }))
+    setFieldErrors((current) => {
+      if (!current[key]) return current
+      const next = { ...current }
+      delete next[key]
+      return next
+    })
+  }
 
-  const selectedType = activeSupportedMeters.find((m) => m.model === form.meterType)
+  const handleSubmit = async () => {
+    const validationErrors = validateMeterForm(form)
+    if (
+      form.meterTypeId &&
+      !meterTypes.some((meterType) => meterType.id === form.meterTypeId)
+    ) {
+      validationErrors.meterTypeId = 'Select a valid meter type.'
+    }
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors)
+      return
+    }
 
-  const canSubmit = Boolean(form.meterNo && form.sim && selectedType)
+    const input: CreateMeterInput = {
+      meterNumber: form.meterNumber.trim(),
+      simNumber: form.simNumber.trim(),
+      meterTypeId: form.meterTypeId,
+      keyChange: {
+        oldSgc: Number(form.oldSgc),
+        newSgc: Number(form.newSgc),
+        oldKrn: Number(form.oldKrn),
+        newKrn: Number(form.newKrn),
+        oldTariffIndex: Number(form.oldTariffIndex),
+        newTariffIndex: Number(form.newTariffIndex),
+      },
+    }
 
-  const handleSubmit = () => {
-    if (!selectedType || !canSubmit) return
-    // TODO: implement create meter API call when endpoint is available
-    onClose()
+    try {
+      const meter = await createMeter.mutateAsync(input)
+      showToast({
+        title: 'Meter created',
+        message: `${meter.meterNumber} was added successfully.`,
+        variant: 'success',
+      })
+      onClose()
+    } catch (error) {
+      const apiError = getCreateMeterError(error)
+      const normalizedFields = normalizeMeterFieldErrors(apiError.fields)
+      const errors = apiError.status === 409 && Object.keys(normalizedFields).length === 0
+        ? {
+            meterNumber: 'Meter number or SIM number already exists.',
+            simNumber: 'Meter number or SIM number already exists.',
+          }
+        : normalizedFields
+      setFieldErrors(errors)
+      showToast({
+        title: apiError.status === 409
+          ? 'Meter or SIM already exists'
+          : 'Could not create meter',
+        message: [
+          apiError.message,
+          apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
+        ].filter(Boolean).join(' · '),
+        variant: 'error',
+      })
+    }
   }
 
   return (
@@ -311,81 +463,133 @@ function AddMeterModal({
             </h2>
             <p className="modal-subtitle">Basic Information</p>
           </div>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Close"
+            onClick={requestClose}
+            disabled={isSubmitting}
+          >
             <CloseIcon />
           </button>
         </div>
 
         <div className="modal-body">
           <div className="modal-grid">
-            <Field label="Meter Number" required>
+            <Field label="Meter Number" required error={fieldErrors.meterNumber}>
               <input
                 className="modal-input"
                 placeholder="E.g. 04040404040"
-                value={form.meterNo}
-                onChange={(e) => set('meterNo', e.target.value)}
+                inputMode="numeric"
+                autoComplete="off"
+                value={form.meterNumber}
+                aria-invalid={Boolean(fieldErrors.meterNumber)}
+                disabled={isSubmitting}
+                onChange={(e) => set('meterNumber', e.target.value)}
               />
             </Field>
-            <Field label="Sim Card Number" required>
+            <Field label="Sim Card Number" required error={fieldErrors.simNumber}>
               <input
                 className="modal-input"
                 placeholder="E.g. 89006809734095874"
-                value={form.sim}
-                onChange={(e) => set('sim', e.target.value)}
+                inputMode="numeric"
+                autoComplete="off"
+                value={form.simNumber}
+                aria-invalid={Boolean(fieldErrors.simNumber)}
+                disabled={isSubmitting}
+                onChange={(e) => set('simNumber', e.target.value)}
               />
             </Field>
           </div>
 
-          <Field label="Meter Type" required>
+          <Field label="Meter Type" required error={fieldErrors.meterTypeId}>
             <select
               className="modal-select"
-              value={form.meterType}
-              onChange={(e) => set('meterType', e.target.value)}
+              value={form.meterTypeId}
+              aria-invalid={Boolean(fieldErrors.meterTypeId)}
+              disabled={isSubmitting || meterTypesQuery.isPending || meterTypesQuery.isError}
+              onChange={(e) => set('meterTypeId', e.target.value)}
             >
               <option value="" disabled>
-                Select Meter Type
+                {meterTypesQuery.isPending ? 'Loading meter types…' : 'Select Meter Type'}
               </option>
-              {activeSupportedMeters.map((m) => (
-                <option key={m.model} value={m.model}>
-                  {m.model} — {m.manufacturer} ({m.meterClass})
+              {meterTypes.map((meterType) => (
+                <option key={meterType.id} value={meterType.id}>
+                  {meterType.model} — {meterType.manufacturer}
+                  {meterType.category ? ` (${formatMeterCategory(meterType.category)})` : ''}
                 </option>
               ))}
             </select>
+            {meterTypesQuery.isError ? (
+              <span className="modal-field-error" role="alert">
+                {getMeterIntegrationError(meterTypesQuery.error).message}{' '}
+                <button
+                  type="button"
+                  className="upload-link"
+                  onClick={() => void meterTypesQuery.refetch()}
+                >
+                  Try again
+                </button>
+              </span>
+            ) : null}
+            {!meterTypesQuery.isPending && !meterTypesQuery.isError && meterTypes.length === 0 ? (
+              <span className="modal-field-error" role="alert">
+                No active meter integrations are available.
+              </span>
+            ) : null}
           </Field>
 
           <div className="modal-grid">
-            <Field label="Old SGC" required>
-              <input className="modal-input" placeholder="Enter old sgc" value={form.oldSgc} onChange={(e) => set('oldSgc', e.target.value)} />
+            <Field label="Old SGC" required error={fieldErrors.oldSgc}>
+              <input className="modal-input" inputMode="numeric" placeholder="Enter old sgc" value={form.oldSgc} aria-invalid={Boolean(fieldErrors.oldSgc)} disabled={isSubmitting} onChange={(e) => set('oldSgc', e.target.value)} />
             </Field>
-            <Field label="New SGC" required>
-              <input className="modal-input" placeholder="Enter new sgc" value={form.newSgc} onChange={(e) => set('newSgc', e.target.value)} />
+            <Field label="New SGC" required error={fieldErrors.newSgc}>
+              <input className="modal-input" inputMode="numeric" placeholder="Enter new sgc" value={form.newSgc} aria-invalid={Boolean(fieldErrors.newSgc)} disabled={isSubmitting} onChange={(e) => set('newSgc', e.target.value)} />
             </Field>
-            <Field label="Old KRN" required>
-              <input className="modal-input" placeholder="Enter old krn" value={form.oldKrn} onChange={(e) => set('oldKrn', e.target.value)} />
+            <Field label="Old KRN" required error={fieldErrors.oldKrn}>
+              <input className="modal-input" inputMode="numeric" placeholder="Enter old krn" value={form.oldKrn} aria-invalid={Boolean(fieldErrors.oldKrn)} disabled={isSubmitting} onChange={(e) => set('oldKrn', e.target.value)} />
             </Field>
-            <Field label="New KRN" required>
-              <input className="modal-input" placeholder="Enter new krn" value={form.newKrn} onChange={(e) => set('newKrn', e.target.value)} />
+            <Field label="New KRN" required error={fieldErrors.newKrn}>
+              <input className="modal-input" inputMode="numeric" placeholder="Enter new krn" value={form.newKrn} aria-invalid={Boolean(fieldErrors.newKrn)} disabled={isSubmitting} onChange={(e) => set('newKrn', e.target.value)} />
             </Field>
-            <Field label="Old Tariff Index" required>
-              <input className="modal-input" placeholder="Enter old tariff index" value={form.oldTariff} onChange={(e) => set('oldTariff', e.target.value)} />
+            <Field label="Old Tariff Index" required error={fieldErrors.oldTariffIndex}>
+              <input className="modal-input" inputMode="numeric" placeholder="Enter old tariff index" value={form.oldTariffIndex} aria-invalid={Boolean(fieldErrors.oldTariffIndex)} disabled={isSubmitting} onChange={(e) => set('oldTariffIndex', e.target.value)} />
             </Field>
-            <Field label="New Tariff Index" required>
-              <input className="modal-input" placeholder="Enter new tariff index" value={form.newTariff} onChange={(e) => set('newTariff', e.target.value)} />
+            <Field label="New Tariff Index" required error={fieldErrors.newTariffIndex}>
+              <input className="modal-input" inputMode="numeric" placeholder="Enter new tariff index" value={form.newTariffIndex} aria-invalid={Boolean(fieldErrors.newTariffIndex)} disabled={isSubmitting} onChange={(e) => set('newTariffIndex', e.target.value)} />
             </Field>
           </div>
 
           <div className="modal-foot">
-            <button type="button" className="btn-neutral" onClick={onClose}>
+            <button type="button" className="btn-neutral" onClick={requestClose} disabled={isSubmitting}>
               Cancel
             </button>
-            <button type="button" className="btn-primary" disabled={!canSubmit} onClick={handleSubmit}>
-              Add Meters
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={
+                isSubmitting ||
+                meterTypesQuery.isPending ||
+                meterTypesQuery.isError ||
+                meterTypes.length === 0
+              }
+              onClick={() => void handleSubmit()}
+            >
+              {isSubmitting ? 'Adding…' : 'Add Meter'}
             </button>
           </div>
         </div>
       </div>
     </div>
   )
+}
+
+function formatMeterCategory(category: string) {
+  const normalized = category.trim().toUpperCase().replaceAll('-', '_')
+  if (normalized === 'PREPAID') return 'Prepaid'
+  if (normalized === 'POSTPAID' || normalized === 'POST_PAID') return 'Post-paid'
+
+  return category
 }
 
 const overlayStyle: React.CSSProperties = {
@@ -677,10 +881,12 @@ function DeleteMeterModal({
 function Field({
   label,
   required,
+  error,
   children,
 }: {
   label: string
   required?: boolean
+  error?: string
   children: React.ReactNode
 }) {
   return (
@@ -689,6 +895,7 @@ function Field({
         {label} {required ? <span className="req">*</span> : null}
       </label>
       {children}
+      {error ? <span className="modal-field-error" role="alert">{error}</span> : null}
     </div>
   )
 }
@@ -766,6 +973,15 @@ function PlusIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="9" />
       <path d="M12 8v8M8 12h8" />
+    </svg>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
     </svg>
   )
 }
