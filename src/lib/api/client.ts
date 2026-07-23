@@ -52,7 +52,7 @@ async function isCsrfAccessDenied(response: Response) {
   }
 }
 
-function getErrorMessage(payload: unknown, statusText: string) {
+export function getErrorMessage(payload: unknown, statusText: string) {
   if (typeof payload === 'string' && payload.trim()) return payload
   if (payload && typeof payload === 'object') {
     const value = payload as {
