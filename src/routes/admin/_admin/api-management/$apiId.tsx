@@ -1,11 +1,6 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { AsyncState, MutationError } from '../../../../app/AsyncState'
-import { type AdminApi } from '../../../../app/adminApis'
-import {
-  useAdminApi,
-  useUpdateAdminApi,
-} from '../../../../features/admin-apis/adminApiQueries'
+import { seededAdminApis, type AdminApi } from '../../../../app/adminApis'
 
 export const Route = createFileRoute('/admin/_admin/api-management/$apiId')({
   component: ApiViewPage,
@@ -13,39 +8,41 @@ export const Route = createFileRoute('/admin/_admin/api-management/$apiId')({
 
 function ApiViewPage() {
   const { apiId } = Route.useParams()
-  const apiQuery = useAdminApi(apiId)
+  const [api, setApi] = useState<AdminApi | undefined>(() =>
+    seededAdminApis.find((item) => item.id === apiId),
+  )
 
-  if (apiQuery.isPending || apiQuery.error) {
+  if (!api) {
     return (
       <div className="dash">
-        <AsyncState
-          isPending={apiQuery.isPending}
-          error={apiQuery.error}
-          onRetry={() => void apiQuery.refetch()}
-        >
-          {null}
-        </AsyncState>
+        <header className="dash-head">
+          <h1 className="dash-title">API Management</h1>
+          <p className="dash-subtitle">This API could not be found.</p>
+        </header>
       </div>
     )
   }
 
-  return <ApiView api={apiQuery.data} />
+  return <ApiView api={api} onUpdate={setApi} />
 }
 
-function ApiView({ api }: { api: AdminApi }) {
+function ApiView({
+  api,
+  onUpdate,
+}: {
+  api: AdminApi
+  onUpdate: (api: AdminApi) => void
+}) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(api)
-  const updateApi = useUpdateAdminApi()
 
   const set = (key: keyof AdminApi, value: string) =>
     setDraft((prev) => ({ ...prev, [key]: value }))
 
   const toggleEdit = () => {
     if (editing) {
-      updateApi.mutate(
-        { id: api.id, data: draft },
-        { onSuccess: () => setEditing(false) },
-      )
+      onUpdate(draft)
+      setEditing(false)
     } else {
       setDraft(api)
       setEditing(true)
@@ -53,11 +50,9 @@ function ApiView({ api }: { api: AdminApi }) {
   }
 
   const togglePublication = () => {
-    updateApi.mutate({
-      id: api.id,
-      data: {
-        publication: api.publication === 'Published' ? 'Unpublished' : 'Published',
-      },
+    onUpdate({
+      ...api,
+      publication: api.publication === 'Published' ? 'Unpublished' : 'Published',
     })
   }
 
@@ -80,18 +75,15 @@ function ApiView({ api }: { api: AdminApi }) {
         </button>
       </div>
 
-      <MutationError error={updateApi.error} />
-
       <div className="api-view-actions">
         <button
           type="button"
           className={editing ? 'btn-primary' : 'btn-neutral'}
           onClick={toggleEdit}
-          disabled={updateApi.isPending}
         >
-          {updateApi.isPending ? 'Saving…' : editing ? 'Save' : 'Edit'}
+          {editing ? 'Save' : 'Edit'}
         </button>
-        <button type="button" className="btn-warn-outline" onClick={togglePublication} disabled={updateApi.isPending}>
+        <button type="button" className="btn-warn-outline" onClick={togglePublication}>
           {api.publication === 'Published' ? 'Unpublish' : 'Publish'}
         </button>
       </div>

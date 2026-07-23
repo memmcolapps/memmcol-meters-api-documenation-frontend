@@ -3,14 +3,8 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useDismiss } from '../../../../app/useDismiss'
 import { useAnchoredMenu } from '../../../../app/useAnchoredMenu'
 import { ConfirmModal } from '../../../../app/ConfirmModal'
-import { AsyncState, MutationError } from '../../../../app/AsyncState'
 import { formatAddedDate } from '../../../../app/adminMeters'
-import { type AdminApi } from '../../../../app/adminApis'
-import {
-  useAdminApis,
-  useCreateAdminApi,
-  useUpdateAdminApi,
-} from '../../../../features/admin-apis/adminApiQueries'
+import { seededAdminApis, type AdminApi } from '../../../../app/adminApis'
 
 type ApiFormValues = Pick<
   AdminApi,
@@ -25,10 +19,7 @@ export const Route = createFileRoute('/admin/_admin/api-management/')({
 
 function ApiManagementPage() {
   const navigate = useNavigate()
-  const apisQuery = useAdminApis()
-  const createApi = useCreateAdminApi()
-  const updateApi = useUpdateAdminApi()
-  const apis = apisQuery.data ?? []
+  const [apis, setApis] = useState<AdminApi[]>(seededAdminApis)
   const [search, setSearch] = useState('')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [formModal, setFormModal] = useState<FormModalState | null>(null)
@@ -39,25 +30,23 @@ function ApiManagementPage() {
     navigate({ to: '/admin/api-management/$apiId', params: { apiId: id } })
   }
 
-  const togglePublication = (api: AdminApi, onSuccess?: () => void) => {
-    updateApi.mutate(
-      {
-        id: api.id,
-        data: {
-          publication:
-            api.publication === 'Published' ? 'Unpublished' : 'Published',
-        },
-      },
-      { onSuccess },
+  const togglePublication = (id: string) => {
+    setApis((prev) =>
+      prev.map((api) =>
+        api.id === id
+          ? {
+              ...api,
+              publication:
+                api.publication === 'Published' ? 'Unpublished' : 'Published',
+            }
+          : api,
+      ),
     )
+    setOpenMenu(null)
   }
 
-  const setStatus = (
-    id: string,
-    status: AdminApi['status'],
-    onSuccess?: () => void,
-  ) => {
-    updateApi.mutate({ id, data: { status } }, { onSuccess })
+  const setStatus = (id: string, status: AdminApi['status']) => {
+    setApis((prev) => prev.map((api) => (api.id === id ? { ...api, status } : api)))
     setOpenMenu(null)
   }
 
@@ -67,20 +56,6 @@ function ApiManagementPage() {
         `${api.name} ${api.route} ${api.addedBy}`.toLowerCase().includes(query),
       )
     : apis
-
-  if (apisQuery.isPending || apisQuery.error) {
-    return (
-      <div className="dash">
-        <AsyncState
-          isPending={apisQuery.isPending}
-          error={apisQuery.error}
-          onRetry={() => void apisQuery.refetch()}
-        >
-          {null}
-        </AsyncState>
-      </div>
-    )
-  }
 
   return (
     <div className="dash">
@@ -105,8 +80,6 @@ function ApiManagementPage() {
           APIs
         </button>
       </div>
-
-      <MutationError error={createApi.error ?? updateApi.error} />
 
       <div className="dash-toolbar">
         <div className="dash-filters">
@@ -206,28 +179,30 @@ function ApiManagementPage() {
           title={formModal.mode === 'add' ? 'Add API' : 'Edit API'}
           submitLabel={formModal.mode === 'add' ? 'Add API' : 'Save Changes'}
           initial={formModal.mode === 'edit' ? formModal.api : undefined}
-          isSubmitting={createApi.isPending || updateApi.isPending}
           onClose={() => setFormModal(null)}
           onSubmit={(values) => {
             if (formModal.mode === 'add') {
-              createApi.mutate(
+              setApis((prev) => [
+                ...prev,
                 {
                   ...values,
+                  id: `api-${Date.now()}`,
                   snippetLang: 'TypeScript',
                   addedBy: 'Admin',
                   addedDate: formatAddedDate(),
                   status: 'Active',
                   publication: 'Unpublished',
                 },
-                { onSuccess: () => setFormModal(null) },
-              )
+              ])
             } else {
               const editedId = formModal.api.id
-              updateApi.mutate(
-                { id: editedId, data: values },
-                { onSuccess: () => setFormModal(null) },
+              setApis((prev) =>
+                prev.map((item) =>
+                  item.id === editedId ? { ...item, ...values } : item,
+                ),
               )
             }
+            setFormModal(null)
           }}
         />
       ) : null}
@@ -243,7 +218,8 @@ function ApiManagementPage() {
           }
           onCancel={() => setPublishing(null)}
           onConfirm={() => {
-            togglePublication(publishing, () => setPublishing(null))
+            togglePublication(publishing.id)
+            setPublishing(null)
           }}
         />
       ) : null}
@@ -254,7 +230,8 @@ function ApiManagementPage() {
           confirmLabel="Deprecate"
           onCancel={() => setDeprecating(null)}
           onConfirm={() => {
-            setStatus(deprecating.id, 'Deprecated', () => setDeprecating(null))
+            setStatus(deprecating.id, 'Deprecated')
+            setDeprecating(null)
           }}
         />
       ) : null}
@@ -266,14 +243,12 @@ function ApiFormModal({
   title,
   submitLabel,
   initial,
-  isSubmitting,
   onClose,
   onSubmit,
 }: {
   title: string
   submitLabel: string
   initial?: ApiFormValues
-  isSubmitting: boolean
   onClose: () => void
   onSubmit: (values: ApiFormValues) => void
 }) {
@@ -302,7 +277,7 @@ function ApiFormModal({
           <h2 id="api-form-title" className="modal-title">
             {title}
           </h2>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose} disabled={isSubmitting}>
+          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
             <CloseIcon />
           </button>
         </div>
@@ -386,11 +361,11 @@ function ApiFormModal({
             </div>
 
             <div className="modal-foot">
-              <button type="button" className="btn-neutral" onClick={() => setStep(1)} disabled={isSubmitting}>
+              <button type="button" className="btn-neutral" onClick={() => setStep(1)}>
                 Back
               </button>
-              <button type="button" className="btn-primary" onClick={() => onSubmit(form)} disabled={isSubmitting}>
-                {isSubmitting ? 'Saving…' : submitLabel}
+              <button type="button" className="btn-primary" onClick={() => onSubmit(form)}>
+                {submitLabel}
               </button>
             </div>
           </div>

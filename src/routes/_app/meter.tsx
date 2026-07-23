@@ -638,8 +638,6 @@ const overlayStyle: React.CSSProperties = {
 
 const dialogStyle: React.CSSProperties = {
   width: 500,
-  maxHeight: '90vh',
-  overflowY: 'auto',
   background: '#fff',
   borderRadius: 16,
   padding: '20px 24px',
@@ -747,13 +745,11 @@ function MeterDetailsDialog({
             <div style={gridStyle}>
               <div>
                 <DetailItem label="Meter Number" value={meter.meterNumber} />
-                <DetailItem label="Manufacturer" value={meter.manufacturer} />
-                <DetailItem label="Model" value={meter.model} />
                 <DetailItem
-                  label="Category"
-                  value={formatMeterCategory(meter.meterCategory)}
+                  label="Meter Manufacturer"
+                  value={meter.manufacturer}
                 />
-                <DetailItem label="Status" value={formatMeterEnum(meter.status)} />
+                <DetailItem label="Meter Model" value={meter.model} />
                 <DetailItem label="Old SGC" value={meter.keyChange.oldSgc} />
                 <DetailItem label="Old KRN" value={meter.keyChange.oldKrn} />
                 <DetailItem
@@ -790,7 +786,7 @@ function MeterDetailsDialog({
                   event.currentTarget.style.color = '#0b6b3a'
                 }}
               >
-                Close
+                Cancel
               </button>
             </div>
           </>
