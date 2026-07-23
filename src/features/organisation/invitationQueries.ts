@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { apiRequest } from '../../lib/api/client'
+import { ApiError, apiRequest, getErrorMessage } from '../../lib/api/client'
 
 export type VerifyInvitationResponse = {
   message: string
@@ -22,10 +22,18 @@ export type AcceptInvitationResponse = {
   organisationName: string
 }
 
-export function verifyInvitation(token: string) {
-  return apiRequest<VerifyInvitationResponse>(
-    `/organisation/invitations/verify?token=${encodeURIComponent(token)}`,
+export async function verifyInvitation(token: string) {
+  const response = await fetch(
+    `https://sbctest.memmserve.com/invitation/setup?token=${encodeURIComponent(token)}`,
+    { credentials: 'include', headers: { Accept: 'application/json' } },
   )
+  const payload: unknown = response.headers.get('content-type')?.includes('application/json')
+    ? await response.json()
+    : await response.text()
+  if (!response.ok) {
+    throw new ApiError(getErrorMessage(payload, response.statusText), response.status, payload)
+  }
+  return payload as VerifyInvitationResponse
 }
 
 export function acceptInvitation(input: AcceptInvitationInput) {
