@@ -33,6 +33,7 @@ export type MeterIntegrationSummary = {
   id: string
   manufacturer: string
   model: string
+  class?: string
   category?: string
   protocol: string
   authenticationType: string

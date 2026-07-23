@@ -1,6 +1,13 @@
 import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useDismiss } from '../../../app/useDismiss'
+import { useToast } from '../../../app/toastContext'
+import { getApiErrorMessage } from '../../../lib/api/client'
+import {
+  useCreateApiKey,
+  useRevokeApiKey,
+  type ApiKeySummary,
+} from '../../../features/api-keys/apiKeyQueries'
 
 export const Route = createFileRoute('/_app/settings/api-keys')({
   component: ApiKeysPage,
@@ -8,31 +15,37 @@ export const Route = createFileRoute('/_app/settings/api-keys')({
 
 const TEST_KEY = '02i9_84gwa.......weghef65'
 
-const expiryOptions = ['Never', '7 days', '30 days', '60 days', '90 days', 'Custom']
+const expiryOptions = [
+  { label: 'Never', days: null },
+  { label: '7 days', days: 7 },
+  { label: '30 days', days: 30 },
+  { label: '60 days', days: 60 },
+  { label: '90 days', days: 90 },
+  { label: 'Custom', days: 'custom' },
+] as const
 
 type ModalStep = 'closed' | 'form' | 'result'
 
-function maskKey(key: string) {
-  return `${key.slice(0, 7)}.......${key.slice(-11)}`
-}
-
-function generateKey() {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
-  let body = ''
-  for (let i = 0; i < 48; i += 1) {
-    body += chars[Math.floor(Math.random() * chars.length)]
-  }
-  return `2i9_84gwa${body}weghef`
-}
-
 function ApiKeysPage() {
-  const [liveKey, setLiveKey] = useState<string | null>(null)
+  const createApiKey = useCreateApiKey()
+  const revokeApiKey = useRevokeApiKey()
+  const { showToast } = useToast()
+  const [liveKey, setLiveKey] = useState<ApiKeySummary | null>(null)
   const [step, setStep] = useState<ModalStep>('closed')
   const [expiry, setExpiry] = useState('Never')
-  const [generatedKey, setGeneratedKey] = useState('')
+  const [customExpiry, setCustomExpiry] = useState('')
+  const [keyName, setKeyName] = useState('Live Key')
+  const [generatedSecret, setGeneratedSecret] = useState('')
+  const [formError, setFormError] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
   const modalRef = useRef<HTMLDivElement>(null)
-  useDismiss(modalRef, () => setStep('closed'), step !== 'closed')
+  const isSubmitting = createApiKey.isPending || revokeApiKey.isPending
+  const closeModal = () => {
+    if (isSubmitting) return
+    setGeneratedSecret('')
+    setStep('closed')
+  }
+  useDismiss(modalRef, closeModal, step !== 'closed')
 
   const hasLiveKey = liveKey !== null
 
@@ -47,17 +60,100 @@ function ApiKeysPage() {
   }
 
   const openModal = () => {
+    createApiKey.reset()
+    revokeApiKey.reset()
+    setKeyName('Live Key')
     setExpiry('Never')
+    setCustomExpiry('')
+    setGeneratedSecret('')
+    setFormError('')
     setStep('form')
   }
 
-  const handleGenerate = () => {
-    setGeneratedKey(generateKey())
-    setStep('result')
+  const getExpiresAt = () => {
+    const selected = expiryOptions.find((option) => option.label === expiry)
+    if (!selected || selected.days === null) return null
+    if (selected.days === 'custom') {
+      const date = new Date(customExpiry)
+      if (!customExpiry || Number.isNaN(date.getTime())) {
+        throw new Error('Select a valid expiry date.')
+      }
+      if (date.getTime() <= Date.now()) {
+        throw new Error('Expiry date must be in the future.')
+      }
+      return date.toISOString()
+    }
+
+    return new Date(
+      Date.now() + selected.days * 24 * 60 * 60 * 1_000,
+    ).toISOString()
+  }
+
+  const handleGenerate = async () => {
+    if (!keyName.trim()) {
+      setFormError('Key name is required.')
+      return
+    }
+
+    let expiresAt: string | null
+    try {
+      expiresAt = getExpiresAt()
+    } catch (error) {
+      setFormError(getApiErrorMessage(error))
+      return
+    }
+
+    setFormError('')
+    try {
+      if (liveKey) {
+        await revokeApiKey.mutateAsync(liveKey.id)
+        setLiveKey(null)
+      }
+
+      const createdKey = await createApiKey.mutateAsync({
+        name: keyName.trim(),
+        environment: 'LIVE',
+        expiresAt,
+      })
+      const { secret, ...summary } = createdKey
+      createApiKey.reset()
+      revokeApiKey.reset()
+      setLiveKey(summary)
+      setGeneratedSecret(secret)
+      setStep('result')
+    } catch (error) {
+      showToast({
+        title: liveKey ? 'Could not regenerate API key' : 'Could not generate API key',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
+  }
+
+  const handleRevoke = async () => {
+    if (!liveKey) return
+
+    try {
+      await revokeApiKey.mutateAsync(liveKey.id)
+      setLiveKey(null)
+      showToast({
+        title: 'API key revoked',
+        message: `${liveKey.name} is no longer active.`,
+        variant: 'success',
+      })
+    } catch (error) {
+      showToast({
+        title: 'Could not revoke API key',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    } finally {
+      revokeApiKey.reset()
+    }
   }
 
   const handleDone = () => {
-    setLiveKey(generatedKey)
+    setGeneratedSecret('')
     setStep('closed')
   }
 
@@ -100,13 +196,14 @@ function ApiKeysPage() {
           <article className="key-card">
             <h2 className="key-name">Live Key</h2>
             <div className="key-row">
-              <code className="key-value">{maskKey(liveKey)}</code>
+              <code className="key-value">{liveKey.maskedKey}</code>
               <button
                 type="button"
                 className="btn-danger"
-                onClick={() => setLiveKey(null)}
+                disabled={revokeApiKey.isPending}
+                onClick={() => void handleRevoke()}
               >
-                Revoke
+                {revokeApiKey.isPending ? 'Revoking…' : 'Revoke'}
               </button>
             </div>
           </article>
@@ -129,7 +226,8 @@ function ApiKeysPage() {
                 type="button"
                 className="modal-close"
                 aria-label="Close"
-                onClick={() => setStep('closed')}
+                onClick={closeModal}
+                disabled={isSubmitting}
               >
                 <CloseIcon />
               </button>
@@ -137,6 +235,27 @@ function ApiKeysPage() {
 
             {step === 'form' ? (
               <div className="modal-body modal-form">
+                {hasLiveKey ? (
+                  <p className="modal-text">
+                    Generating a new live key will revoke the existing key first.
+                  </p>
+                ) : null}
+                <div className="modal-field">
+                  <label htmlFor="api-key-name">
+                    Key Name <span className="req">*</span>
+                  </label>
+                  <input
+                    id="api-key-name"
+                    className="modal-input"
+                    value={keyName}
+                    disabled={isSubmitting}
+                    aria-invalid={Boolean(formError && !keyName.trim())}
+                    onChange={(event) => {
+                      setKeyName(event.target.value)
+                      setFormError('')
+                    }}
+                  />
+                </div>
                 <div className="modal-field">
                   <label htmlFor="expiry">
                     Expiry Date <span className="req">*</span>
@@ -145,17 +264,50 @@ function ApiKeysPage() {
                     id="expiry"
                     className="modal-select"
                     value={expiry}
-                    onChange={(event) => setExpiry(event.target.value)}
+                    disabled={isSubmitting}
+                    onChange={(event) => {
+                      setExpiry(event.target.value)
+                      setFormError('')
+                    }}
                   >
                     {expiryOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
+                      <option key={option.label} value={option.label}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
                 </div>
-                <button type="button" className="btn-primary" onClick={handleGenerate}>
-                  Generate Key <PlusIcon />
+                {expiry === 'Custom' ? (
+                  <div className="modal-field">
+                    <label htmlFor="custom-expiry">
+                      Custom Expiry <span className="req">*</span>
+                    </label>
+                    <input
+                      id="custom-expiry"
+                      type="datetime-local"
+                      className="modal-input"
+                      value={customExpiry}
+                      disabled={isSubmitting}
+                      onChange={(event) => {
+                        setCustomExpiry(event.target.value)
+                        setFormError('')
+                      }}
+                    />
+                  </div>
+                ) : null}
+                {formError ? (
+                  <p className="modal-field-error" role="alert">{formError}</p>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={isSubmitting}
+                  onClick={() => void handleGenerate()}
+                >
+                  {isSubmitting
+                    ? hasLiveKey ? 'Replacing key…' : 'Generating…'
+                    : 'Generate Key'}{' '}
+                  <PlusIcon />
                 </button>
               </div>
             ) : (
@@ -165,12 +317,12 @@ function ApiKeysPage() {
                   as we will not display it again.
                 </p>
                 <div className="key-reveal">
-                  <input className="key-reveal-input" value={generatedKey} readOnly />
+                  <input className="key-reveal-input" value={generatedSecret} readOnly />
                   <button
                     type="button"
                     className="icon-copy"
                     aria-label="Copy API key"
-                    onClick={() => copy(generatedKey, 'generated')}
+                    onClick={() => copy(generatedSecret, 'generated')}
                   >
                     <CopyIcon />
                   </button>

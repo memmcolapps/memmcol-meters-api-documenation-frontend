@@ -48,6 +48,16 @@ tokens.
 Use the API Management feature as the reference when connecting meters, plans, and
 the remaining seeded screens.
 
+Customer API keys use these endpoints:
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api-keys` | Generate an API key and return its secret once |
+| `DELETE` | `/api-keys/:apiKeyId` | Revoke an existing API key |
+
+Regenerating a live key revokes the existing key before creating its replacement.
+Only the masked key is retained after the one-time secret reveal is closed.
+
 The Meter Integration form consumes the admin creation endpoint directly:
 
 | Method | Endpoint | Purpose |

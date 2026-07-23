@@ -17,7 +17,6 @@ import {
   getObisCodeUpdateError,
   getObisUploadError,
   useChangeObisCodeStatus,
-  useChangeMeterIntegrationStatus,
   useCreateObisCode,
   useMeterIntegration,
   useObisCodes,
@@ -26,7 +25,6 @@ import {
   useUploadObisCodes,
   type CreateObisCodeInput,
   type MeterIntegration,
-  type MeterIntegrationStatus,
   type ObisCode,
   type ObisCodeStatus,
   type ObisUpload,
@@ -42,7 +40,6 @@ type ObisFormValues = Required<CreateObisCodeInput>
 type ObisFormField = keyof ObisFormValues
 type ObisUploadField = keyof UploadObisCodesInput
 type ObisStatusField = 'status' | 'reason'
-type MeterIntegrationStatusField = 'status' | 'reason'
 
 function MeterViewPage() {
   const { meterId } = Route.useParams()
@@ -61,15 +58,10 @@ function MeterViewPage() {
 
 function MeterView({ meter }: { meter: MeterIntegration }) {
   const updateMeter = useUpdateMeterIntegration()
-  const changeMeterStatus = useChangeMeterIntegrationStatus()
   const { showToast } = useToast()
   const [editOpen, setEditOpen] = useState(false)
-  const [deprecateOpen, setDeprecateOpen] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<MeterFormField | 'class', string>>
-  >({})
-  const [statusFieldErrors, setStatusFieldErrors] = useState<
-    Partial<Record<MeterIntegrationStatusField, string>>
   >({})
 
   const openEditModal = () => {
@@ -127,83 +119,11 @@ function MeterView({ meter }: { meter: MeterIntegration }) {
     }
   }
 
-  const changeIntegrationStatus = async (
-    status: MeterIntegrationStatus,
-    reason?: string,
-  ) => {
-    if (status === 'DEPRECATED' && !reason?.trim()) {
-      setStatusFieldErrors({
-        reason: 'Reason is required when deprecating a meter integration.',
-      })
-      return
-    }
-
-    setStatusFieldErrors({})
-    try {
-      await changeMeterStatus.mutateAsync({
-        meterIntegrationId: meter.id,
-        status,
-        ...(reason?.trim() ? { reason: reason.trim() } : {}),
-      })
-      setDeprecateOpen(false)
-      showToast({
-        title: status === 'ACTIVE'
-          ? 'Meter integration activated'
-          : 'Meter integration deprecated',
-        message: `${meter.manufacturer} ${meter.model} is now ${status.toLowerCase()}.`,
-        variant: 'success',
-      })
-    } catch (error) {
-      const apiError = getMeterIntegrationError(error)
-      const fields = apiError.fields as Partial<
-        Record<MeterIntegrationStatusField, string>
-      >
-      setStatusFieldErrors(fields)
-      showToast({
-        title: apiError.message,
-        message: [
-          ...new Set(Object.values(fields)),
-          apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
-        ].filter(Boolean).join(' · ') || undefined,
-        variant: 'error',
-      })
-    }
-  }
-
   return (
     <div className="dash">
-      <header className="dash-toolbar dash-head-row">
-        <div className="dash-head">
-          <h1 className="dash-title">Meter View</h1>
-          <p className="dash-subtitle">Manage other meter information</p>
-        </div>
-        <div className="panel-actions">
-          <button type="button" className="btn-outline" onClick={openEditModal}>
-            Edit integration
-          </button>
-          {meter.status === 'ACTIVE' ? (
-            <button
-              type="button"
-              className="btn-remove"
-              onClick={() => {
-                changeMeterStatus.reset()
-                setStatusFieldErrors({})
-                setDeprecateOpen(true)
-              }}
-            >
-              Deprecate
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={changeMeterStatus.isPending}
-              onClick={() => void changeIntegrationStatus('ACTIVE')}
-            >
-              {changeMeterStatus.isPending ? 'Activating…' : 'Activate'}
-            </button>
-          )}
-        </div>
+      <header className="dash-head">
+        <h1 className="dash-title">Meter View</h1>
+        <p className="dash-subtitle">Manage other meter information</p>
       </header>
 
       <div className="dash-tabs" role="tablist">
@@ -232,28 +152,13 @@ function MeterView({ meter }: { meter: MeterIntegration }) {
             </p>
           </div>
         </div>
-        <dl className="meter-view-summary">
-          <SummaryItem label="Class" value={formatIntegrationValue(meter.class)} />
-          <SummaryItem
-            label="Category"
-            value={formatIntegrationValue(meter.category)}
-          />
-          <SummaryItem label="Protocol" value={meter.protocol} />
-          <SummaryItem
-            label="Authentication"
-            value={formatIntegrationValue(meter.authenticationType)}
-          />
-          <SummaryItem label="OBIS codes" value={meter.obisCodeCount} />
-          <SummaryItem label="Added by" value={meter.addedBy?.name || '—'} />
-          {meter.statusReason ? (
-            <SummaryItem label="Status reason" value={meter.statusReason} wide />
-          ) : null}
-          <SummaryItem
-            label="Description"
-            value={meter.description || '—'}
-            wide
-          />
-        </dl>
+        <button
+          type="button"
+          className="btn-neutral btn-icon"
+          onClick={openEditModal}
+        >
+          Edit Info <PencilSquareIcon />
+        </button>
       </section>
 
       <ObisPanel meterIntegrationId={meter.id} />
@@ -289,56 +194,8 @@ function MeterView({ meter }: { meter: MeterIntegration }) {
         />
       ) : null}
 
-      {deprecateOpen ? (
-        <DeprecateMeterIntegrationModal
-          meter={meter}
-          isSubmitting={changeMeterStatus.isPending}
-          fieldErrors={statusFieldErrors}
-          onReasonChange={() => {
-            setStatusFieldErrors((current) => {
-              if (!current.reason) return current
-              const next = { ...current }
-              delete next.reason
-              return next
-            })
-          }}
-          onCancel={() => {
-            if (!changeMeterStatus.isPending) setDeprecateOpen(false)
-          }}
-          onConfirm={(reason) =>
-            void changeIntegrationStatus('DEPRECATED', reason)
-          }
-        />
-      ) : null}
     </div>
   )
-}
-
-function SummaryItem({
-  label,
-  value,
-  wide = false,
-}: {
-  label: string
-  value: string | number
-  wide?: boolean
-}) {
-  return (
-    <div className={`meter-view-summary-item${wide ? ' is-wide' : ''}`}>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  )
-}
-
-function formatIntegrationValue(value: unknown) {
-  if (typeof value !== 'string' || !value.trim()) return '—'
-
-  return value
-    .toLowerCase()
-    .split(/[_\s-]+/)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
 }
 
 function formatIntegrationClassForForm(value: unknown) {
@@ -364,107 +221,6 @@ function formatIntegrationDate(value: unknown) {
   if (typeof value !== 'string') return '—'
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? '—' : formatAddedDate(date)
-}
-
-function DeprecateMeterIntegrationModal({
-  meter,
-  isSubmitting,
-  fieldErrors,
-  onReasonChange,
-  onCancel,
-  onConfirm,
-}: {
-  meter: MeterIntegration
-  isSubmitting: boolean
-  fieldErrors: Partial<Record<MeterIntegrationStatusField, string>>
-  onReasonChange: () => void
-  onCancel: () => void
-  onConfirm: (reason: string) => void
-}) {
-  const [reason, setReason] = useState('')
-  const modalRef = useRef<HTMLDivElement>(null)
-  useDismiss(modalRef, onCancel)
-
-  return (
-    <div
-      className="modal-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="deprecate-meter-integration-title"
-    >
-      <div className="modal" ref={modalRef}>
-        <div className="modal-head">
-          <div>
-            <h2 id="deprecate-meter-integration-title" className="modal-title">
-              Deprecate meter integration
-            </h2>
-            <p className="modal-subtitle">
-              {meter.manufacturer} {meter.model} will no longer be available
-              for new customer meter setup.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="modal-close"
-            aria-label="Close"
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
-            <CloseIcon />
-          </button>
-        </div>
-
-        <div className="modal-body">
-          {fieldErrors.status ? (
-            <p className="modal-field-error" role="alert">
-              {fieldErrors.status}
-            </p>
-          ) : null}
-          <div className="modal-field">
-            <label htmlFor="meter-integration-deprecation-reason">
-              Reason <span className="req">*</span>
-            </label>
-            <textarea
-              id="meter-integration-deprecation-reason"
-              className="modal-input"
-              rows={3}
-              placeholder="Explain why this meter integration is being deprecated"
-              value={reason}
-              aria-invalid={Boolean(fieldErrors.reason)}
-              disabled={isSubmitting}
-              onChange={(event) => {
-                setReason(event.target.value)
-                onReasonChange()
-              }}
-            />
-            {fieldErrors.reason ? (
-              <span className="modal-field-error" role="alert">
-                {fieldErrors.reason}
-              </span>
-            ) : null}
-          </div>
-          <div className="modal-foot">
-            <button
-              type="button"
-              className="btn-neutral"
-              onClick={onCancel}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn-danger-solid"
-              onClick={() => onConfirm(reason)}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Deprecating…' : 'Deprecate'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
@@ -1445,6 +1201,15 @@ function PencilIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
       <path d="m15 5 4 4" />
+    </svg>
+  )
+}
+
+function PencilSquareIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" />
+      <path d="M17.5 3.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z" />
     </svg>
   )
 }
