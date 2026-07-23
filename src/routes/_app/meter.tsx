@@ -760,7 +760,6 @@ function MeterDetailsDialog({
                   label="Old Tariff Index"
                   value={meter.keyChange.oldTariffIndex}
                 />
-                <DetailItem label="Created" value={formatMeterDate(meter.createdAt)} />
               </div>
               <div>
                 <DetailItem label="SIM Number" value={meter.simNumber} />
@@ -774,7 +773,6 @@ function MeterDetailsDialog({
                   label="New Tariff Index"
                   value={meter.keyChange.newTariffIndex}
                 />
-                <DetailItem label="Updated" value={formatMeterDate(meter.updatedAt)} />
               </div>
             </div>
 
@@ -823,11 +821,6 @@ function formatMeterEnum(value: string) {
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
-}
-
-function formatMeterDate(value: string) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
 }
 
 function SortDropdown({

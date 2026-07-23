@@ -17,6 +17,16 @@ export type CreateMeterIntegrationInput = {
   description?: string
 }
 
+export type UpdateMeterIntegrationInput = CreateMeterIntegrationInput & {
+  meterIntegrationId: string
+}
+
+export type ChangeMeterIntegrationStatusInput = {
+  meterIntegrationId: string
+  status: MeterIntegrationStatus
+  reason?: string
+}
+
 export type MeterIntegrationStatus = 'ACTIVE' | 'DEPRECATED'
 
 export type MeterIntegrationSummary = {
@@ -27,6 +37,7 @@ export type MeterIntegrationSummary = {
   protocol: string
   authenticationType: string
   status: MeterIntegrationStatus
+  statusReason?: string
   obisCodeCount: number
   addedBy: {
     id: string
@@ -140,6 +151,31 @@ type MeterIntegrationResponse = {
   meterIntegration: MeterIntegration
 }
 
+type MeterIntegrationUpdate = Pick<
+  MeterIntegration,
+  | 'id'
+  | 'manufacturer'
+  | 'model'
+  | 'class'
+  | 'category'
+  | 'protocol'
+  | 'authenticationType'
+  | 'description'
+  | 'status'
+  | 'updatedAt'
+>
+
+type UpdateMeterIntegrationResponse = {
+  meterIntegration: MeterIntegrationUpdate
+}
+
+type ChangeMeterIntegrationStatusResponse = {
+  meterIntegration: Pick<
+    MeterIntegration,
+    'id' | 'status' | 'statusReason' | 'updatedAt'
+  >
+}
+
 type CreateObisCodeResponse = {
   obisCode: ObisCode
 }
@@ -202,6 +238,50 @@ async function listMeterIntegrations(params: MeterIntegrationListParams) {
 async function getMeterIntegration(meterIntegrationId: string) {
   const response = await apiRequest<MeterIntegrationResponse>(
     `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}`,
+  )
+  const integration = response.meterIntegration as MeterIntegration &
+    Record<string, unknown>
+
+  return {
+    ...integration,
+    class: typeof integration.class === 'string'
+      ? integration.class
+      : typeof integration.meterClass === 'string'
+        ? integration.meterClass
+        : '',
+    category: typeof integration.category === 'string'
+      ? integration.category
+      : typeof integration.meterCategory === 'string'
+        ? integration.meterCategory
+        : '',
+  }
+}
+
+async function updateMeterIntegration(input: UpdateMeterIntegrationInput) {
+  const { meterIntegrationId, ...updates } = input
+  const response = await apiRequest<UpdateMeterIntegrationResponse>(
+    `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}`,
+    {
+      method: 'PATCH',
+      json: updates,
+    },
+  )
+  return response.meterIntegration
+}
+
+async function changeMeterIntegrationStatus(
+  input: ChangeMeterIntegrationStatusInput,
+) {
+  const { meterIntegrationId, status, reason } = input
+  const response = await apiRequest<ChangeMeterIntegrationStatusResponse>(
+    `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/status`,
+    {
+      method: 'PATCH',
+      json: {
+        status,
+        ...(reason ? { reason } : {}),
+      },
+    },
   )
   return response.meterIntegration
 }
@@ -365,10 +445,49 @@ export function useMeterIntegration(meterIntegrationId: string) {
   })
 }
 
+export function useUpdateMeterIntegration() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: updateMeterIntegration,
+    onSuccess: async (integration) => {
+      queryClient.setQueryData<MeterIntegration | undefined>(
+        meterIntegrationKeys.detail(integration.id),
+        (current) => current ? { ...current, ...integration } : current,
+      )
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() }),
+        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.options() }),
+      ])
+    },
+  })
+}
+
+export function useChangeMeterIntegrationStatus() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: changeMeterIntegrationStatus,
+    onSuccess: async (integration) => {
+      queryClient.setQueryData<MeterIntegration | undefined>(
+        meterIntegrationKeys.detail(integration.id),
+        (current) => current ? { ...current, ...integration } : current,
+      )
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() }),
+        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.options() }),
+      ])
+    },
+  })
+}
+
 export function useActiveMeterIntegrationOptions() {
   return useQuery({
     queryKey: meterIntegrationKeys.options(),
-    queryFn: listOrganisationMeterIntegrations,
+    queryFn: async () => {
+      const integrations = await listOrganisationMeterIntegrations()
+      return integrations.filter((integration) => integration.status === 'ACTIVE')
+    },
   })
 }
 
@@ -448,6 +567,7 @@ export function getMeterIntegrationError(error: unknown) {
     : undefined
 
   return {
+    status: error instanceof ApiError ? error.status : undefined,
     code: payload?.error?.code,
     message: payload?.error?.message ?? (
       error instanceof Error ? error.message : 'The meter integration could not be created.'

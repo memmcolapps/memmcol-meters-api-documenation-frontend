@@ -21,6 +21,7 @@ const meterClasses = ['MD', 'Single-Phase', 'Three-Phase']
 export function MeterFormModal({
   title,
   submitLabel,
+  submittingLabel = 'Integrating…',
   initial,
   isSubmitting = false,
   fieldErrors = {},
@@ -30,6 +31,7 @@ export function MeterFormModal({
 }: {
   title: string
   submitLabel: string
+  submittingLabel?: string
   initial?: Partial<MeterFormValues>
   isSubmitting?: boolean
   fieldErrors?: Partial<Record<MeterFormField | 'class', string>>
@@ -215,7 +217,7 @@ export function MeterFormModal({
               Cancel
             </button>
             <button type="button" className="btn-primary" disabled={!canSubmit || isSubmitting} onClick={handleSubmit}>
-              {isSubmitting ? 'Integrating…' : submitLabel}
+              {isSubmitting ? submittingLabel : submitLabel}
             </button>
           </div>
         </div>
