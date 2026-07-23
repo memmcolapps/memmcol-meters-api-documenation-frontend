@@ -24,7 +24,7 @@ export type AcceptInvitationResponse = {
 
 export async function verifyInvitation(token: string) {
   const response = await fetch(
-    `https://sbctest.memmserve.com/invitation/setup?token=${encodeURIComponent(token)}`,
+    `https://sbctest.memmserve.com/powerhub/v1/api/invitation/setup?token=${encodeURIComponent(token)}`,
     { credentials: 'include', headers: { Accept: 'application/json' } },
   )
   const payload: unknown = response.headers.get('content-type')?.includes('application/json')
@@ -37,7 +37,7 @@ export async function verifyInvitation(token: string) {
 }
 
 export function acceptInvitation(input: AcceptInvitationInput) {
-  return apiRequest<AcceptInvitationResponse>('/organisation/invitations/accept', {
+  return apiRequest<AcceptInvitationResponse>('https://sbctest.memmserve.com/powerhub/v1/api/organisation/invitations/accept', {
     method: 'POST',
     json: input,
   })
