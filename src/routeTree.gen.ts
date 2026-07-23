@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as InvitationSetupRouteImport } from './routes/invitation-setup'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
@@ -48,6 +49,11 @@ const SignupRoute = SignupRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvitationSetupRoute = InvitationSetupRouteImport.update({
+  id: '/invitation-setup',
+  path: '/invitation-setup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -204,6 +210,7 @@ const AdminAdminSettingsPlansPlanIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/invitation-setup': typeof InvitationSetupRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/billing': typeof AppBillingRoute
@@ -235,6 +242,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/invitation-setup': typeof InvitationSetupRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/billing': typeof AppBillingRoute
@@ -268,6 +276,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
+  '/invitation-setup': typeof InvitationSetupRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/_app/billing': typeof AppBillingRoute
@@ -301,6 +310,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/forgot-password'
+    | '/invitation-setup'
     | '/login'
     | '/signup'
     | '/billing'
@@ -332,6 +342,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/forgot-password'
+    | '/invitation-setup'
     | '/login'
     | '/signup'
     | '/billing'
@@ -364,6 +375,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/forgot-password'
+    | '/invitation-setup'
     | '/login'
     | '/signup'
     | '/_app/billing'
@@ -397,6 +409,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  InvitationSetupRoute: typeof InvitationSetupRoute
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
   AdminAdminRoute: typeof AdminAdminRouteWithChildren
@@ -419,6 +432,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invitation-setup': {
+      id: '/invitation-setup'
+      path: '/invitation-setup'
+      fullPath: '/invitation-setup'
+      preLoaderRoute: typeof InvitationSetupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -685,6 +705,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  InvitationSetupRoute: InvitationSetupRoute,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
   AdminAdminRoute: AdminAdminRouteWithChildren,
