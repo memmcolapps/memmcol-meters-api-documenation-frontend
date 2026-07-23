@@ -26,6 +26,37 @@ const expiryOptions = [
 
 type ModalStep = 'closed' | 'form' | 'result'
 
+async function writeToClipboard(value: string) {
+  if (!value) throw new Error('There is no API key to copy.')
+
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value)
+      return
+    } catch {
+      // Fall back for browsers that expose the API but deny clipboard access.
+    }
+  }
+
+  const textArea = document.createElement('textarea')
+  textArea.value = value
+  textArea.readOnly = true
+  textArea.style.position = 'fixed'
+  textArea.style.left = '-9999px'
+  textArea.style.opacity = '0'
+  document.body.appendChild(textArea)
+  textArea.focus()
+  textArea.select()
+
+  try {
+    if (!document.execCommand('copy')) {
+      throw new Error('The browser did not allow clipboard access.')
+    }
+  } finally {
+    textArea.remove()
+  }
+}
+
 function ApiKeysPage() {
   const createApiKey = useCreateApiKey()
   const revokeApiKey = useRevokeApiKey()
@@ -51,11 +82,19 @@ function ApiKeysPage() {
 
   const copy = async (value: string, id: string) => {
     try {
-      await navigator.clipboard.writeText(value)
+      await writeToClipboard(value)
       setCopied(id)
       window.setTimeout(() => setCopied(null), 1500)
-    } catch {
-      /* clipboard unavailable */
+      showToast({
+        title: 'API key copied',
+        variant: 'success',
+      })
+    } catch (error) {
+      showToast({
+        title: 'Could not copy API key',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
     }
   }
 
@@ -321,10 +360,13 @@ function ApiKeysPage() {
                   <button
                     type="button"
                     className="icon-copy"
-                    aria-label="Copy API key"
-                    onClick={() => copy(generatedSecret, 'generated')}
+                    aria-label={
+                      copied === 'generated' ? 'API key copied' : 'Copy API key'
+                    }
+                    title={copied === 'generated' ? 'Copied' : 'Copy API key'}
+                    onClick={() => void copy(generatedSecret, 'generated')}
                   >
-                    <CopyIcon />
+                    {copied === 'generated' ? <CheckIcon /> : <CopyIcon />}
                   </button>
                 </div>
                 <div className="modal-actions">
@@ -363,6 +405,14 @@ function CopyIcon() {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="9" y="9" width="13" height="13" rx="2" />
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m5 12 4 4L19 6" />
     </svg>
   )
 }

@@ -34,7 +34,9 @@ export type MeterIntegrationSummary = {
   manufacturer: string
   model: string
   class?: string
+  meterClass?: string
   category?: string
+  meterCategory?: string
   protocol: string
   authenticationType: string
   status: MeterIntegrationStatus
@@ -231,9 +233,24 @@ async function listMeterIntegrations(params: MeterIntegrationListParams) {
   if (params.status) query.set('status', params.status)
   if (params.manufacturer) query.set('manufacturer', params.manufacturer)
 
-  return apiRequest<MeterIntegrationListResponse>(
+  const response = await apiRequest<MeterIntegrationListResponse>(
     `/admin/meter-integrations?${query.toString()}`,
   )
+
+  return {
+    ...response,
+    items: response.items.map(normalizeMeterIntegrationSummary),
+  }
+}
+
+function normalizeMeterIntegrationSummary(
+  integration: MeterIntegrationSummary,
+): MeterIntegrationSummary {
+  return {
+    ...integration,
+    class: integration.class ?? integration.meterClass,
+    category: integration.category ?? integration.meterCategory,
+  }
 }
 
 async function getMeterIntegration(meterIntegrationId: string) {
@@ -300,14 +317,18 @@ async function listOrganisationMeterIntegrations() {
     : response
 
   if (Array.isArray(payload)) {
-    return payload as MeterIntegrationSummary[]
+    return (payload as MeterIntegrationSummary[]).map(
+      normalizeMeterIntegrationSummary,
+    )
   }
 
   if (payload && typeof payload === 'object') {
     for (const key of ['items', 'meterIntegrations', 'meterIntegration', 'content']) {
       const integrations = (payload as Record<string, unknown>)[key]
       if (Array.isArray(integrations)) {
-        return integrations as MeterIntegrationSummary[]
+        return (integrations as MeterIntegrationSummary[]).map(
+          normalizeMeterIntegrationSummary,
+        )
       }
     }
   }
