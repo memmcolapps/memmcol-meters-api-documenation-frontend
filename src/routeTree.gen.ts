@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as InvitationSetupRouteImport } from './routes/invitation-setup'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
@@ -24,6 +23,7 @@ import { Route as AppLogsRouteImport } from './routes/_app/logs'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppBillingRouteImport } from './routes/_app/billing'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
+import { Route as ApiInvitationSetupRouteImport } from './routes/api/invitation/setup'
 import { Route as AdminAdminRequestLogsRouteImport } from './routes/admin/_admin/request-logs'
 import { Route as AdminAdminOrganizationManagementRouteImport } from './routes/admin/_admin/organization-management'
 import { Route as AdminAdminIncidentReportRouteImport } from './routes/admin/_admin/incident-report'
@@ -49,11 +49,6 @@ const SignupRoute = SignupRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InvitationSetupRoute = InvitationSetupRouteImport.update({
-  id: '/invitation-setup',
-  path: '/invitation-setup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -114,6 +109,11 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   id: '/settings/',
   path: '/settings/',
   getParentRoute: () => AppRoute,
+} as any)
+const ApiInvitationSetupRoute = ApiInvitationSetupRouteImport.update({
+  id: '/api/invitation/setup',
+  path: '/api/invitation/setup',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminAdminRequestLogsRoute = AdminAdminRequestLogsRouteImport.update({
   id: '/request-logs',
@@ -210,7 +210,6 @@ const AdminAdminSettingsPlansPlanIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
-  '/invitation-setup': typeof InvitationSetupRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/billing': typeof AppBillingRoute
@@ -229,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/admin/incident-report': typeof AdminAdminIncidentReportRoute
   '/admin/organization-management': typeof AdminAdminOrganizationManagementRoute
   '/admin/request-logs': typeof AdminAdminRequestLogsRoute
+  '/api/invitation/setup': typeof ApiInvitationSetupRoute
   '/settings/': typeof AppSettingsIndexRoute
   '/admin/api-management/$apiId': typeof AdminAdminApiManagementApiIdRoute
   '/admin/meter-integration/$meterId': typeof AdminAdminMeterIntegrationMeterIdRoute
@@ -242,7 +242,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
-  '/invitation-setup': typeof InvitationSetupRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/billing': typeof AppBillingRoute
@@ -261,6 +260,7 @@ export interface FileRoutesByTo {
   '/admin/incident-report': typeof AdminAdminIncidentReportRoute
   '/admin/organization-management': typeof AdminAdminOrganizationManagementRoute
   '/admin/request-logs': typeof AdminAdminRequestLogsRoute
+  '/api/invitation/setup': typeof ApiInvitationSetupRoute
   '/settings': typeof AppSettingsIndexRoute
   '/admin/api-management/$apiId': typeof AdminAdminApiManagementApiIdRoute
   '/admin/meter-integration/$meterId': typeof AdminAdminMeterIntegrationMeterIdRoute
@@ -276,7 +276,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
-  '/invitation-setup': typeof InvitationSetupRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/_app/billing': typeof AppBillingRoute
@@ -295,6 +294,7 @@ export interface FileRoutesById {
   '/admin/_admin/incident-report': typeof AdminAdminIncidentReportRoute
   '/admin/_admin/organization-management': typeof AdminAdminOrganizationManagementRoute
   '/admin/_admin/request-logs': typeof AdminAdminRequestLogsRoute
+  '/api/invitation/setup': typeof ApiInvitationSetupRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
   '/admin/_admin/api-management/$apiId': typeof AdminAdminApiManagementApiIdRoute
   '/admin/_admin/meter-integration/$meterId': typeof AdminAdminMeterIntegrationMeterIdRoute
@@ -310,7 +310,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/forgot-password'
-    | '/invitation-setup'
     | '/login'
     | '/signup'
     | '/billing'
@@ -329,6 +328,7 @@ export interface FileRouteTypes {
     | '/admin/incident-report'
     | '/admin/organization-management'
     | '/admin/request-logs'
+    | '/api/invitation/setup'
     | '/settings/'
     | '/admin/api-management/$apiId'
     | '/admin/meter-integration/$meterId'
@@ -342,7 +342,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/forgot-password'
-    | '/invitation-setup'
     | '/login'
     | '/signup'
     | '/billing'
@@ -361,6 +360,7 @@ export interface FileRouteTypes {
     | '/admin/incident-report'
     | '/admin/organization-management'
     | '/admin/request-logs'
+    | '/api/invitation/setup'
     | '/settings'
     | '/admin/api-management/$apiId'
     | '/admin/meter-integration/$meterId'
@@ -375,7 +375,6 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/forgot-password'
-    | '/invitation-setup'
     | '/login'
     | '/signup'
     | '/_app/billing'
@@ -394,6 +393,7 @@ export interface FileRouteTypes {
     | '/admin/_admin/incident-report'
     | '/admin/_admin/organization-management'
     | '/admin/_admin/request-logs'
+    | '/api/invitation/setup'
     | '/_app/settings/'
     | '/admin/_admin/api-management/$apiId'
     | '/admin/_admin/meter-integration/$meterId'
@@ -409,13 +409,13 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
-  InvitationSetupRoute: typeof InvitationSetupRoute
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
   AdminAdminRoute: typeof AdminAdminRouteWithChildren
   AdminForgotPasswordRoute: typeof AdminForgotPasswordRoute
   AdminLoginRoute: typeof AdminLoginRoute
   DocsSlugRoute: typeof DocsSlugRoute
+  ApiInvitationSetupRoute: typeof ApiInvitationSetupRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -432,13 +432,6 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/invitation-setup': {
-      id: '/invitation-setup'
-      path: '/invitation-setup'
-      fullPath: '/invitation-setup'
-      preLoaderRoute: typeof InvitationSetupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -524,6 +517,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/'
       preLoaderRoute: typeof AppSettingsIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/invitation/setup': {
+      id: '/api/invitation/setup'
+      path: '/api/invitation/setup'
+      fullPath: '/api/invitation/setup'
+      preLoaderRoute: typeof ApiInvitationSetupRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/_admin/request-logs': {
       id: '/admin/_admin/request-logs'
@@ -705,13 +705,13 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
-  InvitationSetupRoute: InvitationSetupRoute,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
   AdminAdminRoute: AdminAdminRouteWithChildren,
   AdminForgotPasswordRoute: AdminForgotPasswordRoute,
   AdminLoginRoute: AdminLoginRoute,
   DocsSlugRoute: DocsSlugRoute,
+  ApiInvitationSetupRoute: ApiInvitationSetupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
