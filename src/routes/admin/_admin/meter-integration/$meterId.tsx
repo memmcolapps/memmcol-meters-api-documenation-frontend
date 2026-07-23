@@ -1,24 +1,23 @@
 import { useDeferredValue, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { useQueryClient } from '@tanstack/react-query'
 import { AsyncState } from '../../../../app/AsyncState'
 import { useAnchoredMenu } from '../../../../app/useAnchoredMenu'
 import { useDismiss } from '../../../../app/useDismiss'
 import { useToast } from '../../../../app/toastContext'
 import { formatAddedDate } from '../../../../app/adminMeters'
 import {
-  getCachedMeterIntegration,
   getObisCodeError,
   getObisCodeStatusError,
   getObisCodeUpdateError,
   getObisUploadError,
   useChangeObisCodeStatus,
   useCreateObisCode,
+  useMeterIntegration,
   useObisCodes,
   useUpdateObisCode,
   useUploadObisCodes,
   type CreateObisCodeInput,
-  type MeterIntegrationSummary,
+  type MeterIntegration,
   type ObisCode,
   type ObisCodeStatus,
   type ObisUpload,
@@ -37,24 +36,20 @@ type ObisStatusField = 'status' | 'reason'
 
 function MeterViewPage() {
   const { meterId } = Route.useParams()
-  const queryClient = useQueryClient()
-  const meter = getCachedMeterIntegration(queryClient, meterId)
+  const meterQuery = useMeterIntegration(meterId)
 
-  if (!meter) {
-    return (
-      <div className="dash">
-        <header className="dash-head">
-          <h1 className="dash-title">Meter View</h1>
-          <p className="dash-subtitle">This meter could not be found.</p>
-        </header>
-      </div>
-    )
-  }
-
-  return <MeterView meter={meter} />
+  return (
+    <AsyncState
+      isPending={meterQuery.isPending}
+      error={meterQuery.error}
+      onRetry={() => void meterQuery.refetch()}
+    >
+      {meterQuery.data ? <MeterView meter={meterQuery.data} /> : null}
+    </AsyncState>
+  )
 }
 
-function MeterView({ meter }: { meter: MeterIntegrationSummary }) {
+function MeterView({ meter }: { meter: MeterIntegration }) {
   return (
     <div className="dash">
       <header className="dash-head">
@@ -88,11 +83,55 @@ function MeterView({ meter }: { meter: MeterIntegrationSummary }) {
             </p>
           </div>
         </div>
+        <dl className="meter-view-summary">
+          <SummaryItem label="Class" value={formatIntegrationValue(meter.class)} />
+          <SummaryItem
+            label="Category"
+            value={formatIntegrationValue(meter.category)}
+          />
+          <SummaryItem label="Protocol" value={meter.protocol} />
+          <SummaryItem
+            label="Authentication"
+            value={formatIntegrationValue(meter.authenticationType)}
+          />
+          <SummaryItem label="OBIS codes" value={meter.obisCodeCount} />
+          <SummaryItem label="Added by" value={meter.addedBy.name} />
+          <SummaryItem
+            label="Description"
+            value={meter.description || '—'}
+            wide
+          />
+        </dl>
       </section>
 
       <ObisPanel meterIntegrationId={meter.id} />
     </div>
   )
+}
+
+function SummaryItem({
+  label,
+  value,
+  wide = false,
+}: {
+  label: string
+  value: string | number
+  wide?: boolean
+}) {
+  return (
+    <div className={`meter-view-summary-item${wide ? ' is-wide' : ''}`}>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  )
+}
+
+function formatIntegrationValue(value: string) {
+  return value
+    .toLowerCase()
+    .split(/[_\s-]+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
 }
 
 function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {

@@ -1290,6 +1290,33 @@ h1 {
   font-size: 0.95rem;
 }
 
+.meter-view-summary {
+  flex: 1;
+  min-width: min(100%, 420px);
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 0.9rem 1.5rem;
+}
+
+.meter-view-summary-item.is-wide {
+  grid-column: 1 / -1;
+}
+
+.meter-view-summary-item dt {
+  margin: 0 0 0.2rem;
+  color: var(--app-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.meter-view-summary-item dd {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
 .panel-head {
   display: flex;
   align-items: center;

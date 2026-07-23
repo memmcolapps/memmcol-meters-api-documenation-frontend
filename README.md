@@ -54,6 +54,7 @@ The Meter Integration form consumes the admin creation endpoint directly:
 | --- | --- | --- |
 | `GET` | `/admin/meter-integrations` | List and filter paginated meter integrations |
 | `POST` | `/admin/meter-integrations` | Create a supported meter integration |
+| `GET` | `/admin/meter-integrations/:meterIntegrationId` | Retrieve one meter integration |
 | `GET` | `/admin/meter-integrations/:meterIntegrationId/obis-codes` | Search, filter, and paginate OBIS/action codes |
 | `POST` | `/admin/meter-integrations/:meterIntegrationId/obis-codes` | Add an OBIS/action code to a meter integration |
 | `PATCH` | `/admin/meter-integrations/:meterIntegrationId/obis-codes/:obisCodeId` | Update an OBIS/action code |

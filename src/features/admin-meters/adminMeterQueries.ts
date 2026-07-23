@@ -3,7 +3,6 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
-  type QueryClient,
 } from '@tanstack/react-query'
 import { ApiError, apiRequest } from '../../lib/api/client'
 
@@ -137,7 +136,7 @@ export type UploadObisCodesInput = {
   mode: ObisUploadMode
 }
 
-type CreateMeterIntegrationResponse = {
+type MeterIntegrationResponse = {
   meterIntegration: MeterIntegration
 }
 
@@ -176,7 +175,7 @@ type MeterIntegrationErrorPayload = {
 }
 
 async function createMeterIntegration(input: CreateMeterIntegrationInput) {
-  const response = await apiRequest<CreateMeterIntegrationResponse>(
+  const response = await apiRequest<MeterIntegrationResponse>(
     '/admin/meter-integrations',
     {
       method: 'POST',
@@ -198,6 +197,13 @@ async function listMeterIntegrations(params: MeterIntegrationListParams) {
   return apiRequest<MeterIntegrationListResponse>(
     `/admin/meter-integrations?${query.toString()}`,
   )
+}
+
+async function getMeterIntegration(meterIntegrationId: string) {
+  const response = await apiRequest<MeterIntegrationResponse>(
+    `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}`,
+  )
+  return response.meterIntegration
 }
 
 async function listOrganisationMeterIntegrations() {
@@ -344,39 +350,25 @@ export function useCreateMeterIntegration() {
 }
 
 export function useMeterIntegrations(params: MeterIntegrationListParams) {
-  const queryClient = useQueryClient()
-
   return useQuery({
     queryKey: meterIntegrationKeys.list(params),
-    queryFn: async () => {
-      const response = await listMeterIntegrations(params)
-      response.items.forEach((integration) => {
-        queryClient.setQueryData(
-          meterIntegrationKeys.detail(integration.id),
-          integration,
-        )
-      })
-      return response
-    },
+    queryFn: () => listMeterIntegrations(params),
     placeholderData: keepPreviousData,
   })
 }
 
-export function useActiveMeterIntegrationOptions() {
-  const queryClient = useQueryClient()
+export function useMeterIntegration(meterIntegrationId: string) {
+  return useQuery({
+    queryKey: meterIntegrationKeys.detail(meterIntegrationId),
+    queryFn: () => getMeterIntegration(meterIntegrationId),
+    refetchOnMount: 'always',
+  })
+}
 
+export function useActiveMeterIntegrationOptions() {
   return useQuery({
     queryKey: meterIntegrationKeys.options(),
-    queryFn: async () => {
-      const integrations = await listOrganisationMeterIntegrations()
-      integrations.forEach((integration) => {
-        queryClient.setQueryData(
-          meterIntegrationKeys.detail(integration.id),
-          integration,
-        )
-      })
-      return integrations
-    },
+    queryFn: listOrganisationMeterIntegrations,
   })
 }
 
@@ -448,15 +440,6 @@ export function useUploadObisCodes(meterIntegrationId: string) {
       ])
     },
   })
-}
-
-export function getCachedMeterIntegration(
-  queryClient: QueryClient,
-  id: string,
-) {
-  return queryClient.getQueryData<MeterIntegrationSummary>(
-    meterIntegrationKeys.detail(id),
-  )
 }
 
 export function getMeterIntegrationError(error: unknown) {
