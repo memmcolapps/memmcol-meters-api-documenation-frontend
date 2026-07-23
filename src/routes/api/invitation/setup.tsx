@@ -1,20 +1,20 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
-import { Logo } from '../../app/Logo'
-import { useToast } from '../../app/toastContext'
+import { Logo } from '../../../app/Logo'
+import { useToast } from '../../../app/toastContext'
 import {
   getSchemaFieldErrors,
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
   PASSWORD_REQUIREMENTS,
   summarizeFieldErrors,
-} from '../../features/auth/schemas'
+} from '../../../features/auth/schemas'
 import {
   useVerifyInvitation,
   useAcceptInvitation,
   type VerifyInvitationResponse,
-} from '../../features/organisation/invitationQueries'
-import { getApiErrorMessage } from '../../lib/api/client'
+} from '../../../features/organisation/invitationQueries'
+import { getApiErrorMessage } from '../../../lib/api/client'
 import { z } from 'zod'
 
 const invitationSearchSchema = z.object({
@@ -75,7 +75,7 @@ function InvitationSetupPage() {
   useEffect(() => {
     if (!token) return
     verifyInvitation.mutate(token, {
-      onSuccess: (data) => setInvitationData(data),
+      onSuccess: (data: VerifyInvitationResponse) => setInvitationData(data),
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
