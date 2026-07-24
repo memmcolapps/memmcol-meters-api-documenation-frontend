@@ -70,7 +70,6 @@ function InvitationSetupPage() {
   const [invitationData, setInvitationData] = useState<VerifyInvitationResponse | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<InvitationSetupField, string>>>({})
   const [showPassword, setShowPassword] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
 
   useEffect(() => {
     if (!token) return
@@ -284,7 +283,7 @@ function InvitationSetupPage() {
             </p>
           </div>
 
-          <div className="auth-field">
+          {/* <div className="auth-field">
             <label htmlFor="confirmPassword">Confirm Password</label>
             <div className={`auth-input-group${errorFor('confirmPassword') ? ' is-invalid' : ''}`}>
               <input
@@ -307,7 +306,7 @@ function InvitationSetupPage() {
                 {showConfirm ? <EyeIcon /> : <EyeOffIcon />}
               </button>
             </div>
-          </div>
+          </div> */}
 
           <button type="submit" className="auth-submit" disabled={acceptInvitation.isPending}>
             {acceptInvitation.isPending ? 'Setting up account…' : 'Complete Setup'}
