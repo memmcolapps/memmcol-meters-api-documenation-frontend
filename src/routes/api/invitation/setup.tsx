@@ -70,7 +70,6 @@ function InvitationSetupPage() {
   const [invitationData, setInvitationData] = useState<VerifyInvitationResponse | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<InvitationSetupField, string>>>({})
   const [showPassword, setShowPassword] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
 
   useEffect(() => {
     if (!token) return
