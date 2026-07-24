@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { ApiError, apiRequest, getErrorMessage } from '../../lib/api/client'
+import { ApiError, getErrorMessage } from '../../lib/api/client'
 
 export type VerifyInvitationResponse = {
   message: string
@@ -36,11 +36,23 @@ export async function verifyInvitation(token: string) {
   return payload as VerifyInvitationResponse
 }
 
-export function acceptInvitation(input: AcceptInvitationInput) {
-  return apiRequest<AcceptInvitationResponse>('https://sbctest.memmserve.com/powerhub/v1/api/organisation/invitations/accept', {
-    method: 'POST',
-    json: input,
-  })
+export async function acceptInvitation(input: AcceptInvitationInput) {
+  const response = await fetch(
+    'https://sbctest.memmserve.com/powerhub/v1/api/organisation/invitations/accept',
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    },
+  )
+  const payload: unknown = response.headers.get('content-type')?.includes('application/json')
+    ? await response.json()
+    : await response.text()
+  if (!response.ok) {
+    throw new ApiError(getErrorMessage(payload, response.statusText), response.status, payload)
+  }
+  return payload as AcceptInvitationResponse
 }
 
 export function useVerifyInvitation() {
