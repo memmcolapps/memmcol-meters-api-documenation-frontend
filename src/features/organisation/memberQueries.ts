@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiRequest } from '../../lib/api/client'
+import { ApiError, getErrorMessage } from '../../lib/api/client'
+
+const API_BASE = 'https://sbctest.memmserve.com/powerhub/v1/api'
 
 export type OrganisationMemberRole = 'OWNER' | 'ADMIN' | 'MEMBER'
 export type OrganisationMemberStatus = 'ACTIVE' | 'INVITED' | 'SUSPENDED' | 'DISABLED'
@@ -40,8 +42,23 @@ export const organisationMemberKeys = {
   list: () => ['organisation-members', 'list'] as const,
 }
 
+async function apiFetch<T>(path: string, options: RequestInit = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    credentials: 'include',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    ...options,
+  })
+  const payload: unknown = response.headers.get('content-type')?.includes('application/json')
+    ? await response.json()
+    : await response.text()
+  if (!response.ok) {
+    throw new ApiError(getErrorMessage(payload, response.statusText), response.status, payload)
+  }
+  return payload as T
+}
+
 export function getOrganisationMembers() {
-  return apiRequest<OrganisationMembersResponse>('/organisation/members')
+  return apiFetch<OrganisationMembersResponse>('/organisation/members')
 }
 
 export function useOrganisationMembers() {
@@ -52,9 +69,9 @@ export function useOrganisationMembers() {
 }
 
 export function inviteOrganisationMember(input: InviteOrganisationMemberInput) {
-  return apiRequest<OrganisationInvitation>('/organisation/invitations', {
+  return apiFetch<OrganisationInvitation>('/organisation/invitations', {
     method: 'POST',
-    json: input,
+    body: JSON.stringify(input),
   })
 }
 
@@ -70,7 +87,7 @@ export function useInviteOrganisationMember() {
 }
 
 export function removeOrganisationMember(memberId: string) {
-  return apiRequest<void>(`/organisation/members/${memberId}`, {
+  return apiFetch<void>(`/organisation/members/${memberId}`, {
     method: 'DELETE',
   })
 }
@@ -87,9 +104,9 @@ export function useRemoveOrganisationMember() {
 }
 
 export function leaveOrganisation() {
-  return apiRequest<void>('/organisation/leave', {
+  return apiFetch<void>('/organisation/leave', {
     method: 'POST',
-    json: { confirmation: true },
+    body: JSON.stringify({ confirmation: true }),
   })
 }
 
