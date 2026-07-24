@@ -44,21 +44,9 @@ const invitationSetupSchema = z.object({
       context.addIssue({ code: 'custom', message: PASSWORD_REQUIREMENTS })
     }
   }),
-  confirmPassword: z.string().refine(
-    (password) => Boolean(password.trim()),
-    'Please confirm your password',
-  ),
-}).superRefine((values, context) => {
-  if (values.password !== values.confirmPassword) {
-    context.addIssue({
-      code: 'custom',
-      path: ['confirmPassword'],
-      message: 'Passwords do not match',
-    })
-  }
 })
 
-type InvitationSetupField = 'firstName' | 'lastName' | 'password' | 'confirmPassword'
+type InvitationSetupField = 'firstName' | 'lastName' | 'password'
 
 function InvitationSetupPage() {
   const { token } = useSearch({ from: Route.fullPath })
@@ -97,7 +85,6 @@ function InvitationSetupPage() {
       firstName: String(data.get('firstName') ?? ''),
       lastName: String(data.get('lastName') ?? ''),
       password: String(data.get('password') ?? ''),
-      confirmPassword: String(data.get('confirmPassword') ?? ''),
     })
 
     if (!result.success) {
