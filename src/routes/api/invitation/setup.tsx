@@ -284,7 +284,7 @@ function InvitationSetupPage() {
             </p>
           </div>
 
-          <div className="auth-field">
+          {/* <div className="auth-field">
             <label htmlFor="confirmPassword">Confirm Password</label>
             <div className={`auth-input-group${errorFor('confirmPassword') ? ' is-invalid' : ''}`}>
               <input
@@ -307,7 +307,7 @@ function InvitationSetupPage() {
                 {showConfirm ? <EyeIcon /> : <EyeOffIcon />}
               </button>
             </div>
-          </div>
+          </div> */}
 
           <button type="submit" className="auth-submit" disabled={acceptInvitation.isPending}>
             {acceptInvitation.isPending ? 'Setting up account…' : 'Complete Setup'}
