@@ -3,13 +3,22 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useDismiss } from '../../../../app/useDismiss'
 import { useAnchoredMenu } from '../../../../app/useAnchoredMenu'
 import { ConfirmModal } from '../../../../app/ConfirmModal'
-import { formatAddedDate } from '../../../../app/adminMeters'
-import { seededAdminApis, type AdminApi } from '../../../../app/adminApis'
+import {
+  useAdminApis,
+  useCreateAdminApi,
+  useUpdateAdminApi,
+  type AdminApi,
+  type CreateAdminApiInput,
+} from '../../../../features/admin-apis'
 
-type ApiFormValues = Pick<
-  AdminApi,
-  'name' | 'route' | 'cost' | 'samplePayload' | 'sampleRequest' | 'documentation'
->
+type ApiFormValues = {
+  name: string
+  route: string
+  cost: string
+  samplePayload: string
+  sampleRequest: string
+  documentation: string
+}
 
 type FormModalState = { mode: 'add' } | { mode: 'edit'; api: AdminApi }
 
@@ -19,8 +28,13 @@ export const Route = createFileRoute('/admin/_admin/api-management/')({
 
 function ApiManagementPage() {
   const navigate = useNavigate()
-  const [apis, setApis] = useState<AdminApi[]>(seededAdminApis)
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const { data, isLoading } = useAdminApis({ search: search.trim() || undefined, page, limit: 20 })
+  const items = data?.items ?? []
+  const pagination = data?.pagination
+  const createApi = useCreateAdminApi()
+  const updateApi = useUpdateAdminApi()
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [formModal, setFormModal] = useState<FormModalState | null>(null)
   const [publishing, setPublishing] = useState<AdminApi | null>(null)
@@ -30,32 +44,20 @@ function ApiManagementPage() {
     navigate({ to: '/admin/api-management/$apiId', params: { apiId: id } })
   }
 
-  const togglePublication = (id: string) => {
-    setApis((prev) =>
-      prev.map((api) =>
-        api.id === id
-          ? {
-              ...api,
-              publication:
-                api.publication === 'Published' ? 'Unpublished' : 'Published',
-            }
-          : api,
-      ),
-    )
+  const togglePublication = (api: AdminApi) => {
+    updateApi.mutate({
+      id: api.id,
+      input: {
+        publication: api.publication === 'PUBLISHED' ? 'UNPUBLISHED' : 'PUBLISHED',
+      },
+    })
     setOpenMenu(null)
   }
 
   const setStatus = (id: string, status: AdminApi['status']) => {
-    setApis((prev) => prev.map((api) => (api.id === id ? { ...api, status } : api)))
+    updateApi.mutate({ id, input: { status } })
     setOpenMenu(null)
   }
-
-  const query = search.trim().toLowerCase()
-  const visibleApis = query
-    ? apis.filter((api) =>
-        `${api.name} ${api.route} ${api.addedBy}`.toLowerCase().includes(query),
-      )
-    : apis
 
   return (
     <div className="dash">
@@ -120,7 +122,19 @@ function ApiManagementPage() {
             </tr>
           </thead>
           <tbody>
-            {visibleApis.map((api, index) => (
+            {isLoading ? (
+              <tr>
+                <td colSpan={9} style={{ textAlign: 'center', padding: '2rem' }}>
+                  Loading APIs...
+                </td>
+              </tr>
+            ) : items.length === 0 ? (
+              <tr>
+                <td colSpan={9} style={{ textAlign: 'center', padding: '2rem' }}>
+                  No APIs found.
+                </td>
+              </tr>
+            ) : items.map((api, index) => (
               <tr key={api.id}>
                 <td className="col-check">
                   <input type="checkbox" aria-label={`Select API ${index + 1}`} />
@@ -128,20 +142,20 @@ function ApiManagementPage() {
                 <td>{String(index + 1).padStart(2, '0')}</td>
                 <td>{api.name}</td>
                 <td className="cell-truncate">{api.route}</td>
-                <td>{api.addedBy}</td>
-                <td>{api.addedDate}</td>
+                <td>{api.addedBy.name}</td>
+                <td>{new Date(api.createdAt).toLocaleDateString()}</td>
                 <td>
                   <span
-                    className={`code-badge${api.status === 'Active' ? ' is-ok' : ' is-error'}`}
+                    className={`code-badge${api.status === 'ACTIVE' ? ' is-ok' : ' is-error'}`}
                   >
-                    {api.status}
+                    {api.status === 'ACTIVE' ? 'Active' : 'Deprecated'}
                   </span>
                 </td>
                 <td>
                   <span
-                    className={`code-badge${api.publication === 'Published' ? ' is-ok' : ' is-warn'}`}
+                    className={`code-badge${api.publication === 'PUBLISHED' ? ' is-ok' : ' is-warn'}`}
                   >
-                    {api.publication}
+                    {api.publication === 'PUBLISHED' ? 'Published' : 'Unpublished'}
                   </span>
                 </td>
                 <td className="col-actions">
@@ -161,7 +175,7 @@ function ApiManagementPage() {
                       setOpenMenu(null)
                       setPublishing(api)
                     }}
-                    onActivate={() => setStatus(api.id, 'Active')}
+                    onActivate={() => setStatus(api.id, 'ACTIVE')}
                     onDeprecate={() => {
                       setOpenMenu(null)
                       setDeprecating(api)
@@ -174,51 +188,83 @@ function ApiManagementPage() {
         </table>
       </div>
 
+      {pagination && pagination.totalPages > 1 ? (
+        <div className="pagination">
+          <button
+            type="button"
+            className="btn-neutral"
+            disabled={pagination.page <= 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            Previous
+          </button>
+          <span className="pagination-info">
+            Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
+          </span>
+          <button
+            type="button"
+            className="btn-neutral"
+            disabled={pagination.page >= pagination.totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
+
       {formModal ? (
         <ApiFormModal
           title={formModal.mode === 'add' ? 'Add API' : 'Edit API'}
           submitLabel={formModal.mode === 'add' ? 'Add API' : 'Save Changes'}
-          initial={formModal.mode === 'edit' ? formModal.api : undefined}
+          initial={
+            formModal.mode === 'edit'
+              ? {
+                  name: formModal.api.name,
+                  route: formModal.api.route,
+                  cost: String(formModal.api.cost),
+                  samplePayload: formModal.api.samplePayload,
+                  sampleRequest: formModal.api.sampleRequest,
+                  documentation: formModal.api.documentation,
+                }
+              : undefined
+          }
           onClose={() => setFormModal(null)}
           onSubmit={(values) => {
+            const payload: CreateAdminApiInput = {
+              name: values.name,
+              route: values.route,
+              cost: Number(values.cost),
+              samplePayload: values.samplePayload,
+              sampleRequest: values.sampleRequest,
+              documentation: values.documentation,
+            }
+
             if (formModal.mode === 'add') {
-              setApis((prev) => [
-                ...prev,
-                {
-                  ...values,
-                  id: `api-${Date.now()}`,
-                  snippetLang: 'TypeScript',
-                  addedBy: 'Admin',
-                  addedDate: formatAddedDate(),
-                  status: 'Active',
-                  publication: 'Unpublished',
-                },
-              ])
+              createApi.mutate(payload, {
+                onSuccess: () => setFormModal(null),
+              })
             } else {
-              const editedId = formModal.api.id
-              setApis((prev) =>
-                prev.map((item) =>
-                  item.id === editedId ? { ...item, ...values } : item,
-                ),
+              updateApi.mutate(
+                { id: formModal.api.id, input: payload },
+                { onSuccess: () => setFormModal(null) },
               )
             }
-            setFormModal(null)
           }}
         />
       ) : null}
 
       {publishing ? (
         <ConfirmModal
-          tone={publishing.publication === 'Published' ? 'danger' : 'primary'}
+          tone={publishing.publication === 'PUBLISHED' ? 'danger' : 'primary'}
           message={`Are you sure you want to ${
-            publishing.publication === 'Published' ? 'unpublish' : 'publish'
+            publishing.publication === 'PUBLISHED' ? 'unpublish' : 'publish'
           } API?`}
           confirmLabel={
-            publishing.publication === 'Published' ? 'Unpublish' : 'Publish'
+            publishing.publication === 'PUBLISHED' ? 'Unpublish' : 'Publish'
           }
           onCancel={() => setPublishing(null)}
           onConfirm={() => {
-            togglePublication(publishing.id)
+            togglePublication(publishing)
             setPublishing(null)
           }}
         />
@@ -230,7 +276,7 @@ function ApiManagementPage() {
           confirmLabel="Deprecate"
           onCancel={() => setDeprecating(null)}
           onConfirm={() => {
-            setStatus(deprecating.id, 'Deprecated')
+            setStatus(deprecating.id, 'DEPRECATED')
             setDeprecating(null)
           }}
         />
@@ -426,7 +472,7 @@ function RowActions({
             role="menuitem"
             onClick={onTogglePublication}
           >
-            {api.publication === 'Published' ? (
+            {api.publication === 'PUBLISHED' ? (
               <>
                 <CloudDownIcon /> Unpublish
               </>
@@ -436,7 +482,7 @@ function RowActions({
               </>
             )}
           </button>
-          {api.status === 'Active' ? (
+          {api.status === 'ACTIVE' ? (
             <button type="button" className="row-menu-item" role="menuitem" onClick={onDeprecate}>
               <TrashIcon /> Deprecate API
             </button>
