@@ -2,6 +2,14 @@ import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useDismiss } from '../../../../app/useDismiss'
 import { ConfirmModal } from '../../../../app/ConfirmModal'
+import { useToast } from '../../../../app/toastContext'
+import {
+  useCreateAdminUser,
+  getCreateAdminUserError,
+  type AdminRole,
+  type AdminUser,
+} from '../../../../features/admin-users/adminUserQueries'
+import { getApiErrorMessage } from '../../../../lib/api/client'
 
 export const Route = createFileRoute('/admin/_admin/settings/user-management')({
   component: UserManagementPage,
@@ -11,7 +19,8 @@ type Role = 'Admin' | 'Developer'
 
 type Member = {
   id: string
-  name: string
+  firstName: string
+  lastName: string
   email: string
   role: Role
   isOwner?: boolean
@@ -28,46 +37,64 @@ const roles: Array<{ name: Role; description: string }> = [
 const seededMembers: Member[] = [
   {
     id: 'mem-1',
-    name: 'Memmcol',
+    firstName: 'Memmcol',
+    lastName: 'App',
     email: 'Memmcolapp@gmail.com',
     role: 'Admin',
     isOwner: true,
   },
 ]
 
-function nameFromEmail(email: string) {
-  const local = email.split('@')[0] ?? email
-  return local
-    .split(/[._-]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
+const roleMap: Record<AdminRole, Role> = {
+  ADMIN: 'Admin',
+  DEVELOPER: 'Developer',
 }
 
 function UserManagementPage() {
   const [members, setMembers] = useState<Member[]>(seededMembers)
   const [inviteOpen, setInviteOpen] = useState(false)
-  const [editing, setEditing] = useState<Member | null>(null)
   const [removing, setRemoving] = useState<Member | null>(null)
   const [leaving, setLeaving] = useState(false)
+  const createAdminUser = useCreateAdminUser()
+  const { showToast } = useToast()
 
-  const invite = (email: string, role: Role) => {
-    setMembers((prev) => [
-      ...prev,
-      { id: `mem-${Date.now()}`, name: nameFromEmail(email), email, role },
-    ])
-    setInviteOpen(false)
-  }
+  const invite = async (firstName: string, lastName: string, email: string, role: Role) => {
+    const adminRole: AdminRole = role === 'Admin' ? 'ADMIN' : 'DEVELOPER'
 
-  const saveMember = (id: string, email: string, role: Role) => {
-    setMembers((prev) =>
-      prev.map((member) =>
-        member.id === id
-          ? { ...member, email, role, name: nameFromEmail(email) }
-          : member,
-      ),
-    )
-    setEditing(null)
+    try {
+      const admin = await createAdminUser.mutateAsync({
+        firstName,
+        lastName,
+        email,
+        role: adminRole,
+      })
+      setMembers((prev) => [
+        ...prev,
+        {
+          id: admin.id,
+          firstName: admin.firstName,
+          lastName: admin.lastName,
+          email: admin.email,
+          role: roleMap[admin.role],
+        },
+      ])
+      setInviteOpen(false)
+      showToast({
+        title: 'Invitation sent',
+        message: `${admin.firstName} ${admin.lastName} has been invited.`,
+        variant: 'success',
+      })
+    } catch (error) {
+      const apiError = getCreateAdminUserError(error)
+      const fieldMessage = [...new Set(Object.values(apiError.fields))].join(' ')
+      showToast({
+        title: apiError.message,
+        message: [fieldMessage, apiError.requestId ? `Request ID: ${apiError.requestId}` : '']
+          .filter(Boolean)
+          .join(' · ') || undefined,
+        variant: 'error',
+      })
+    }
   }
 
   return (
@@ -79,7 +106,12 @@ function UserManagementPage() {
             Manage users, roles, and access permissions in one place.
           </p>
         </div>
-        <button type="button" className="btn-primary" onClick={() => setInviteOpen(true)}>
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => setInviteOpen(true)}
+          disabled={createAdminUser.isPending}
+        >
           Add Users <PlusIcon />
         </button>
       </header>
@@ -95,10 +127,10 @@ function UserManagementPage() {
           <div className="member-row" key={member.id}>
             <div className="member-id">
               <span className="member-avatar" aria-hidden="true">
-                {member.name.charAt(0).toUpperCase()}
+                {member.firstName.charAt(0).toUpperCase()}
               </span>
               <div>
-                <p className="member-name">{member.name}</p>
+                <p className="member-name">{member.firstName} {member.lastName}</p>
                 <p className="member-email">{member.email}</p>
               </div>
             </div>
@@ -110,14 +142,6 @@ function UserManagementPage() {
                 </button>
               ) : (
                 <>
-                  <button
-                    type="button"
-                    className="icon-btn-primary"
-                    aria-label={`Edit ${member.name}`}
-                    onClick={() => setEditing(member)}
-                  >
-                    <EditIcon />
-                  </button>
                   <button
                     type="button"
                     className="btn-danger"
@@ -136,25 +160,15 @@ function UserManagementPage() {
         <MemberFormModal
           title="Invite Member"
           submitLabel="Invite"
+          isSubmitting={createAdminUser.isPending}
           onClose={() => setInviteOpen(false)}
-          onSubmit={(email, role) => invite(email, role)}
-        />
-      ) : null}
-
-      {editing ? (
-        <MemberFormModal
-          title="Edit Member"
-          submitLabel="Save Changes"
-          initialEmail={editing.email}
-          initialRole={editing.role}
-          onClose={() => setEditing(null)}
-          onSubmit={(email, role) => saveMember(editing.id, email, role)}
+          onSubmit={(firstName, lastName, email, role) => void invite(firstName, lastName, email, role)}
         />
       ) : null}
 
       {removing ? (
         <ConfirmModal
-          message={`Are you sure you want to remove ${removing.name}?`}
+          message={`Are you sure you want to remove ${removing.firstName} ${removing.lastName}?`}
           confirmLabel="Remove"
           onCancel={() => setRemoving(null)}
           onConfirm={() => {
@@ -179,6 +193,9 @@ function UserManagementPage() {
 function MemberFormModal({
   title,
   submitLabel,
+  isSubmitting,
+  initialFirstName,
+  initialLastName,
   initialEmail,
   initialRole,
   onClose,
@@ -186,17 +203,22 @@ function MemberFormModal({
 }: {
   title: string
   submitLabel: string
+  isSubmitting?: boolean
+  initialFirstName?: string
+  initialLastName?: string
   initialEmail?: string
   initialRole?: Role
   onClose: () => void
-  onSubmit: (email: string, role: Role) => void
+  onSubmit: (firstName: string, lastName: string, email: string, role: Role) => void
 }) {
+  const [firstName, setFirstName] = useState(initialFirstName ?? '')
+  const [lastName, setLastName] = useState(initialLastName ?? '')
   const [email, setEmail] = useState(initialEmail ?? '')
   const [role, setRole] = useState<Role | ''>(initialRole ?? '')
   const modalRef = useRef<HTMLDivElement>(null)
   useDismiss(modalRef, onClose)
 
-  const canSubmit = email.trim() !== '' && role !== ''
+  const canSubmit = firstName.trim() !== '' && lastName.trim() !== '' && email.trim() !== '' && role !== ''
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="member-form-title">
@@ -205,7 +227,7 @@ function MemberFormModal({
           <h2 id="member-form-title" className="modal-title">
             {title}
           </h2>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+          <button type="button" className="modal-close" aria-label="Close" onClick={onClose} disabled={isSubmitting}>
             <CloseIcon />
           </button>
         </div>
@@ -214,24 +236,49 @@ function MemberFormModal({
           <div className="modal-field">
             <input
               className="modal-input"
+              type="text"
+              placeholder="First Name"
+              aria-label="First name"
+              value={firstName}
+              disabled={isSubmitting}
+              onChange={(e) => setFirstName(e.target.value)}
+            />
+          </div>
+
+          <div className="modal-field">
+            <input
+              className="modal-input"
+              type="text"
+              placeholder="Last Name"
+              aria-label="Last name"
+              value={lastName}
+              disabled={isSubmitting}
+              onChange={(e) => setLastName(e.target.value)}
+            />
+          </div>
+
+          <div className="modal-field">
+            <input
+              className="modal-input"
               type="email"
               placeholder="Enter Email Address"
               aria-label="Email address"
               value={email}
+              disabled={isSubmitting}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
-          <RoleSelect value={role} onChange={setRole} />
+          <RoleSelect value={role} onChange={setRole} disabled={isSubmitting} />
 
           <div className="modal-foot modal-foot--end">
             <button
               type="button"
               className="btn-primary"
-              disabled={!canSubmit}
-              onClick={() => canSubmit && onSubmit(email.trim(), role as Role)}
+              disabled={!canSubmit || isSubmitting}
+              onClick={() => canSubmit && onSubmit(firstName.trim(), lastName.trim(), email.trim(), role as Role)}
             >
-              {submitLabel}
+              {isSubmitting ? 'Sending invitation…' : submitLabel}
             </button>
           </div>
         </div>
@@ -243,9 +290,11 @@ function MemberFormModal({
 function RoleSelect({
   value,
   onChange,
+  disabled,
 }: {
   value: Role | ''
   onChange: (role: Role) => void
+  disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -258,6 +307,7 @@ function RoleSelect({
         className={`role-select-btn${value === '' ? ' is-placeholder' : ''}`}
         aria-haspopup="listbox"
         aria-expanded={open}
+        disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
       >
         {value === '' ? 'Select Role' : value}
@@ -292,15 +342,6 @@ function PlusIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="9" />
       <path d="M12 8v8M8 12h8" />
-    </svg>
-  )
-}
-
-function EditIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
-      <path d="M18.4 2.6a2 2 0 0 1 2.83 2.83L12 14.7l-3.7.87.87-3.7Z" />
     </svg>
   )
 }
