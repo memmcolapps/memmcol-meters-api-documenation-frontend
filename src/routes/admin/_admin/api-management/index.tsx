@@ -28,10 +28,13 @@ export const Route = createFileRoute('/admin/_admin/api-management/')({
 
 function ApiManagementPage() {
   const navigate = useNavigate()
-  const { data: apis = [], isLoading } = useAdminApis()
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const { data, isLoading } = useAdminApis({ search: search.trim() || undefined, page, limit: 20 })
+  const items = data?.items ?? []
+  const pagination = data?.pagination
   const createApi = useCreateAdminApi()
   const updateApi = useUpdateAdminApi()
-  const [search, setSearch] = useState('')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [formModal, setFormModal] = useState<FormModalState | null>(null)
   const [publishing, setPublishing] = useState<AdminApi | null>(null)
@@ -55,13 +58,6 @@ function ApiManagementPage() {
     updateApi.mutate({ id, input: { status } })
     setOpenMenu(null)
   }
-
-  const query = search.trim().toLowerCase()
-  const visibleApis = query
-    ? apis.filter((api) =>
-        `${api.name} ${api.route} ${api.addedBy.name}`.toLowerCase().includes(query),
-      )
-    : apis
 
   return (
     <div className="dash">
@@ -132,13 +128,13 @@ function ApiManagementPage() {
                   Loading APIs...
                 </td>
               </tr>
-            ) : visibleApis.length === 0 ? (
+            ) : items.length === 0 ? (
               <tr>
                 <td colSpan={9} style={{ textAlign: 'center', padding: '2rem' }}>
                   No APIs found.
                 </td>
               </tr>
-            ) : visibleApis.map((api, index) => (
+            ) : items.map((api, index) => (
               <tr key={api.id}>
                 <td className="col-check">
                   <input type="checkbox" aria-label={`Select API ${index + 1}`} />
@@ -191,6 +187,30 @@ function ApiManagementPage() {
           </tbody>
         </table>
       </div>
+
+      {pagination && pagination.totalPages > 1 ? (
+        <div className="pagination">
+          <button
+            type="button"
+            className="btn-neutral"
+            disabled={pagination.page <= 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            Previous
+          </button>
+          <span className="pagination-info">
+            Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
+          </span>
+          <button
+            type="button"
+            className="btn-neutral"
+            disabled={pagination.page >= pagination.totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
 
       {formModal ? (
         <ApiFormModal

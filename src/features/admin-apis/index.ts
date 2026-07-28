@@ -11,7 +11,11 @@ export type {
   AdminApi,
   AdminApiStatus,
   AdminApiPublication,
+  AdminApiSortBy,
+  SortOrder,
   AdminApiAddedBy,
   CreateAdminApiInput,
   UpdateAdminApiInput,
+  AdminApiListQuery,
+  Pagination,
 } from './adminApiQueries'
