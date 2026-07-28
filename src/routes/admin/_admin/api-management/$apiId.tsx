@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { seededAdminApis, type AdminApi } from '../../../../app/adminApis'
+import {
+  useAdminApi,
+  useUpdateAdminApi,
+  type AdminApi,
+} from '../../../../features/admin-apis'
 
 export const Route = createFileRoute('/admin/_admin/api-management/$apiId')({
   component: ApiViewPage,
@@ -8,9 +12,18 @@ export const Route = createFileRoute('/admin/_admin/api-management/$apiId')({
 
 function ApiViewPage() {
   const { apiId } = Route.useParams()
-  const [api, setApi] = useState<AdminApi | undefined>(() =>
-    seededAdminApis.find((item) => item.id === apiId),
-  )
+  const { data: api, isLoading } = useAdminApi(apiId)
+
+  if (isLoading) {
+    return (
+      <div className="dash">
+        <header className="dash-head">
+          <h1 className="dash-title">API Management</h1>
+          <p className="dash-subtitle">Loading...</p>
+        </header>
+      </div>
+    )
+  }
 
   if (!api) {
     return (
@@ -23,16 +36,11 @@ function ApiViewPage() {
     )
   }
 
-  return <ApiView api={api} onUpdate={setApi} />
+  return <ApiView api={api} />
 }
 
-function ApiView({
-  api,
-  onUpdate,
-}: {
-  api: AdminApi
-  onUpdate: (api: AdminApi) => void
-}) {
+function ApiView({ api }: { api: AdminApi }) {
+  const updateApi = useUpdateAdminApi()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(api)
 
@@ -41,8 +49,20 @@ function ApiView({
 
   const toggleEdit = () => {
     if (editing) {
-      onUpdate(draft)
-      setEditing(false)
+      updateApi.mutate(
+        {
+          id: api.id,
+          input: {
+            name: draft.name,
+            route: draft.route,
+            cost: draft.cost,
+            samplePayload: draft.samplePayload,
+            sampleRequest: draft.sampleRequest,
+            documentation: draft.documentation,
+          },
+        },
+        { onSuccess: () => setEditing(false) },
+      )
     } else {
       setDraft(api)
       setEditing(true)
@@ -50,9 +70,11 @@ function ApiView({
   }
 
   const togglePublication = () => {
-    onUpdate({
-      ...api,
-      publication: api.publication === 'Published' ? 'Unpublished' : 'Published',
+    updateApi.mutate({
+      id: api.id,
+      input: {
+        publication: api.publication === 'PUBLISHED' ? 'UNPUBLISHED' : 'PUBLISHED',
+      },
     })
   }
 
@@ -84,7 +106,7 @@ function ApiView({
           {editing ? 'Save' : 'Edit'}
         </button>
         <button type="button" className="btn-warn-outline" onClick={togglePublication}>
-          {api.publication === 'Published' ? 'Unpublish' : 'Publish'}
+          {api.publication === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
         </button>
       </div>
 
@@ -113,7 +135,7 @@ function ApiView({
           <label>Cost per Call (credits)</label>
           <input
             className="modal-input"
-            value={shown.cost}
+            value={String(shown.cost)}
             readOnly={!editing}
             onChange={(e) => set('cost', e.target.value)}
           />
