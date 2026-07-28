@@ -7,7 +7,6 @@ import { getApiErrorMessage } from '../../../lib/api/client'
 import { ConfirmModal } from '../../../app/ConfirmModal'
 import {
   getApiKeyValue,
-  isApiKeyRevealed,
   useApiKeys,
   useCreateApiKey,
   useRevokeApiKey,
@@ -17,6 +16,13 @@ import {
 export const Route = createFileRoute('/_app/settings/api-keys')({
   component: ApiKeysPage,
 })
+
+// Placeholder until the real shared test key is decided; the live key still
+// comes from GET /api-keys.
+const TEST_KEY = {
+  name: 'Test Key',
+  secret: '02i9_84gwa7huwus2weghef65',
+}
 
 const expiryOptions = [
   { label: 'Never', days: null },
@@ -97,7 +103,6 @@ function ApiKeysPage() {
   const activeKeys = apiKeysQuery.data?.items.filter(
     (apiKey) => apiKey.status === 'ACTIVE',
   ) ?? []
-  const testKey = activeKeys.find((apiKey) => apiKey.environment === 'TEST')
   const liveKey = activeKeys.find((apiKey) => apiKey.environment === 'LIVE')
   const hasLiveKey = liveKey !== undefined
 
@@ -233,34 +238,26 @@ function ApiKeysPage() {
         </button>
       </div>
 
-      <AsyncState
-        isPending={apiKeysQuery.isPending}
-        error={apiKeysQuery.error}
-        onRetry={() => void apiKeysQuery.refetch()}
-      >
-        <section className="keys-grid">
-          {testKey ? (
-            <article className="key-card">
-              <h2 className="key-name">{testKey.name}</h2>
-              <div className="key-row">
-                <code className="key-value">{getApiKeyValue(testKey)}</code>
-                <button
-                  type="button"
-                  className="btn-outline"
-                  disabled={!isApiKeyRevealed(testKey)}
-                  title={
-                    isApiKeyRevealed(testKey)
-                      ? undefined
-                      : 'This key is only shown when it is created'
-                  }
-                  onClick={() => void copy(getApiKeyValue(testKey), 'test')}
-                >
-                  {copied === 'test' ? 'Copied' : 'Copy'}
-                </button>
-              </div>
-            </article>
-          ) : null}
+      <section className="keys-grid">
+        <article className="key-card">
+          <h2 className="key-name">{TEST_KEY.name}</h2>
+          <div className="key-row">
+            <code className="key-value">{TEST_KEY.secret}</code>
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={() => void copy(TEST_KEY.secret, 'test')}
+            >
+              {copied === 'test' ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+        </article>
 
+        <AsyncState
+          isPending={apiKeysQuery.isPending}
+          error={apiKeysQuery.error}
+          onRetry={() => void apiKeysQuery.refetch()}
+        >
           {liveKey ? (
             <article className="key-card">
               <h2 className="key-name">{liveKey.name}</h2>
@@ -277,14 +274,8 @@ function ApiKeysPage() {
               </div>
             </article>
           ) : null}
-
-          {!testKey && !liveKey ? (
-            <p className="dash-subtitle">
-              No API keys yet. Generate a key to start integrating.
-            </p>
-          ) : null}
-        </section>
-      </AsyncState>
+        </AsyncState>
+      </section>
 
       {step !== 'closed' ? (
         <div

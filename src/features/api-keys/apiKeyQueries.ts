@@ -56,10 +56,6 @@ export function getApiKeyValue(apiKey: ApiKey) {
   return apiKey.Key ?? apiKey.maskedKey ?? ''
 }
 
-export function isApiKeyRevealed(apiKey: ApiKey) {
-  return typeof apiKey.Key === 'string' && apiKey.Key.length > 0
-}
-
 export function useApiKeys() {
   return useQuery({
     queryKey: apiKeyKeys.list(),
