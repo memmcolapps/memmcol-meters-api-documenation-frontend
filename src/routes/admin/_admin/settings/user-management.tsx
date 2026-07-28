@@ -7,9 +7,8 @@ import {
   useCreateAdminUser,
   getCreateAdminUserError,
   type AdminRole,
-  type AdminUser,
 } from '../../../../features/admin-users/adminUserQueries'
-import { getApiErrorMessage } from '../../../../lib/api/client'
+// import { getApiErrorMessage } from '../../../../lib/api/client'
 
 export const Route = createFileRoute('/admin/_admin/settings/user-management')({
   component: UserManagementPage,
