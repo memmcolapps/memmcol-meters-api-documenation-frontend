@@ -1,6 +1,9 @@
 import { useRef, useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Logo } from '../../app/Logo'
+import { useToast } from '../../app/toastContext'
+import { getApiErrorMessage } from '../../lib/api/client'
+import { useAdminForgotPassword } from '../../features/auth/adminPasswordReset'
 
 export const Route = createFileRoute('/admin/forgot-password')({
   component: AdminForgotPasswordPage,
@@ -12,6 +15,8 @@ const OTP_LENGTH = 4
 
 function AdminForgotPasswordPage() {
   const navigate = useNavigate()
+  const { showToast } = useToast()
+  const forgotPassword = useAdminForgotPassword()
   const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''))
@@ -56,9 +61,24 @@ function AdminForgotPasswordPage() {
             </h1>
             <form
               className="auth-form"
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault()
-                if (email) setStep('otp')
+                if (!email) return
+                try {
+                  await forgotPassword.mutateAsync({ email })
+                  showToast({
+                    title: 'Email sent',
+                    message: 'If this email exists, reset instructions have been sent.',
+                    variant: 'success',
+                  })
+                  setStep('otp')
+                } catch (error) {
+                  showToast({
+                    title: 'Request failed',
+                    message: getApiErrorMessage(error),
+                    variant: 'error',
+                  })
+                }
               }}
             >
               <div className="auth-field">
@@ -72,8 +92,8 @@ function AdminForgotPasswordPage() {
                   onChange={(event) => setEmail(event.target.value)}
                 />
               </div>
-              <button type="submit" className="auth-submit auth-cta" disabled={!email}>
-                Sign In
+              <button type="submit" className="auth-submit auth-cta" disabled={!email || forgotPassword.isPending}>
+                {forgotPassword.isPending ? 'Sending…' : 'Send Code'}
               </button>
             </form>
           </>
