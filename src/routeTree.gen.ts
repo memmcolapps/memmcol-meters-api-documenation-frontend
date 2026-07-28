@@ -24,6 +24,7 @@ import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppBillingRouteImport } from './routes/_app/billing'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as ApiInvitationSetupRouteImport } from './routes/api/invitation/setup'
+import { Route as AdminInvitationSetupRouteImport } from './routes/admin/invitation/setup'
 import { Route as AdminAdminRequestLogsRouteImport } from './routes/admin/_admin/request-logs'
 import { Route as AdminAdminOrganizationManagementRouteImport } from './routes/admin/_admin/organization-management'
 import { Route as AdminAdminIncidentReportRouteImport } from './routes/admin/_admin/incident-report'
@@ -113,6 +114,11 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
 const ApiInvitationSetupRoute = ApiInvitationSetupRouteImport.update({
   id: '/api/invitation/setup',
   path: '/api/invitation/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminInvitationSetupRoute = AdminInvitationSetupRouteImport.update({
+  id: '/admin/invitation/setup',
+  path: '/admin/invitation/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminAdminRequestLogsRoute = AdminAdminRequestLogsRouteImport.update({
@@ -228,6 +234,7 @@ export interface FileRoutesByFullPath {
   '/admin/incident-report': typeof AdminAdminIncidentReportRoute
   '/admin/organization-management': typeof AdminAdminOrganizationManagementRoute
   '/admin/request-logs': typeof AdminAdminRequestLogsRoute
+  '/admin/invitation/setup': typeof AdminInvitationSetupRoute
   '/api/invitation/setup': typeof ApiInvitationSetupRoute
   '/settings/': typeof AppSettingsIndexRoute
   '/admin/api-management/$apiId': typeof AdminAdminApiManagementApiIdRoute
@@ -260,6 +267,7 @@ export interface FileRoutesByTo {
   '/admin/incident-report': typeof AdminAdminIncidentReportRoute
   '/admin/organization-management': typeof AdminAdminOrganizationManagementRoute
   '/admin/request-logs': typeof AdminAdminRequestLogsRoute
+  '/admin/invitation/setup': typeof AdminInvitationSetupRoute
   '/api/invitation/setup': typeof ApiInvitationSetupRoute
   '/settings': typeof AppSettingsIndexRoute
   '/admin/api-management/$apiId': typeof AdminAdminApiManagementApiIdRoute
@@ -294,6 +302,7 @@ export interface FileRoutesById {
   '/admin/_admin/incident-report': typeof AdminAdminIncidentReportRoute
   '/admin/_admin/organization-management': typeof AdminAdminOrganizationManagementRoute
   '/admin/_admin/request-logs': typeof AdminAdminRequestLogsRoute
+  '/admin/invitation/setup': typeof AdminInvitationSetupRoute
   '/api/invitation/setup': typeof ApiInvitationSetupRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
   '/admin/_admin/api-management/$apiId': typeof AdminAdminApiManagementApiIdRoute
@@ -328,6 +337,7 @@ export interface FileRouteTypes {
     | '/admin/incident-report'
     | '/admin/organization-management'
     | '/admin/request-logs'
+    | '/admin/invitation/setup'
     | '/api/invitation/setup'
     | '/settings/'
     | '/admin/api-management/$apiId'
@@ -360,6 +370,7 @@ export interface FileRouteTypes {
     | '/admin/incident-report'
     | '/admin/organization-management'
     | '/admin/request-logs'
+    | '/admin/invitation/setup'
     | '/api/invitation/setup'
     | '/settings'
     | '/admin/api-management/$apiId'
@@ -393,6 +404,7 @@ export interface FileRouteTypes {
     | '/admin/_admin/incident-report'
     | '/admin/_admin/organization-management'
     | '/admin/_admin/request-logs'
+    | '/admin/invitation/setup'
     | '/api/invitation/setup'
     | '/_app/settings/'
     | '/admin/_admin/api-management/$apiId'
@@ -415,6 +427,7 @@ export interface RootRouteChildren {
   AdminForgotPasswordRoute: typeof AdminForgotPasswordRoute
   AdminLoginRoute: typeof AdminLoginRoute
   DocsSlugRoute: typeof DocsSlugRoute
+  AdminInvitationSetupRoute: typeof AdminInvitationSetupRoute
   ApiInvitationSetupRoute: typeof ApiInvitationSetupRoute
 }
 
@@ -523,6 +536,13 @@ declare module '@tanstack/react-router' {
       path: '/api/invitation/setup'
       fullPath: '/api/invitation/setup'
       preLoaderRoute: typeof ApiInvitationSetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/invitation/setup': {
+      id: '/admin/invitation/setup'
+      path: '/admin/invitation/setup'
+      fullPath: '/admin/invitation/setup'
+      preLoaderRoute: typeof AdminInvitationSetupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/_admin/request-logs': {
@@ -711,6 +731,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminForgotPasswordRoute: AdminForgotPasswordRoute,
   AdminLoginRoute: AdminLoginRoute,
   DocsSlugRoute: DocsSlugRoute,
+  AdminInvitationSetupRoute: AdminInvitationSetupRoute,
   ApiInvitationSetupRoute: ApiInvitationSetupRoute,
 }
 export const routeTree = rootRouteImport
