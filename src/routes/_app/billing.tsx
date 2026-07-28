@@ -1,14 +1,27 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { z } from 'zod'
 import { AsyncState } from '../../app/AsyncState'
 import { useToast } from '../../app/toastContext'
 import {
   useActiveBillingPlans,
   type BillingPlan,
 } from '../../features/billing/billingPlanQueries'
+import {
+  getBillingPurchaseError,
+  isSafeCheckoutUrl,
+  useBillingPurchase,
+  useStartBillingPurchase,
+} from '../../features/billing/billingPurchaseQueries'
+
+// Checkout returns the customer here with the purchase to report on.
+const billingSearchSchema = z.object({
+  purchase: z.string().optional(),
+})
 
 export const Route = createFileRoute('/_app/billing')({
   component: BillingPage,
+  validateSearch: billingSearchSchema,
 })
 
 type CreditLedgerEntry = {
@@ -45,7 +58,12 @@ const initialAccount: BillingAccount = {
 
 const naira = (value: number) => `₦ ${value.toLocaleString('en-NG')}`
 
-const formatToday = () => new Date().toLocaleDateString('en-GB')
+const formatDate = (isoDate: string) => {
+  const date = new Date(isoDate)
+  return Number.isNaN(date.getTime())
+    ? '—'
+    : date.toLocaleDateString('en-GB')
+}
 
 const sourceLabel = (source: CreditLedgerEntry['source']) => {
   switch (source) {
@@ -61,59 +79,87 @@ const sourceLabel = (source: CreditLedgerEntry['source']) => {
 function BillingPage() {
   const plansQuery = useActiveBillingPlans()
   const activePlans = plansQuery.data ?? []
+  const startPurchase = useStartBillingPurchase()
   const { showToast } = useToast()
-  const [account, setAccount] = useState(initialAccount)
+  const { purchase: purchaseId } = Route.useSearch()
+  const purchaseQuery = useBillingPurchase(purchaseId)
+  const account = initialAccount
   const [purchasingPlanId, setPurchasingPlanId] = useState<string | null>(null)
   const [purchaseFlow, setPurchaseFlow] = useState<'idle' | 'selecting-plan'>(
     initialAccount.ledger.length > 0 ? 'idle' : 'selecting-plan',
   )
 
+  const purchase = purchaseQuery.data?.purchase
+  const snapshot = purchaseQuery.data?.account
   const isBuying = purchaseFlow === 'selecting-plan'
-  const hasCreditHistory = account.ledger.length > 0
-  const lastCreditMovement = account.ledger[account.ledger.length - 1]
 
+  // The account snapshot only arrives with a purchase, so the seeded values
+  // still stand in everywhere else until an account endpoint exists.
+  const balance = snapshot?.creditBalance ?? account.balance
+  const hasCreditHistory = snapshot?.hasCreditHistory ?? account.ledger.length > 0
+  const seededMovement = account.ledger[account.ledger.length - 1]
+  const lastCreditMovement = snapshot?.lastCreditMovement
+    ? {
+        label: snapshot.lastCreditMovement.label,
+        date: formatDate(snapshot.lastCreditMovement.createdAt),
+        amount: snapshot.lastCreditMovement.amount ?? undefined,
+      }
+    : seededMovement
+
+  const notifiedPurchase = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!purchase || purchase.status !== 'PAID') return
+    if (notifiedPurchase.current === purchase.id) return
+    notifiedPurchase.current = purchase.id
+    showToast({
+      title: 'Payment confirmed',
+      message: `${purchase.credits.toLocaleString()} credits were added from your ${purchase.planName} plan.`,
+      variant: 'success',
+    })
+  }, [purchase, showToast])
+
+  const notifiedPurchaseError = useRef<unknown>(null)
+
+  useEffect(() => {
+    if (!purchaseQuery.error || notifiedPurchaseError.current === purchaseQuery.error) return
+    notifiedPurchaseError.current = purchaseQuery.error
+    const { code, message } = getBillingPurchaseError(purchaseQuery.error)
+    showToast({
+      title: code === 'PURCHASE_NOT_FOUND'
+        ? 'Purchase not found'
+        : 'Could not load your purchase',
+      message,
+      variant: 'error',
+    })
+  }, [purchaseQuery.error, showToast])
+
+  // Credits are only granted once the provider confirms payment, so this hands
+  // off to checkout rather than touching the local balance.
   const buy = async (plan: BillingPlan) => {
     setPurchasingPlanId(plan.id)
     try {
-      const refreshed = await plansQuery.refetch()
-      if (refreshed.error) {
+      const { checkout } = await startPurchase.mutateAsync({ planId: plan.id })
+
+      if (!isSafeCheckoutUrl(checkout.checkoutUrl)) {
         showToast({
-          title: 'Could not verify this plan',
-          message: 'Please try again before starting your purchase.',
+          title: 'Could not open checkout',
+          message: 'The payment provider returned an invalid checkout link.',
           variant: 'error',
         })
         return
       }
 
-      const availablePlan = refreshed.data?.find((item) => item.id === plan.id)
-      if (!availablePlan) {
-        showToast({
-          title: 'Plan is no longer available',
-          message: 'Choose another active credit plan.',
-          variant: 'error',
-        })
-        return
-      }
-
-      const { credits, amount } = availablePlan
-      if (!credits || !amount) return
-
-      setAccount((value) => ({
-        ...value,
-        balance: value.balance + credits,
-        ledger: [
-          ...value.ledger,
-          {
-            id: `ledger-${Date.now()}`,
-            source: 'customer_purchase',
-            label: `${availablePlan.name} plan`,
-            date: formatToday(),
-            credits,
-            amount,
-          },
-        ],
-      }))
-      setPurchaseFlow('idle')
+      window.location.assign(checkout.checkoutUrl)
+    } catch (error) {
+      const { code, message, fields } = getBillingPurchaseError(error)
+      showToast({
+        title: code === 'PLAN_NOT_FOUND' || code === 'PLAN_INACTIVE'
+          ? 'Plan is no longer available'
+          : 'Could not start your purchase',
+        message: fields.planId ?? message,
+        variant: 'error',
+      })
     } finally {
       setPurchasingPlanId(null)
     }
@@ -149,14 +195,37 @@ function BillingPage() {
         ) : null}
       </header>
 
+      {purchaseId && purchaseQuery.isPending ? (
+        <div className="async-state" role="status" aria-live="polite">
+          <span className="async-spinner" aria-hidden="true" />
+          <p>Checking your payment…</p>
+        </div>
+      ) : null}
+
+      {purchase?.status === 'PENDING' ? (
+        <div className="async-state" role="status" aria-live="polite">
+          <span className="async-spinner" aria-hidden="true" />
+          <p>
+            Waiting for {purchase.planName} payment to be confirmed. Credits are
+            added as soon as it clears.
+          </p>
+        </div>
+      ) : null}
+
+      {purchaseQuery.error ? (
+        <div className="async-state is-error" role="alert">
+          <p>{getBillingPurchaseError(purchaseQuery.error).message}</p>
+        </div>
+      ) : null}
+
       {!isBuying ? (
         <section className="dash-stats">
           <article className="stat-card">
             <div className="stat-text">
               <p className="stat-label">Credit Balance</p>
               <p className="stat-value">
-                {account.balance.toLocaleString()} <span className="stat-unit">credits</span>
-                {account.balance < LOW_BALANCE_THRESHOLD ? (
+                {balance.toLocaleString()} <span className="stat-unit">credits</span>
+                {balance < LOW_BALANCE_THRESHOLD ? (
                   <span className="balance-pill">Low balance</span>
                 ) : null}
               </p>
@@ -235,7 +304,9 @@ function BillingPage() {
                     disabled={purchasingPlanId !== null}
                     onClick={() => void buy(plan)}
                   >
-                    {purchasingPlanId === plan.id ? 'Checking availability…' : plan.cta}
+                    {purchasingPlanId === plan.id
+                      ? 'Redirecting to checkout…'
+                      : plan.cta}
                   </button>
                 </article>
               ))}
