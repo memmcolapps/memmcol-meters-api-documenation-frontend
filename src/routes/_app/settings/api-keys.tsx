@@ -1,19 +1,22 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useDismiss } from '../../../app/useDismiss'
 import { useToast } from '../../../app/toastContext'
+import { AsyncState } from '../../../app/AsyncState'
 import { getApiErrorMessage } from '../../../lib/api/client'
+import { ConfirmModal } from '../../../app/ConfirmModal'
 import {
+  getApiKeyValue,
+  isApiKeyRevealed,
+  useApiKeys,
   useCreateApiKey,
   useRevokeApiKey,
-  type ApiKeySummary,
+  type ApiKey,
 } from '../../../features/api-keys/apiKeyQueries'
 
 export const Route = createFileRoute('/_app/settings/api-keys')({
   component: ApiKeysPage,
 })
-
-const TEST_KEY = '02i9_84gwa.......weghef65'
 
 const expiryOptions = [
   { label: 'Never', days: null },
@@ -58,10 +61,10 @@ async function writeToClipboard(value: string) {
 }
 
 function ApiKeysPage() {
+  const apiKeysQuery = useApiKeys()
   const createApiKey = useCreateApiKey()
   const revokeApiKey = useRevokeApiKey()
   const { showToast } = useToast()
-  const [liveKey, setLiveKey] = useState<ApiKeySummary | null>(null)
   const [step, setStep] = useState<ModalStep>('closed')
   const [expiry, setExpiry] = useState('Never')
   const [customExpiry, setCustomExpiry] = useState('')
@@ -69,6 +72,7 @@ function ApiKeysPage() {
   const [generatedSecret, setGeneratedSecret] = useState('')
   const [formError, setFormError] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
+  const [revokeTarget, setRevokeTarget] = useState<ApiKey | null>(null)
   const modalRef = useRef<HTMLDivElement>(null)
   const isSubmitting = createApiKey.isPending || revokeApiKey.isPending
   const closeModal = () => {
@@ -78,7 +82,24 @@ function ApiKeysPage() {
   }
   useDismiss(modalRef, closeModal, step !== 'closed')
 
-  const hasLiveKey = liveKey !== null
+  const notifiedError = useRef<unknown>(null)
+
+  useEffect(() => {
+    if (!apiKeysQuery.error || notifiedError.current === apiKeysQuery.error) return
+    notifiedError.current = apiKeysQuery.error
+    showToast({
+      title: 'Could not load API keys',
+      message: getApiErrorMessage(apiKeysQuery.error),
+      variant: 'error',
+    })
+  }, [apiKeysQuery.error, showToast])
+
+  const activeKeys = apiKeysQuery.data?.items.filter(
+    (apiKey) => apiKey.status === 'ACTIVE',
+  ) ?? []
+  const testKey = activeKeys.find((apiKey) => apiKey.environment === 'TEST')
+  const liveKey = activeKeys.find((apiKey) => apiKey.environment === 'LIVE')
+  const hasLiveKey = liveKey !== undefined
 
   const copy = async (value: string, id: string) => {
     try {
@@ -146,7 +167,6 @@ function ApiKeysPage() {
     try {
       if (liveKey) {
         await revokeApiKey.mutateAsync(liveKey.id)
-        setLiveKey(null)
       }
 
       const createdKey = await createApiKey.mutateAsync({
@@ -154,11 +174,9 @@ function ApiKeysPage() {
         environment: 'LIVE',
         expiresAt,
       })
-      const { secret, ...summary } = createdKey
       createApiKey.reset()
       revokeApiKey.reset()
-      setLiveKey(summary)
-      setGeneratedSecret(secret)
+      setGeneratedSecret(createdKey.secret)
       setStep('result')
     } catch (error) {
       showToast({
@@ -169,15 +187,14 @@ function ApiKeysPage() {
     }
   }
 
-  const handleRevoke = async () => {
-    if (!liveKey) return
+  const handleRevoke = async (apiKey: ApiKey) => {
+    setRevokeTarget(null)
 
     try {
-      await revokeApiKey.mutateAsync(liveKey.id)
-      setLiveKey(null)
+      await revokeApiKey.mutateAsync(apiKey.id)
       showToast({
         title: 'API key revoked',
-        message: `${liveKey.name} is no longer active.`,
+        message: `${apiKey.name} is no longer active.`,
         variant: 'success',
       })
     } catch (error) {
@@ -216,38 +233,58 @@ function ApiKeysPage() {
         </button>
       </div>
 
-      <section className="keys-grid">
-        <article className="key-card">
-          <h2 className="key-name">Test Key</h2>
-          <div className="key-row">
-            <code className="key-value">{TEST_KEY}</code>
-            <button
-              type="button"
-              className="btn-outline"
-              onClick={() => copy('test-key-secret', 'test')}
-            >
-              {copied === 'test' ? 'Copied' : 'Copy'}
-            </button>
-          </div>
-        </article>
+      <AsyncState
+        isPending={apiKeysQuery.isPending}
+        error={apiKeysQuery.error}
+        onRetry={() => void apiKeysQuery.refetch()}
+      >
+        <section className="keys-grid">
+          {testKey ? (
+            <article className="key-card">
+              <h2 className="key-name">{testKey.name}</h2>
+              <div className="key-row">
+                <code className="key-value">{getApiKeyValue(testKey)}</code>
+                <button
+                  type="button"
+                  className="btn-outline"
+                  disabled={!isApiKeyRevealed(testKey)}
+                  title={
+                    isApiKeyRevealed(testKey)
+                      ? undefined
+                      : 'This key is only shown when it is created'
+                  }
+                  onClick={() => void copy(getApiKeyValue(testKey), 'test')}
+                >
+                  {copied === 'test' ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            </article>
+          ) : null}
 
-        {hasLiveKey ? (
-          <article className="key-card">
-            <h2 className="key-name">Live Key</h2>
-            <div className="key-row">
-              <code className="key-value">{liveKey.maskedKey}</code>
-              <button
-                type="button"
-                className="btn-danger"
-                disabled={revokeApiKey.isPending}
-                onClick={() => void handleRevoke()}
-              >
-                {revokeApiKey.isPending ? 'Revoking…' : 'Revoke'}
-              </button>
-            </div>
-          </article>
-        ) : null}
-      </section>
+          {liveKey ? (
+            <article className="key-card">
+              <h2 className="key-name">{liveKey.name}</h2>
+              <div className="key-row">
+                <code className="key-value">{getApiKeyValue(liveKey)}</code>
+                <button
+                  type="button"
+                  className="btn-danger"
+                  disabled={revokeApiKey.isPending}
+                  onClick={() => setRevokeTarget(liveKey)}
+                >
+                  {revokeApiKey.isPending ? 'Revoking…' : 'Revoke'}
+                </button>
+              </div>
+            </article>
+          ) : null}
+
+          {!testKey && !liveKey ? (
+            <p className="dash-subtitle">
+              No API keys yet. Generate a key to start integrating.
+            </p>
+          ) : null}
+        </section>
+      </AsyncState>
 
       {step !== 'closed' ? (
         <div
@@ -276,7 +313,8 @@ function ApiKeysPage() {
               <div className="modal-body modal-form">
                 {hasLiveKey ? (
                   <p className="modal-text">
-                    Generating a new live key will revoke the existing key first.
+                    Generating a new live key permanently revokes the existing
+                    key first. This cannot be undone.
                   </p>
                 ) : null}
                 <div className="modal-field">
@@ -378,6 +416,15 @@ function ApiKeysPage() {
             )}
           </div>
         </div>
+      ) : null}
+
+      {revokeTarget ? (
+        <ConfirmModal
+          message={`Revoking ${revokeTarget.name} takes effect immediately and cannot be undone. Any integration using it will stop working.`}
+          confirmLabel="Revoke Key"
+          onCancel={() => setRevokeTarget(null)}
+          onConfirm={() => void handleRevoke(revokeTarget)}
+        />
       ) : null}
     </div>
   )
