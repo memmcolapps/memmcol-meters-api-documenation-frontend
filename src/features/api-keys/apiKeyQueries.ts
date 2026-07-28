@@ -76,6 +76,34 @@ async function revokeApiKey(apiKeyId: string) {
   })
 }
 
+export type RegenerateApiKeyInput = {
+  name: string
+  expiresAt: string | null
+}
+
+type RegenerateApiKeyResponse = {
+  apiKey: GeneratedApiKey
+}
+
+async function regenerateApiKey(apiKeyId: string, input: RegenerateApiKeyInput) {
+  return apiRequest<RegenerateApiKeyResponse>(
+    `/api-keys/${encodeURIComponent(apiKeyId)}/regenerate`,
+    { method: 'POST', json: input },
+  )
+}
+
+export function useRegenerateApiKey() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ apiKeyId, input }: { apiKeyId: string; input: RegenerateApiKeyInput }) =>
+      regenerateApiKey(apiKeyId, input),
+    onSuccess: () => queryClient.invalidateQueries({
+      queryKey: apiKeyKeys.all,
+    }),
+  })
+}
+
 export function useCreateApiKey() {
   const queryClient = useQueryClient()
 
