@@ -15,6 +15,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DocsSlugRouteImport } from './routes/docs.$slug'
+import { Route as AdminResetPasswordRouteImport } from './routes/admin/reset-password'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminForgotPasswordRouteImport } from './routes/admin/forgot-password'
 import { Route as AdminAdminRouteImport } from './routes/admin/_admin'
@@ -69,6 +70,11 @@ const IndexRoute = IndexRouteImport.update({
 const DocsSlugRoute = DocsSlugRouteImport.update({
   id: '/docs/$slug',
   path: '/docs/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminResetPasswordRoute = AdminResetPasswordRouteImport.update({
+  id: '/admin/reset-password',
+  path: '/admin/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
@@ -225,6 +231,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminAdminRouteWithChildren
   '/admin/forgot-password': typeof AdminForgotPasswordRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/reset-password': typeof AdminResetPasswordRoute
   '/docs/$slug': typeof DocsSlugRoute
   '/settings/api-keys': typeof AppSettingsApiKeysRoute
   '/settings/profile': typeof AppSettingsProfileRoute
@@ -258,6 +265,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminAdminRouteWithChildren
   '/admin/forgot-password': typeof AdminForgotPasswordRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/reset-password': typeof AdminResetPasswordRoute
   '/docs/$slug': typeof DocsSlugRoute
   '/settings/api-keys': typeof AppSettingsApiKeysRoute
   '/settings/profile': typeof AppSettingsProfileRoute
@@ -293,6 +301,7 @@ export interface FileRoutesById {
   '/admin/_admin': typeof AdminAdminRouteWithChildren
   '/admin/forgot-password': typeof AdminForgotPasswordRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/reset-password': typeof AdminResetPasswordRoute
   '/docs/$slug': typeof DocsSlugRoute
   '/_app/settings/api-keys': typeof AppSettingsApiKeysRoute
   '/_app/settings/profile': typeof AppSettingsProfileRoute
@@ -328,6 +337,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/forgot-password'
     | '/admin/login'
+    | '/admin/reset-password'
     | '/docs/$slug'
     | '/settings/api-keys'
     | '/settings/profile'
@@ -361,6 +371,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/forgot-password'
     | '/admin/login'
+    | '/admin/reset-password'
     | '/docs/$slug'
     | '/settings/api-keys'
     | '/settings/profile'
@@ -395,6 +406,7 @@ export interface FileRouteTypes {
     | '/admin/_admin'
     | '/admin/forgot-password'
     | '/admin/login'
+    | '/admin/reset-password'
     | '/docs/$slug'
     | '/_app/settings/api-keys'
     | '/_app/settings/profile'
@@ -426,6 +438,7 @@ export interface RootRouteChildren {
   AdminAdminRoute: typeof AdminAdminRouteWithChildren
   AdminForgotPasswordRoute: typeof AdminForgotPasswordRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  AdminResetPasswordRoute: typeof AdminResetPasswordRoute
   DocsSlugRoute: typeof DocsSlugRoute
   AdminInvitationSetupRoute: typeof AdminInvitationSetupRoute
   ApiInvitationSetupRoute: typeof ApiInvitationSetupRoute
@@ -473,6 +486,13 @@ declare module '@tanstack/react-router' {
       path: '/docs/$slug'
       fullPath: '/docs/$slug'
       preLoaderRoute: typeof DocsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/reset-password': {
+      id: '/admin/reset-password'
+      path: '/admin/reset-password'
+      fullPath: '/admin/reset-password'
+      preLoaderRoute: typeof AdminResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/login': {
@@ -730,6 +750,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminAdminRoute: AdminAdminRouteWithChildren,
   AdminForgotPasswordRoute: AdminForgotPasswordRoute,
   AdminLoginRoute: AdminLoginRoute,
+  AdminResetPasswordRoute: AdminResetPasswordRoute,
   DocsSlugRoute: DocsSlugRoute,
   AdminInvitationSetupRoute: AdminInvitationSetupRoute,
   ApiInvitationSetupRoute: ApiInvitationSetupRoute,
