@@ -9,6 +9,7 @@ import {
   getApiKeyValue,
   useApiKeys,
   useCreateApiKey,
+  useRegenerateApiKey,
   useRevokeApiKey,
   type ApiKey,
 } from '../../../features/api-keys/apiKeyQueries'
@@ -70,6 +71,7 @@ function ApiKeysPage() {
   const apiKeysQuery = useApiKeys()
   const createApiKey = useCreateApiKey()
   const revokeApiKey = useRevokeApiKey()
+  const regenerateApiKey = useRegenerateApiKey()
   const { showToast } = useToast()
   const [step, setStep] = useState<ModalStep>('closed')
   const [expiry, setExpiry] = useState('Never')
@@ -80,7 +82,7 @@ function ApiKeysPage() {
   const [copied, setCopied] = useState<string | null>(null)
   const [revokeTarget, setRevokeTarget] = useState<ApiKey | null>(null)
   const modalRef = useRef<HTMLDivElement>(null)
-  const isSubmitting = createApiKey.isPending || revokeApiKey.isPending
+  const isSubmitting = createApiKey.isPending || revokeApiKey.isPending || regenerateApiKey.isPending
   const closeModal = () => {
     if (isSubmitting) return
     setGeneratedSecret('')
@@ -127,6 +129,7 @@ function ApiKeysPage() {
   const openModal = () => {
     createApiKey.reset()
     revokeApiKey.reset()
+    regenerateApiKey.reset()
     setKeyName('Live Key')
     setExpiry('Never')
     setCustomExpiry('')
@@ -171,17 +174,21 @@ function ApiKeysPage() {
     setFormError('')
     try {
       if (liveKey) {
-        await revokeApiKey.mutateAsync(liveKey.id)
+        const { apiKey } = await regenerateApiKey.mutateAsync({
+          apiKeyId: liveKey.id,
+          input: { name: keyName.trim(), expiresAt },
+        })
+        regenerateApiKey.reset()
+        setGeneratedSecret(apiKey.secret)
+      } else {
+        const createdKey = await createApiKey.mutateAsync({
+          name: keyName.trim(),
+          environment: 'LIVE',
+          expiresAt,
+        })
+        createApiKey.reset()
+        setGeneratedSecret(createdKey.secret)
       }
-
-      const createdKey = await createApiKey.mutateAsync({
-        name: keyName.trim(),
-        environment: 'LIVE',
-        expiresAt,
-      })
-      createApiKey.reset()
-      revokeApiKey.reset()
-      setGeneratedSecret(createdKey.secret)
       setStep('result')
     } catch (error) {
       showToast({
