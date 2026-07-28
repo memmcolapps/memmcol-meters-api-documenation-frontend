@@ -11,10 +11,13 @@ export type CompleteAdminInviteResponse = {
 }
 
 export function completeAdminInvite(input: CompleteAdminInviteInput) {
-  return apiRequest<CompleteAdminInviteResponse>('/admin/auth/complete-invite', {
-    method: 'POST',
-    json: input,
-  })
+  return apiRequest<CompleteAdminInviteResponse>(
+    `/admin/auth/complete-invite?token=${encodeURIComponent(input.inviteToken)}`,
+    {
+      method: 'POST',
+      json: { password: input.password },
+    },
+  )
 }
 
 export function useCompleteAdminInvite() {
