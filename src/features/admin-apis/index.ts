@@ -3,8 +3,14 @@ export {
   useAdminApi,
   useCreateAdminApi,
   useUpdateAdminApi,
+  useChangeApiPublication,
+  useChangeApiStatus,
+  useUpdateApiService,
   useDeleteAdminApi,
   adminApiKeys,
+  getApiPublicationError,
+  getApiStatusError,
+  getApiUpdateError,
 } from './adminApiQueries'
 
 export type {
@@ -16,6 +22,9 @@ export type {
   AdminApiAddedBy,
   CreateAdminApiInput,
   UpdateAdminApiInput,
+  ChangeApiPublicationInput,
+  ChangeApiStatusInput,
+  UpdateApiServiceInput,
   AdminApiListQuery,
   Pagination,
 } from './adminApiQueries'

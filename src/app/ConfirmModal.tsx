@@ -5,6 +5,7 @@ export function ConfirmModal({
   message,
   confirmLabel,
   tone = 'danger',
+  isSubmitting = false,
   onCancel,
   onConfirm,
 }: {
@@ -12,11 +13,14 @@ export function ConfirmModal({
   confirmLabel: string
   /** Visual weight of the confirm button: red for destructive, blue otherwise. */
   tone?: 'danger' | 'primary'
+  isSubmitting?: boolean
   onCancel: () => void
   onConfirm: () => void
 }) {
   const modalRef = useRef<HTMLDivElement>(null)
-  useDismiss(modalRef, onCancel)
+  useDismiss(modalRef, () => {
+    if (!isSubmitting) onCancel()
+  })
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
@@ -25,7 +29,13 @@ export function ConfirmModal({
           <h2 id="confirm-title" className="modal-title">
             Confirm Action
           </h2>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onCancel}>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Close"
+            disabled={isSubmitting}
+            onClick={onCancel}
+          >
             <CloseIcon />
           </button>
         </div>
@@ -33,15 +43,21 @@ export function ConfirmModal({
         <div className="modal-body">
           <p className="confirm-message">{message}</p>
           <div className="modal-foot">
-            <button type="button" className="btn-neutral" onClick={onCancel}>
+            <button
+              type="button"
+              className="btn-neutral"
+              disabled={isSubmitting}
+              onClick={onCancel}
+            >
               Cancel
             </button>
             <button
               type="button"
               className={tone === 'danger' ? 'btn-danger-solid' : 'btn-primary'}
+              disabled={isSubmitting}
               onClick={onConfirm}
             >
-              {confirmLabel}
+              {isSubmitting ? 'Please wait…' : confirmLabel}
             </button>
           </div>
         </div>

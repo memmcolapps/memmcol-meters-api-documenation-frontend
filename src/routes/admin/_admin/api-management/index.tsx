@@ -1,13 +1,20 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useDismiss } from '../../../../app/useDismiss'
 import { useAnchoredMenu } from '../../../../app/useAnchoredMenu'
 import { ConfirmModal } from '../../../../app/ConfirmModal'
+import { useToast } from '../../../../app/toastContext'
 import {
+  getApiPublicationError,
+  getApiStatusError,
+  getApiUpdateError,
   useAdminApis,
+  useChangeApiPublication,
+  useChangeApiStatus,
   useCreateAdminApi,
-  useUpdateAdminApi,
+  useUpdateApiService,
   type AdminApi,
+  type AdminApiStatus,
   type CreateAdminApiInput,
 } from '../../../../features/admin-apis'
 
@@ -21,6 +28,8 @@ type ApiFormValues = {
 }
 
 type FormModalState = { mode: 'add' } | { mode: 'edit'; api: AdminApi }
+type ApiStatusField = 'status' | 'reason'
+type ApiFormField = keyof ApiFormValues
 
 export const Route = createFileRoute('/admin/_admin/api-management/')({
   component: ApiManagementPage,
@@ -28,35 +37,156 @@ export const Route = createFileRoute('/admin/_admin/api-management/')({
 
 function ApiManagementPage() {
   const navigate = useNavigate()
+  const { showToast } = useToast()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const { data, isLoading } = useAdminApis({ search: search.trim() || undefined, page, limit: 20 })
   const items = data?.items ?? []
   const pagination = data?.pagination
   const createApi = useCreateAdminApi()
-  const updateApi = useUpdateAdminApi()
+  const updateApi = useUpdateApiService()
+  const changePublication = useChangeApiPublication()
+  const changeStatus = useChangeApiStatus()
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [formModal, setFormModal] = useState<FormModalState | null>(null)
   const [publishing, setPublishing] = useState<AdminApi | null>(null)
   const [deprecating, setDeprecating] = useState<AdminApi | null>(null)
+  const [statusFieldErrors, setStatusFieldErrors] = useState<
+    Partial<Record<ApiStatusField, string>>
+  >({})
+  const [formFieldErrors, setFormFieldErrors] = useState<
+    Partial<Record<ApiFormField, string>>
+  >({})
 
   const goToApi = (id: string) => {
     navigate({ to: '/admin/api-management/$apiId', params: { apiId: id } })
   }
 
-  const togglePublication = (api: AdminApi) => {
-    updateApi.mutate({
-      id: api.id,
-      input: {
-        publication: api.publication === 'PUBLISHED' ? 'UNPUBLISHED' : 'PUBLISHED',
-      },
-    })
-    setOpenMenu(null)
+  const updatePublication = async (api: AdminApi) => {
+    const publication =
+      api.publication === 'PUBLISHED' ? 'UNPUBLISHED' : 'PUBLISHED'
+
+    try {
+      await changePublication.mutateAsync({
+        apiId: api.id,
+        publication,
+      })
+      setOpenMenu(null)
+      setPublishing(null)
+      showToast({
+        title: publication === 'PUBLISHED' ? 'API published' : 'API unpublished',
+        message: `${api.name} is now ${publication.toLowerCase()}.`,
+        variant: 'success',
+      })
+    } catch (error) {
+      const apiError = getApiPublicationError(error)
+      const fieldMessage = [...new Set(Object.values(apiError.fields))].join(' ')
+      showToast({
+        title: apiError.message,
+        message: [
+          fieldMessage,
+          apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
+        ].filter(Boolean).join(' · ') || undefined,
+        variant: 'error',
+      })
+    }
   }
 
-  const setStatus = (id: string, status: AdminApi['status']) => {
-    updateApi.mutate({ id, input: { status } })
-    setOpenMenu(null)
+  const updateStatus = async (
+    api: AdminApi,
+    status: AdminApiStatus,
+    reason?: string,
+  ) => {
+    if (status === 'DEPRECATED' && !reason?.trim()) {
+      setStatusFieldErrors({
+        reason: 'Reason is required when deprecating an API service.',
+      })
+      return
+    }
+
+    setStatusFieldErrors({})
+    try {
+      await changeStatus.mutateAsync({
+        apiId: api.id,
+        status,
+        ...(reason?.trim() ? { reason: reason.trim() } : {}),
+      })
+      setOpenMenu(null)
+      setDeprecating(null)
+      showToast({
+        title: status === 'ACTIVE' ? 'API activated' : 'API deprecated',
+        message: status === 'ACTIVE'
+          ? `${api.name} is active and remains unpublished.`
+          : `${api.name} was deprecated and unpublished.`,
+        variant: 'success',
+      })
+    } catch (error) {
+      const apiError = getApiStatusError(error)
+      const fields = apiError.fields as Partial<Record<ApiStatusField, string>>
+      setStatusFieldErrors(fields)
+      showToast({
+        title: apiError.message,
+        message: [
+          [...new Set(Object.values(fields))].join(' '),
+          apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
+        ].filter(Boolean).join(' · ') || undefined,
+        variant: 'error',
+      })
+    }
+  }
+
+  const submitApiForm = async (values: ApiFormValues) => {
+    if (!formModal) return
+
+    const cost = Number(values.cost)
+    if (!Number.isFinite(cost)) {
+      setFormFieldErrors({ cost: 'Cost must be a valid number.' })
+      return
+    }
+
+    const payload: CreateAdminApiInput = {
+      name: values.name,
+      route: values.route,
+      cost,
+      samplePayload: values.samplePayload,
+      sampleRequest: values.sampleRequest,
+      documentation: values.documentation,
+    }
+
+    setFormFieldErrors({})
+    try {
+      if (formModal.mode === 'add') {
+        const createdApi = await createApi.mutateAsync(payload)
+        showToast({
+          title: 'API created',
+          message: `${createdApi.name} was created successfully.`,
+          variant: 'success',
+        })
+      } else {
+        const updatedApi = await updateApi.mutateAsync({
+          apiId: formModal.api.id,
+          ...payload,
+        })
+        showToast({
+          title: 'API updated',
+          message: `${updatedApi.name} was updated successfully.`,
+          variant: 'success',
+        })
+      }
+      setFormModal(null)
+    } catch (error) {
+      const apiError = getApiUpdateError(error)
+      const fields = apiError.fields as Partial<Record<ApiFormField, string>>
+      setFormFieldErrors(fields)
+      showToast({
+        title: apiError.message,
+        message: [
+          [...new Set(Object.values(fields))].join(' '),
+          apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
+        ].filter(Boolean).join(' · ') || undefined,
+        variant: 'error',
+      })
+    }
   }
 
   return (
@@ -71,7 +201,10 @@ function ApiManagementPage() {
         <button
           type="button"
           className="btn-primary"
-          onClick={() => setFormModal({ mode: 'add' })}
+          onClick={() => {
+            setFormFieldErrors({})
+            setFormModal({ mode: 'add' })
+          }}
         >
           Add New API <PlusIcon />
         </button>
@@ -169,15 +302,23 @@ function ApiManagementPage() {
                     onView={() => goToApi(api.id)}
                     onEdit={() => {
                       setOpenMenu(null)
+                      updateApi.reset()
+                      setFormFieldErrors({})
                       setFormModal({ mode: 'edit', api })
                     }}
                     onTogglePublication={() => {
                       setOpenMenu(null)
+                      changePublication.reset()
                       setPublishing(api)
                     }}
-                    onActivate={() => setStatus(api.id, 'ACTIVE')}
+                    onActivate={() => {
+                      setOpenMenu(null)
+                      void updateStatus(api, 'ACTIVE')
+                    }}
                     onDeprecate={() => {
                       setOpenMenu(null)
+                      changeStatus.reset()
+                      setStatusFieldErrors({})
                       setDeprecating(api)
                     }}
                   />
@@ -228,28 +369,22 @@ function ApiManagementPage() {
                 }
               : undefined
           }
-          onClose={() => setFormModal(null)}
-          onSubmit={(values) => {
-            const payload: CreateAdminApiInput = {
-              name: values.name,
-              route: values.route,
-              cost: Number(values.cost),
-              samplePayload: values.samplePayload,
-              sampleRequest: values.sampleRequest,
-              documentation: values.documentation,
-            }
-
-            if (formModal.mode === 'add') {
-              createApi.mutate(payload, {
-                onSuccess: () => setFormModal(null),
-              })
-            } else {
-              updateApi.mutate(
-                { id: formModal.api.id, input: payload },
-                { onSuccess: () => setFormModal(null) },
-              )
-            }
+          isSubmitting={
+            formModal.mode === 'add' ? createApi.isPending : updateApi.isPending
+          }
+          fieldErrors={formFieldErrors}
+          onFieldChange={(field) => {
+            setFormFieldErrors((current) => {
+              if (!current[field]) return current
+              const next = { ...current }
+              delete next[field]
+              return next
+            })
           }}
+          onClose={() => {
+            if (!createApi.isPending && !updateApi.isPending) setFormModal(null)
+          }}
+          onSubmit={(values) => void submitApiForm(values)}
         />
       ) : null}
 
@@ -262,25 +397,141 @@ function ApiManagementPage() {
           confirmLabel={
             publishing.publication === 'PUBLISHED' ? 'Unpublish' : 'Publish'
           }
-          onCancel={() => setPublishing(null)}
-          onConfirm={() => {
-            togglePublication(publishing)
-            setPublishing(null)
+          isSubmitting={changePublication.isPending}
+          onCancel={() => {
+            if (!changePublication.isPending) setPublishing(null)
           }}
+          onConfirm={() => void updatePublication(publishing)}
         />
       ) : null}
 
       {deprecating ? (
-        <ConfirmModal
-          message={`Are you sure you want to deprecate ${deprecating.name}?`}
-          confirmLabel="Deprecate"
-          onCancel={() => setDeprecating(null)}
-          onConfirm={() => {
-            setStatus(deprecating.id, 'DEPRECATED')
-            setDeprecating(null)
+        <DeprecateApiModal
+          api={deprecating}
+          isSubmitting={changeStatus.isPending}
+          fieldErrors={statusFieldErrors}
+          onReasonChange={() => {
+            setStatusFieldErrors((current) => {
+              if (!current.reason) return current
+              const next = { ...current }
+              delete next.reason
+              return next
+            })
           }}
+          onCancel={() => {
+            if (!changeStatus.isPending) setDeprecating(null)
+          }}
+          onConfirm={(reason) => void updateStatus(deprecating, 'DEPRECATED', reason)}
         />
       ) : null}
+    </div>
+  )
+}
+
+function DeprecateApiModal({
+  api,
+  isSubmitting,
+  fieldErrors,
+  onReasonChange,
+  onCancel,
+  onConfirm,
+}: {
+  api: AdminApi
+  isSubmitting: boolean
+  fieldErrors: Partial<Record<ApiStatusField, string>>
+  onReasonChange: () => void
+  onCancel: () => void
+  onConfirm: (reason: string) => void
+}) {
+  const [reason, setReason] = useState('')
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, () => {
+    if (!isSubmitting) onCancel()
+  })
+
+  return (
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="deprecate-api-title"
+    >
+      <div className="modal" ref={modalRef}>
+        <div className="modal-head">
+          <h2 id="deprecate-api-title" className="modal-title">
+            Deprecate API
+          </h2>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Close"
+            disabled={isSubmitting}
+            onClick={onCancel}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div className="modal-body">
+          {fieldErrors.status ? (
+            <p className="modal-field-error" role="alert">
+              {fieldErrors.status}
+            </p>
+          ) : null}
+          <p className="confirm-message">
+            Deprecating {api.name} will automatically unpublish it.
+          </p>
+          <div className="modal-field">
+            <label htmlFor="api-deprecation-reason">
+              Reason <span className="req">*</span>
+            </label>
+            <textarea
+              id="api-deprecation-reason"
+              className="modal-input"
+              rows={4}
+              placeholder="E.g. Replaced by version 2."
+              value={reason}
+              disabled={isSubmitting}
+              aria-invalid={Boolean(fieldErrors.reason)}
+              aria-describedby={
+                fieldErrors.reason ? 'api-deprecation-reason-error' : undefined
+              }
+              onChange={(event) => {
+                setReason(event.target.value)
+                onReasonChange()
+              }}
+            />
+            {fieldErrors.reason ? (
+              <p
+                id="api-deprecation-reason-error"
+                className="modal-field-error"
+                role="alert"
+              >
+                {fieldErrors.reason}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="modal-foot">
+            <button
+              type="button"
+              className="btn-neutral"
+              disabled={isSubmitting}
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-danger-solid"
+              disabled={isSubmitting}
+              onClick={() => onConfirm(reason)}
+            >
+              {isSubmitting ? 'Please wait…' : 'Deprecate'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -289,12 +540,18 @@ function ApiFormModal({
   title,
   submitLabel,
   initial,
+  isSubmitting,
+  fieldErrors,
+  onFieldChange,
   onClose,
   onSubmit,
 }: {
   title: string
   submitLabel: string
   initial?: ApiFormValues
+  isSubmitting: boolean
+  fieldErrors: Partial<Record<ApiFormField, string>>
+  onFieldChange: (field: ApiFormField) => void
   onClose: () => void
   onSubmit: (values: ApiFormValues) => void
 }) {
@@ -308,10 +565,18 @@ function ApiFormModal({
     documentation: initial?.documentation ?? '',
   })
   const modalRef = useRef<HTMLDivElement>(null)
-  useDismiss(modalRef, onClose)
+  useDismiss(modalRef, () => {
+    if (!isSubmitting) onClose()
+  })
 
-  const set = (key: keyof ApiFormValues, value: string) =>
-    setForm((prev) => ({ ...prev, [key]: value }))
+  useEffect(() => {
+    if (fieldErrors.name || fieldErrors.route || fieldErrors.cost) setStep(1)
+  }, [fieldErrors])
+
+  const set = (key: ApiFormField, value: string) => {
+    setForm((current) => ({ ...current, [key]: value }))
+    onFieldChange(key)
+  }
 
   const canAdvance =
     form.name.trim() !== '' && form.route.trim() !== '' && form.cost.trim() !== ''
@@ -323,7 +588,13 @@ function ApiFormModal({
           <h2 id="api-form-title" className="modal-title">
             {title}
           </h2>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Close"
+            disabled={isSubmitting}
+            onClick={onClose}
+          >
             <CloseIcon />
           </button>
         </div>
@@ -336,8 +607,15 @@ function ApiFormModal({
                 className="modal-input"
                 placeholder="E.g. Vend Token"
                 value={form.name}
+                disabled={isSubmitting}
+                aria-invalid={Boolean(fieldErrors.name)}
                 onChange={(e) => set('name', e.target.value)}
               />
+              {fieldErrors.name ? (
+                <span className="modal-field-error" role="alert">
+                  {fieldErrors.name}
+                </span>
+              ) : null}
             </div>
             <div className="modal-field">
               <label>Route URL</label>
@@ -345,8 +623,15 @@ function ApiFormModal({
                 className="modal-input"
                 placeholder="E.g. www.memmserve.com/vend-token"
                 value={form.route}
+                disabled={isSubmitting}
+                aria-invalid={Boolean(fieldErrors.route)}
                 onChange={(e) => set('route', e.target.value)}
               />
+              {fieldErrors.route ? (
+                <span className="modal-field-error" role="alert">
+                  {fieldErrors.route}
+                </span>
+              ) : null}
             </div>
             <div className="modal-field">
               <label>Cost per Call (credits)</label>
@@ -355,18 +640,30 @@ function ApiFormModal({
                 inputMode="numeric"
                 placeholder="E.g. 2"
                 value={form.cost}
+                disabled={isSubmitting}
+                aria-invalid={Boolean(fieldErrors.cost)}
                 onChange={(e) => set('cost', e.target.value)}
               />
+              {fieldErrors.cost ? (
+                <span className="modal-field-error" role="alert">
+                  {fieldErrors.cost}
+                </span>
+              ) : null}
             </div>
 
             <div className="modal-foot">
-              <button type="button" className="btn-neutral" onClick={onClose}>
+              <button
+                type="button"
+                className="btn-neutral"
+                disabled={isSubmitting}
+                onClick={onClose}
+              >
                 Cancel
               </button>
               <button
                 type="button"
                 className="btn-primary"
-                disabled={!canAdvance}
+                disabled={!canAdvance || isSubmitting}
                 onClick={() => canAdvance && setStep(2)}
               >
                 Next
@@ -382,8 +679,15 @@ function ApiFormModal({
                 rows={5}
                 placeholder={'{\n  "productId": "PROD-101"\n}'}
                 value={form.samplePayload}
+                disabled={isSubmitting}
+                aria-invalid={Boolean(fieldErrors.samplePayload)}
                 onChange={(e) => set('samplePayload', e.target.value)}
               />
+              {fieldErrors.samplePayload ? (
+                <span className="modal-field-error" role="alert">
+                  {fieldErrors.samplePayload}
+                </span>
+              ) : null}
             </div>
             <div className="modal-field">
               <label>Sample Request</label>
@@ -392,8 +696,15 @@ function ApiFormModal({
                 rows={5}
                 placeholder={'{\n  "productId": "PROD-101"\n}'}
                 value={form.sampleRequest}
+                disabled={isSubmitting}
+                aria-invalid={Boolean(fieldErrors.sampleRequest)}
                 onChange={(e) => set('sampleRequest', e.target.value)}
               />
+              {fieldErrors.sampleRequest ? (
+                <span className="modal-field-error" role="alert">
+                  {fieldErrors.sampleRequest}
+                </span>
+              ) : null}
             </div>
             <div className="modal-field">
               <label>Documentation</label>
@@ -402,16 +713,33 @@ function ApiFormModal({
                 rows={8}
                 placeholder="Describe how customers should use this API"
                 value={form.documentation}
+                disabled={isSubmitting}
+                aria-invalid={Boolean(fieldErrors.documentation)}
                 onChange={(e) => set('documentation', e.target.value)}
               />
+              {fieldErrors.documentation ? (
+                <span className="modal-field-error" role="alert">
+                  {fieldErrors.documentation}
+                </span>
+              ) : null}
             </div>
 
             <div className="modal-foot">
-              <button type="button" className="btn-neutral" onClick={() => setStep(1)}>
+              <button
+                type="button"
+                className="btn-neutral"
+                disabled={isSubmitting}
+                onClick={() => setStep(1)}
+              >
                 Back
               </button>
-              <button type="button" className="btn-primary" onClick={() => onSubmit(form)}>
-                {submitLabel}
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={isSubmitting}
+                onClick={() => onSubmit(form)}
+              >
+                {isSubmitting ? 'Please wait…' : submitLabel}
               </button>
             </div>
           </div>
