@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
+import { Link, createFileRoute, useSearch } from '@tanstack/react-router'
 import { z } from 'zod'
 import { Logo } from '../../app/Logo'
 import { AdminResetPasswordModal, type AdminResetPasswordField } from '../../app/AdminResetPasswordModal'
@@ -43,7 +43,6 @@ const passwordFieldSchema = z.string().superRefine((password, context) => {
 
 function AdminResetPasswordPage() {
   const { token } = useSearch({ from: Route.fullPath })
-  const navigate = useNavigate()
   const { showToast } = useToast()
   const resetPassword = useAdminResetPassword()
   const [modalOpen, setModalOpen] = useState(true)
@@ -81,7 +80,6 @@ function AdminResetPasswordPage() {
         variant: 'success',
       })
       setModalOpen(false)
-      await navigate({ to: '/admin/login' })
     } catch (error) {
       const apiError = getAdminResetPasswordError(error)
       setFieldErrors(apiError.fields as Partial<Record<AdminResetPasswordField, string>>)
@@ -130,18 +128,20 @@ function AdminResetPasswordPage() {
         <p className="auth-tagline">Admin Portal</p>
       </header>
 
-      <section className="auth-card" aria-labelledby="auth-title">
-        <h1 id="auth-title" className="auth-title">
-          Reset Password
-        </h1>
-        <p className="auth-subtitle">Enter your new password below to complete the reset.</p>
+      {!modalOpen ? (
+        <section className="auth-card" aria-labelledby="auth-title">
+          <h1 id="auth-title" className="auth-title">
+            Reset Password
+          </h1>
+          <p className="auth-subtitle">Your password has been reset successfully.</p>
 
-        <p className="auth-back">
-          <Link to="/admin/login" className="auth-back-link">
-            <BackIcon /> Back to login
-          </Link>
-        </p>
-      </section>
+          <p className="auth-back">
+            <Link to="/admin/login" className="auth-back-link">
+              <BackIcon /> Back to login
+            </Link>
+          </p>
+        </section>
+      ) : null}
 
       {modalOpen ? (
         <AdminResetPasswordModal
