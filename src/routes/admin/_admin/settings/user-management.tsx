@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useDismiss } from '../../../../app/useDismiss'
 import { AsyncState } from '../../../../app/AsyncState'
 import { ConfirmModal } from '../../../../app/ConfirmModal'
@@ -35,6 +35,7 @@ const roleMap: Record<AdminRole, Role> = {
 function UserManagementPage() {
   const [inviteOpen, setInviteOpen] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  const navigate = useNavigate()
   const createAdminUser = useCreateAdminUser()
   const leaveTeam = useLeaveAdminTeam()
   const membersQuery = useAdminTeamMembers()
@@ -170,8 +171,7 @@ function UserManagementPage() {
           onConfirm={async () => {
             try {
               await leaveTeam.mutateAsync()
-              showToast({ title: 'You have left the workspace', variant: 'success' })
-              setLeaving(false)
+              await navigate({ to: '/admin/login' })
             } catch (error) {
               showToast({
                 title: 'Could not leave workspace',
