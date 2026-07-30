@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
-import { useDismiss } from './useDismiss'
+import { useState, type FormEvent } from 'react'
+import { Link } from '@tanstack/react-router'
+import { PASSWORD_REQUIREMENTS } from '../features/auth/schemas'
 
 export type AdminResetPasswordField = 'resetToken' | 'password'
 
@@ -8,110 +9,90 @@ export function AdminResetPasswordModal({
   isSubmitting = false,
   fieldErrors = {},
   onFieldChange,
-  onClose,
   onSubmit,
 }: {
   resetToken: string
   isSubmitting?: boolean
   fieldErrors?: Partial<Record<AdminResetPasswordField, string>>
   onFieldChange?: (field: AdminResetPasswordField) => void
-  onClose: () => void
   onSubmit: (resetToken: string, password: string) => void
 }) {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const modalRef = useRef<HTMLDivElement>(null)
-  useDismiss(modalRef, onClose)
 
   const canSubmit = resetToken.trim() !== '' && password.trim() !== '' && !isSubmitting
 
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (canSubmit) onSubmit(resetToken, password)
+  }
+
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="admin-reset-password-title">
-      <div className="modal" ref={modalRef}>
-        <div className="modal-head">
-          <h2 id="admin-reset-password-title" className="modal-title">
-            Reset Password
-          </h2>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose} disabled={isSubmitting}>
-            <CloseIcon />
-          </button>
-        </div>
+    <section className="auth-card" aria-labelledby="admin-reset-password-title">
+      <h1 id="admin-reset-password-title" className="auth-title">
+        Reset Password
+      </h1>
+      <p className="auth-subtitle">
+        Enter your new password below to complete the reset.
+      </p>
 
-        <div className="modal-body">
-          <div className="modal-field">
-            <label>Reset Token <span className="req">*</span></label>
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
+        <div className="auth-field">
+          <label htmlFor="adminPassword">
+            New Password <span className="req">*</span>
+          </label>
+          <div className={`auth-input-group${fieldErrors.password ? ' is-invalid' : ''}`}>
             <input
-              className="modal-input"
-              type="text"
-              value={resetToken}
-              readOnly
-              aria-readonly="true"
+              id="adminPassword"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              placeholder="Enter new password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                onFieldChange?.('password')
+              }}
+              aria-invalid={Boolean(fieldErrors.password)}
+              disabled={isSubmitting}
             />
-            {fieldErrors.resetToken ? (
-              <span className="modal-field-error" role="alert">
-                {fieldErrors.resetToken}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="modal-field">
-            <label>
-              New Password <span className="req">*</span>
-            </label>
-            <div className="auth-input-group">
-              <input
-                className="modal-input"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="new-password"
-                placeholder="Enter new password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value)
-                  onFieldChange?.('password')
-                }}
-                aria-invalid={Boolean(fieldErrors.password)}
-                disabled={isSubmitting}
-              />
-              <button
-                type="button"
-                className="auth-toggle"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                onClick={() => setShowPassword((v) => !v)}
-                disabled={isSubmitting}
-              >
-                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-              </button>
-            </div>
-            {fieldErrors.password ? (
-              <span className="modal-field-error" role="alert">
-                {fieldErrors.password}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="modal-foot">
-            <button type="button" className="btn-neutral" onClick={onClose} disabled={isSubmitting}>
-              Cancel
-            </button>
             <button
               type="button"
-              className="btn-primary"
-              disabled={!canSubmit}
-              onClick={() => canSubmit && onSubmit(resetToken, password)}
+              className="auth-toggle"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              onClick={() => setShowPassword((v) => !v)}
+              disabled={isSubmitting}
             >
-              {isSubmitting ? 'Resetting…' : 'Reset Password'}
+              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
             </button>
           </div>
+          <p id="admin-password-requirements" className="auth-field-hint">
+            {PASSWORD_REQUIREMENTS}
+          </p>
+          {fieldErrors.password ? (
+            <span className="modal-field-error" role="alert">
+              {fieldErrors.password}
+            </span>
+          ) : null}
         </div>
-      </div>
-    </div>
+
+        <button type="submit" className="auth-submit" disabled={!canSubmit}>
+          {isSubmitting ? 'Resetting…' : 'Reset Password'}
+        </button>
+      </form>
+
+      <p className="auth-back">
+        <Link to="/admin/login" className="auth-back-link">
+          <BackIcon /> Back to login
+        </Link>
+      </p>
+    </section>
   )
 }
 
-function CloseIcon() {
+function BackIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M18 6 6 18M6 6l12 12" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M19 12H5m0 0 6 6m-6-6 6-6" />
     </svg>
   )
 }

@@ -149,7 +149,6 @@ function AdminResetPasswordPage() {
           isSubmitting={resetPassword.isPending}
           fieldErrors={fieldErrors}
           onFieldChange={clearFieldError}
-          onClose={() => setModalOpen(false)}
           onSubmit={handleReset}
         />
       ) : null}
