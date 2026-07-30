@@ -128,24 +128,12 @@ function AdminInvitationSetupPage() {
       </header>
 
       <section className="auth-card" aria-labelledby="auth-title">
-        <h1 id="auth-title" className="auth-title">Set Up Your Admin Account</h1>
+        <h1 id="auth-title" className="auth-title">Set Up Your Account</h1>
         <p className="auth-subtitle">
-          You&rsquo;ve been invited to join as an administrator. Set your password below to activate your account.
+          You&rsquo;ve been invited to join the organization. Set your password below to activate your account.
         </p>
 
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
-          <div className="auth-field">
-            <label htmlFor="inviteToken">Invite Token</label>
-            <input
-              id="inviteToken"
-              type="text"
-              className="auth-input"
-              value={token}
-              readOnly
-              aria-readonly="true"
-            />
-          </div>
-
           <div className="auth-field">
             <label htmlFor="adminPassword">Password</label>
             <div className={`auth-input-group${errorFor('password') ? ' is-invalid' : ''}`}>
