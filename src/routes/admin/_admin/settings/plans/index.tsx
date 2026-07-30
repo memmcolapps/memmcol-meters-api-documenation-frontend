@@ -1,5 +1,5 @@
 import { useDeferredValue, useRef, useState } from 'react'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useDismiss } from '../../../../../app/useDismiss'
 import { useAnchoredMenu } from '../../../../../app/useAnchoredMenu'
 import { PlanFormModal } from '../../../../../app/PlanFormModal'
@@ -208,9 +208,17 @@ function SubscriptionManagementPage() {
       </header>
 
       <div className="dash-tabs" role="tablist">
-        <button type="button" className="dash-tab is-active" role="tab" aria-selected="true">
+        <span className="dash-tab is-active" role="tab" aria-selected="true">
           Subscription Plans
-        </button>
+        </span>
+        <Link
+          to="/admin/settings/plans/purchases"
+          className="dash-tab"
+          role="tab"
+          aria-selected="false"
+        >
+          Purchases
+        </Link>
       </div>
 
       <div className="dash-toolbar">

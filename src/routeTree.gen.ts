@@ -37,11 +37,11 @@ import { Route as AppSettingsApiKeysRouteImport } from './routes/_app/settings/a
 import { Route as AdminAdminMeterIntegrationIndexRouteImport } from './routes/admin/_admin/meter-integration/index'
 import { Route as AdminAdminApiManagementIndexRouteImport } from './routes/admin/_admin/api-management/index'
 import { Route as AdminAdminSettingsUserManagementRouteImport } from './routes/admin/_admin/settings/user-management'
-import { Route as AdminAdminSettingsPurchasesRouteImport } from './routes/admin/_admin/settings/purchases'
 import { Route as AdminAdminSettingsProfileRouteImport } from './routes/admin/_admin/settings/profile'
 import { Route as AdminAdminMeterIntegrationMeterIdRouteImport } from './routes/admin/_admin/meter-integration/$meterId'
 import { Route as AdminAdminApiManagementApiIdRouteImport } from './routes/admin/_admin/api-management/$apiId'
 import { Route as AdminAdminSettingsPlansIndexRouteImport } from './routes/admin/_admin/settings/plans/index'
+import { Route as AdminAdminSettingsPlansPurchasesRouteImport } from './routes/admin/_admin/settings/plans/purchases'
 import { Route as AdminAdminSettingsPlansPlanIdRouteImport } from './routes/admin/_admin/settings/plans/$planId'
 
 const SignupRoute = SignupRouteImport.update({
@@ -189,12 +189,6 @@ const AdminAdminSettingsUserManagementRoute =
     path: '/settings/user-management',
     getParentRoute: () => AdminAdminRoute,
   } as any)
-const AdminAdminSettingsPurchasesRoute =
-  AdminAdminSettingsPurchasesRouteImport.update({
-    id: '/settings/purchases',
-    path: '/settings/purchases',
-    getParentRoute: () => AdminAdminRoute,
-  } as any)
 const AdminAdminSettingsProfileRoute =
   AdminAdminSettingsProfileRouteImport.update({
     id: '/settings/profile',
@@ -217,6 +211,12 @@ const AdminAdminSettingsPlansIndexRoute =
   AdminAdminSettingsPlansIndexRouteImport.update({
     id: '/settings/plans/',
     path: '/settings/plans/',
+    getParentRoute: () => AdminAdminRoute,
+  } as any)
+const AdminAdminSettingsPlansPurchasesRoute =
+  AdminAdminSettingsPlansPurchasesRouteImport.update({
+    id: '/settings/plans/purchases',
+    path: '/settings/plans/purchases',
     getParentRoute: () => AdminAdminRoute,
   } as any)
 const AdminAdminSettingsPlansPlanIdRoute =
@@ -254,11 +254,11 @@ export interface FileRoutesByFullPath {
   '/admin/api-management/$apiId': typeof AdminAdminApiManagementApiIdRoute
   '/admin/meter-integration/$meterId': typeof AdminAdminMeterIntegrationMeterIdRoute
   '/admin/settings/profile': typeof AdminAdminSettingsProfileRoute
-  '/admin/settings/purchases': typeof AdminAdminSettingsPurchasesRoute
   '/admin/settings/user-management': typeof AdminAdminSettingsUserManagementRoute
   '/admin/api-management/': typeof AdminAdminApiManagementIndexRoute
   '/admin/meter-integration/': typeof AdminAdminMeterIntegrationIndexRoute
   '/admin/settings/plans/$planId': typeof AdminAdminSettingsPlansPlanIdRoute
+  '/admin/settings/plans/purchases': typeof AdminAdminSettingsPlansPurchasesRoute
   '/admin/settings/plans/': typeof AdminAdminSettingsPlansIndexRoute
 }
 export interface FileRoutesByTo {
@@ -289,11 +289,11 @@ export interface FileRoutesByTo {
   '/admin/api-management/$apiId': typeof AdminAdminApiManagementApiIdRoute
   '/admin/meter-integration/$meterId': typeof AdminAdminMeterIntegrationMeterIdRoute
   '/admin/settings/profile': typeof AdminAdminSettingsProfileRoute
-  '/admin/settings/purchases': typeof AdminAdminSettingsPurchasesRoute
   '/admin/settings/user-management': typeof AdminAdminSettingsUserManagementRoute
   '/admin/api-management': typeof AdminAdminApiManagementIndexRoute
   '/admin/meter-integration': typeof AdminAdminMeterIntegrationIndexRoute
   '/admin/settings/plans/$planId': typeof AdminAdminSettingsPlansPlanIdRoute
+  '/admin/settings/plans/purchases': typeof AdminAdminSettingsPlansPurchasesRoute
   '/admin/settings/plans': typeof AdminAdminSettingsPlansIndexRoute
 }
 export interface FileRoutesById {
@@ -326,11 +326,11 @@ export interface FileRoutesById {
   '/admin/_admin/api-management/$apiId': typeof AdminAdminApiManagementApiIdRoute
   '/admin/_admin/meter-integration/$meterId': typeof AdminAdminMeterIntegrationMeterIdRoute
   '/admin/_admin/settings/profile': typeof AdminAdminSettingsProfileRoute
-  '/admin/_admin/settings/purchases': typeof AdminAdminSettingsPurchasesRoute
   '/admin/_admin/settings/user-management': typeof AdminAdminSettingsUserManagementRoute
   '/admin/_admin/api-management/': typeof AdminAdminApiManagementIndexRoute
   '/admin/_admin/meter-integration/': typeof AdminAdminMeterIntegrationIndexRoute
   '/admin/_admin/settings/plans/$planId': typeof AdminAdminSettingsPlansPlanIdRoute
+  '/admin/_admin/settings/plans/purchases': typeof AdminAdminSettingsPlansPurchasesRoute
   '/admin/_admin/settings/plans/': typeof AdminAdminSettingsPlansIndexRoute
 }
 export interface FileRouteTypes {
@@ -363,11 +363,11 @@ export interface FileRouteTypes {
     | '/admin/api-management/$apiId'
     | '/admin/meter-integration/$meterId'
     | '/admin/settings/profile'
-    | '/admin/settings/purchases'
     | '/admin/settings/user-management'
     | '/admin/api-management/'
     | '/admin/meter-integration/'
     | '/admin/settings/plans/$planId'
+    | '/admin/settings/plans/purchases'
     | '/admin/settings/plans/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -398,11 +398,11 @@ export interface FileRouteTypes {
     | '/admin/api-management/$apiId'
     | '/admin/meter-integration/$meterId'
     | '/admin/settings/profile'
-    | '/admin/settings/purchases'
     | '/admin/settings/user-management'
     | '/admin/api-management'
     | '/admin/meter-integration'
     | '/admin/settings/plans/$planId'
+    | '/admin/settings/plans/purchases'
     | '/admin/settings/plans'
   id:
     | '__root__'
@@ -434,11 +434,11 @@ export interface FileRouteTypes {
     | '/admin/_admin/api-management/$apiId'
     | '/admin/_admin/meter-integration/$meterId'
     | '/admin/_admin/settings/profile'
-    | '/admin/_admin/settings/purchases'
     | '/admin/_admin/settings/user-management'
     | '/admin/_admin/api-management/'
     | '/admin/_admin/meter-integration/'
     | '/admin/_admin/settings/plans/$planId'
+    | '/admin/_admin/settings/plans/purchases'
     | '/admin/_admin/settings/plans/'
   fileRoutesById: FileRoutesById
 }
@@ -655,13 +655,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAdminSettingsUserManagementRouteImport
       parentRoute: typeof AdminAdminRoute
     }
-    '/admin/_admin/settings/purchases': {
-      id: '/admin/_admin/settings/purchases'
-      path: '/settings/purchases'
-      fullPath: '/admin/settings/purchases'
-      preLoaderRoute: typeof AdminAdminSettingsPurchasesRouteImport
-      parentRoute: typeof AdminAdminRoute
-    }
     '/admin/_admin/settings/profile': {
       id: '/admin/_admin/settings/profile'
       path: '/settings/profile'
@@ -688,6 +681,13 @@ declare module '@tanstack/react-router' {
       path: '/settings/plans'
       fullPath: '/admin/settings/plans/'
       preLoaderRoute: typeof AdminAdminSettingsPlansIndexRouteImport
+      parentRoute: typeof AdminAdminRoute
+    }
+    '/admin/_admin/settings/plans/purchases': {
+      id: '/admin/_admin/settings/plans/purchases'
+      path: '/settings/plans/purchases'
+      fullPath: '/admin/settings/plans/purchases'
+      preLoaderRoute: typeof AdminAdminSettingsPlansPurchasesRouteImport
       parentRoute: typeof AdminAdminRoute
     }
     '/admin/_admin/settings/plans/$planId': {
@@ -733,11 +733,11 @@ interface AdminAdminRouteChildren {
   AdminAdminApiManagementApiIdRoute: typeof AdminAdminApiManagementApiIdRoute
   AdminAdminMeterIntegrationMeterIdRoute: typeof AdminAdminMeterIntegrationMeterIdRoute
   AdminAdminSettingsProfileRoute: typeof AdminAdminSettingsProfileRoute
-  AdminAdminSettingsPurchasesRoute: typeof AdminAdminSettingsPurchasesRoute
   AdminAdminSettingsUserManagementRoute: typeof AdminAdminSettingsUserManagementRoute
   AdminAdminApiManagementIndexRoute: typeof AdminAdminApiManagementIndexRoute
   AdminAdminMeterIntegrationIndexRoute: typeof AdminAdminMeterIntegrationIndexRoute
   AdminAdminSettingsPlansPlanIdRoute: typeof AdminAdminSettingsPlansPlanIdRoute
+  AdminAdminSettingsPlansPurchasesRoute: typeof AdminAdminSettingsPlansPurchasesRoute
   AdminAdminSettingsPlansIndexRoute: typeof AdminAdminSettingsPlansIndexRoute
 }
 
@@ -751,11 +751,11 @@ const AdminAdminRouteChildren: AdminAdminRouteChildren = {
   AdminAdminMeterIntegrationMeterIdRoute:
     AdminAdminMeterIntegrationMeterIdRoute,
   AdminAdminSettingsProfileRoute: AdminAdminSettingsProfileRoute,
-  AdminAdminSettingsPurchasesRoute: AdminAdminSettingsPurchasesRoute,
   AdminAdminSettingsUserManagementRoute: AdminAdminSettingsUserManagementRoute,
   AdminAdminApiManagementIndexRoute: AdminAdminApiManagementIndexRoute,
   AdminAdminMeterIntegrationIndexRoute: AdminAdminMeterIntegrationIndexRoute,
   AdminAdminSettingsPlansPlanIdRoute: AdminAdminSettingsPlansPlanIdRoute,
+  AdminAdminSettingsPlansPurchasesRoute: AdminAdminSettingsPlansPurchasesRoute,
   AdminAdminSettingsPlansIndexRoute: AdminAdminSettingsPlansIndexRoute,
 }
 

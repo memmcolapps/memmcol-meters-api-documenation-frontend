@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { PlanFormModal, NigeriaFlagIcon } from '../../../../../app/PlanFormModal'
 import { useToast } from '../../../../../app/toastContext'
@@ -85,9 +85,17 @@ function PlanViewPage() {
       </header>
 
       <div className="dash-tabs" role="tablist">
-        <button type="button" className="dash-tab is-active" role="tab" aria-selected="true">
+        <span className="dash-tab is-active" role="tab" aria-selected="true">
           Subscription Plans
-        </button>
+        </span>
+        <Link
+          to="/admin/settings/plans/purchases"
+          className="dash-tab"
+          role="tab"
+          aria-selected="false"
+        >
+          Purchases
+        </Link>
       </div>
 
       <div className="api-view-actions">

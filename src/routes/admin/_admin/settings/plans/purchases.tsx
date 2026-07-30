@@ -1,12 +1,12 @@
 import { useDeferredValue, useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { AsyncState } from '../../../../app/AsyncState'
+import { AsyncState } from '../../../../../app/AsyncState'
 import {
   useAdminBillingPurchases,
   type BillingPurchaseStatus,
-} from '../../../../features/billing/billingPurchaseQueries'
+} from '../../../../../features/billing/billingPurchaseQueries'
 
-export const Route = createFileRoute('/admin/_admin/settings/purchases')({
+export const Route = createFileRoute('/admin/_admin/settings/plans/purchases')({
   component: BillingPurchasesPage,
 })
 
