@@ -1921,6 +1921,11 @@ h1 {
   flex-direction: row;
   align-items: flex-end;
   gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.modal-form .modal-text {
+  flex: 0 0 100%;
 }
 
 .modal-field {
