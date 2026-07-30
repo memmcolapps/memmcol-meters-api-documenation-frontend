@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, apiRequest } from '../../lib/api/client'
 
 export type AdminRole = 'ADMIN' | 'DEVELOPER'
@@ -20,8 +20,30 @@ export type AdminUser = {
   invitedAt: string
 }
 
+export type AdminTeamMemberStatus =
+  | 'ACTIVE'
+  | 'INVITED'
+  | 'SUSPENDED'
+  | 'DISABLED'
+
+export type AdminTeamMember = {
+  id: string
+  firstName: string
+  lastName: string
+  displayName: string
+  email: string
+  role: AdminRole
+  status: AdminTeamMemberStatus
+  isCurrentUser: boolean
+  isOwner: boolean
+}
+
 type CreateAdminUserResponse = {
   admin: AdminUser
+}
+
+type AdminTeamMembersResponse = {
+  items: AdminTeamMember[]
 }
 
 type AdminUserErrorPayload = {
@@ -41,9 +63,30 @@ async function createAdminUser(input: CreateAdminUserInput) {
   return response.admin
 }
 
+function listAdminTeamMembers() {
+  return apiRequest<AdminTeamMembersResponse>('/admin/team/members')
+}
+
+export const adminTeamKeys = {
+  all: ['admin-team'] as const,
+  members: () => ['admin-team', 'members'] as const,
+}
+
+export function useAdminTeamMembers() {
+  return useQuery({
+    queryKey: adminTeamKeys.members(),
+    queryFn: listAdminTeamMembers,
+  })
+}
+
 export function useCreateAdminUser() {
+  const queryClient = useQueryClient()
+
   return useMutation({
     mutationFn: createAdminUser,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: adminTeamKeys.members() })
+    },
   })
 }
 

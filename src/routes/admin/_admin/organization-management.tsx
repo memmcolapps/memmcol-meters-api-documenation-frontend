@@ -1,87 +1,117 @@
-import { useRef, useState } from 'react'
+import { useDeferredValue, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { useDismiss } from '../../../app/useDismiss'
-import { useAnchoredMenu } from '../../../app/useAnchoredMenu'
+import { AsyncState } from '../../../app/AsyncState'
 import { ConfirmModal } from '../../../app/ConfirmModal'
+import { useAnchoredMenu } from '../../../app/useAnchoredMenu'
+import { useDismiss } from '../../../app/useDismiss'
+import { useToast } from '../../../app/toastContext'
+import {
+  getAdminOrganisationStatusError,
+  useAdminOrganisations,
+  useChangeAdminOrganisationStatus,
+  type AdminOrganisation,
+  type AdminOrganisationSortBy,
+  type AdminOrganisationSortOrder,
+  type AdminOrganisationStatus,
+} from '../../../features/admin-organisations/adminOrganisationQueries'
 
 export const Route = createFileRoute('/admin/_admin/organization-management')({
   component: OrganizationManagementPage,
 })
 
-type OrgStatus = 'Active' | 'Suspended'
-
-type Organization = {
-  id: string
-  business: string
-  userName: string
-  phone: string
-  email: string
-  role: 'Owner' | 'Member'
-  credits: number
-  status: OrgStatus
-}
-
-const seededOrgs: Organization[] = [
-  { id: 'org-1', business: 'Memmcol', userName: 'Wura Akande', phone: '08145236987', email: 'wura@gmail.com', role: 'Owner', credits: 250000, status: 'Active' },
-  { id: 'org-2', business: 'Epail', userName: 'Mia Chris', phone: '08145236987', email: 'mia@gmail.com', role: 'Owner', credits: 0, status: 'Active' },
-  { id: 'org-3', business: 'Momas', userName: 'Jane Doe', phone: '08142106987', email: 'janea@gmail.com', role: 'Member', credits: 0, status: 'Suspended' },
-  { id: 'org-4', business: 'Momas', userName: 'Jane Doe', phone: '08142106987', email: 'janea@gmail.com', role: 'Member', credits: 0, status: 'Active' },
-  { id: 'org-5', business: 'Momas', userName: 'Jane Doe', phone: '08142106987', email: 'janea@gmail.com', role: 'Owner', credits: 0, status: 'Active' },
-  { id: 'org-6', business: 'Epail', userName: 'Mia Chris', phone: '08145236987', email: 'mia@gmail.com', role: 'Member', credits: 0, status: 'Suspended' },
-  { id: 'org-7', business: 'Epail', userName: 'Mia Chris', phone: '08145236987', email: 'mia@gmail.com', role: 'Member', credits: 0, status: 'Active' },
-  { id: 'org-8', business: 'Epail', userName: 'Mia Chris', phone: '08145236987', email: 'mia@gmail.com', role: 'Owner', credits: 0, status: 'Suspended' },
-  { id: 'org-9', business: 'Epail', userName: 'Mia Chris', phone: '08145236987', email: 'mia@gmail.com', role: 'Member', credits: 0, status: 'Active' },
-  { id: 'org-10', business: 'Epail', userName: 'Mia Chris', phone: '08145236987', email: 'mia@gmail.com', role: 'Owner', credits: 0, status: 'Suspended' },
-]
-
-const pages = [1, 2, 3, '…', 5, 6, 7]
-const currentPage = 1
+const PAGE_SIZE = 20
 
 function OrganizationManagementPage() {
-  const [orgs, setOrgs] = useState<Organization[]>(seededOrgs)
+  const { showToast } = useToast()
   const [search, setSearch] = useState('')
+  const [status, setStatus] = useState<AdminOrganisationStatus | ''>('')
+  const [sortBy, setSortBy] =
+    useState<AdminOrganisationSortBy>('createdAt')
+  const [sortOrder, setSortOrder] =
+    useState<AdminOrganisationSortOrder>('desc')
+  const [page, setPage] = useState(1)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
-  const [addOpen, setAddOpen] = useState(false)
-  const [suspending, setSuspending] = useState<Organization | null>(null)
-  const [assigning, setAssigning] = useState<Organization | null>(null)
+  const [suspending, setSuspending] = useState<AdminOrganisation | null>(null)
+  const [reactivating, setReactivating] =
+    useState<AdminOrganisation | null>(null)
+  const [statusFieldErrors, setStatusFieldErrors] = useState<
+    Partial<Record<'status' | 'reason', string>>
+  >({})
+  const deferredSearch = useDeferredValue(search.trim())
+  const changeStatus = useChangeAdminOrganisationStatus()
+  const organisationsQuery = useAdminOrganisations({
+    search: deferredSearch || undefined,
+    status: status || undefined,
+    page,
+    limit: PAGE_SIZE,
+    sortBy,
+    sortOrder,
+  })
+  const organisations = organisationsQuery.data?.items ?? []
+  const pagination = organisationsQuery.data?.pagination
+  const isEmpty = !organisationsQuery.isPending && organisations.length === 0
+  const hasFilters = Boolean(search || status)
 
-  const assignCredits = (id: string, amount: number) => {
-    setOrgs((prev) =>
-      prev.map((org) =>
-        org.id === id ? { ...org, credits: org.credits + amount } : org,
-      ),
-    )
-    setAssigning(null)
+  const resetFilters = () => {
+    setSearch('')
+    setStatus('')
+    setPage(1)
   }
 
-  const setStatus = (id: string, status: OrgStatus) => {
-    setOrgs((prev) => prev.map((org) => (org.id === id ? { ...org, status } : org)))
-    setOpenMenu(null)
-  }
+  const updateStatus = async (
+    organisation: AdminOrganisation,
+    nextStatus: AdminOrganisationStatus,
+    reason?: string,
+  ) => {
+    if (nextStatus === 'SUSPENDED' && !reason?.trim()) {
+      setStatusFieldErrors({
+        reason: 'A reason is required when suspending an organization.',
+      })
+      return
+    }
 
-  const addOrg = (business: string, email: string) => {
-    setOrgs((prev) => [
-      ...prev,
-      {
-        id: `org-${Date.now()}`,
-        business,
-        userName: '—',
-        phone: '—',
-        email,
-        role: 'Owner',
-        credits: 0,
-        status: 'Active',
-      },
-    ])
-    setAddOpen(false)
-  }
+    setStatusFieldErrors({})
 
-  const query = search.trim().toLowerCase()
-  const visibleOrgs = query
-    ? orgs.filter((org) =>
-        `${org.business} ${org.userName} ${org.email}`.toLowerCase().includes(query),
-      )
-    : orgs
+    try {
+      await changeStatus.mutateAsync({
+        organisationId: organisation.id,
+        status: nextStatus,
+        ...(reason?.trim() ? { reason: reason.trim() } : {}),
+      })
+      setOpenMenu(null)
+      setSuspending(null)
+      setReactivating(null)
+      showToast({
+        title:
+          nextStatus === 'SUSPENDED'
+            ? 'Organization suspended'
+            : 'Organization reactivated',
+        message:
+          nextStatus === 'SUSPENDED'
+            ? `${organisation.businessName} can no longer use live API keys.`
+            : `${organisation.businessName} is active. No new API keys were generated.`,
+        variant: 'success',
+      })
+    } catch (error) {
+      const statusError = getAdminOrganisationStatusError(error)
+      const fields = statusError.fields as Partial<
+        Record<'status' | 'reason', string>
+      >
+      setStatusFieldErrors(fields)
+      showToast({
+        title: statusError.message,
+        message: [
+          [...new Set(Object.values(fields))].join(' '),
+          statusError.requestId
+            ? `Request ID: ${statusError.requestId}`
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' · ') || undefined,
+        variant: 'error',
+      })
+    }
+  }
 
   return (
     <div className="dash">
@@ -89,18 +119,15 @@ function OrganizationManagementPage() {
         <div className="dash-head">
           <h1 className="dash-title">Organization Management</h1>
           <p className="dash-subtitle">
-            Manage organizations and users account status.
+            View organizations, owners, account status, and credit balances.
           </p>
         </div>
-        <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
-          Add Organization <PlusIcon />
-        </button>
       </header>
 
       <div className="dash-tabs" role="tablist">
-        <button type="button" className="dash-tab is-active" role="tab" aria-selected="true">
+        <span className="dash-tab is-active" role="tab" aria-selected="true">
           Organizations
-        </button>
+        </span>
       </div>
 
       <div className="dash-toolbar">
@@ -108,257 +135,343 @@ function OrganizationManagementPage() {
           <div className="table-search">
             <input
               type="search"
-              placeholder="Search Organization..."
+              placeholder="Search organizations..."
               aria-label="Search organizations"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setPage(1)
+              }}
             />
             <SearchIcon />
           </div>
-          <button type="button" className="filter-btn">
-            Filter <ChevronRightIcon />
-          </button>
-          <button type="button" className="filter-btn">
-            Sort <SortIcon />
-          </button>
+          <select
+            className="filter-btn"
+            aria-label="Filter organizations by status"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value as AdminOrganisationStatus | '')
+              setPage(1)
+            }}
+          >
+            <option value="">All statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="SUSPENDED">Suspended</option>
+          </select>
+          <select
+            className="filter-btn"
+            aria-label="Sort organizations by"
+            value={sortBy}
+            onChange={(event) => {
+              setSortBy(event.target.value as AdminOrganisationSortBy)
+              setPage(1)
+            }}
+          >
+            <option value="createdAt">Date created</option>
+            <option value="businessName">Business name</option>
+            <option value="creditBalance">Credit balance</option>
+          </select>
+          <select
+            className="filter-btn"
+            aria-label="Organization sort order"
+            value={sortOrder}
+            onChange={(event) => {
+              setSortOrder(event.target.value as AdminOrganisationSortOrder)
+              setPage(1)
+            }}
+          >
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+          </select>
+          {hasFilters ? (
+            <button type="button" className="btn-neutral" onClick={resetFilters}>
+              Clear filters
+            </button>
+          ) : null}
         </div>
       </div>
 
-      <div className="table-scroll">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th className="col-check">
-                <input type="checkbox" aria-label="Select all rows" />
-              </th>
-              <th>S/N</th>
-              <th>Business Name</th>
-              <th>User Name</th>
-              <th>Phone Number</th>
-              <th>Email Address</th>
-              <th>Role</th>
-              <th>Credits</th>
-              <th>Status</th>
-              <th className="col-actions">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleOrgs.map((org, index) => (
-              <tr key={org.id}>
-                <td className="col-check">
-                  <input type="checkbox" aria-label={`Select organization ${index + 1}`} />
-                </td>
-                <td>{String(index + 1).padStart(2, '0')}</td>
-                <td>{org.business}</td>
-                <td>{org.userName}</td>
-                <td>{org.phone}</td>
-                <td>{org.email}</td>
-                <td>{org.role}</td>
-                <td>{org.credits.toLocaleString()}</td>
-                <td>
-                  <span
-                    className={`code-badge${org.status === 'Active' ? ' is-ok' : ' is-error'}`}
-                  >
-                    {org.status}
-                  </span>
-                </td>
-                <td className="col-actions">
-                  <RowActions
-                    isOpen={openMenu === org.id}
-                    status={org.status}
-                    onToggle={() =>
-                      setOpenMenu((prev) => (prev === org.id ? null : org.id))
-                    }
-                    onClose={() => setOpenMenu(null)}
-                    onAssignCredits={() => {
-                      setOpenMenu(null)
-                      setAssigning(org)
-                    }}
-                    onSuspend={() => {
-                      setOpenMenu(null)
-                      setSuspending(org)
-                    }}
-                    onReactivate={() => setStatus(org.id, 'Active')}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <AsyncState
+        isPending={organisationsQuery.isPending}
+        error={organisationsQuery.error}
+        onRetry={() => void organisationsQuery.refetch()}
+      >
+        {isEmpty ? (
+          <div className="meter-empty">
+            <p className="meter-empty-text">
+              {hasFilters
+                ? 'No organizations match the selected filters.'
+                : 'No organizations found.'}
+            </p>
+            {hasFilters ? (
+              <button type="button" className="btn-primary" onClick={resetFilters}>
+                Clear filters
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <>
+            <div
+              className="table-scroll"
+              aria-busy={organisationsQuery.isFetching}
+            >
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>S/N</th>
+                    <th>Business Name</th>
+                    <th>Owner Name</th>
+                    <th>Phone Number</th>
+                    <th>Email Address</th>
+                    <th>Credits</th>
+                    <th>Status</th>
+                    <th>Created At</th>
+                    <th className="col-actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {organisations.map((organisation, index) => (
+                    <tr key={organisation.id}>
+                      <td>
+                        {String(
+                          ((pagination?.page ?? page) - 1) *
+                            (pagination?.limit ?? PAGE_SIZE) +
+                            index +
+                            1,
+                        ).padStart(2, '0')}
+                      </td>
+                      <td>{organisation.businessName}</td>
+                      <td>
+                        {formatOwnerName(
+                          organisation.owner.firstName,
+                          organisation.owner.lastName,
+                        )}
+                      </td>
+                      <td>
+                        {formatPhoneNumber(
+                          organisation.owner.dialCode,
+                          organisation.owner.phone,
+                        )}
+                      </td>
+                      <td>{organisation.owner.email}</td>
+                      <td>{organisation.creditBalance.toLocaleString()}</td>
+                      <td>
+                        <span
+                          className={`code-badge${
+                            organisation.status === 'ACTIVE'
+                              ? ' is-ok'
+                              : ' is-error'
+                          }`}
+                        >
+                          {formatStatus(organisation.status)}
+                        </span>
+                      </td>
+                      <td>{formatDateTime(organisation.createdAt)}</td>
+                      <td className="col-actions">
+                        <OrganisationRowActions
+                          isOpen={openMenu === organisation.id}
+                          organisation={organisation}
+                          onToggle={() =>
+                            setOpenMenu((current) =>
+                              current === organisation.id
+                                ? null
+                                : organisation.id,
+                            )
+                          }
+                          onClose={() => setOpenMenu(null)}
+                          onSuspend={() => {
+                            setStatusFieldErrors({})
+                            setOpenMenu(null)
+                            setSuspending(organisation)
+                          }}
+                          onReactivate={() => {
+                            setStatusFieldErrors({})
+                            setOpenMenu(null)
+                            setReactivating(organisation)
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-      <nav className="pagination" aria-label="Pagination">
-        <button type="button" className="page-nav" disabled>
-          <ChevronLeftIcon /> Previous
-        </button>
-        <div className="page-numbers">
-          {pages.map((page, index) =>
-            page === '…' ? (
-              <span key={`gap-${index}`} className="page-gap">
-                …
-              </span>
-            ) : (
+            <nav className="pagination" aria-label="Organization pagination">
               <button
                 type="button"
-                key={page}
-                className={`page-num${page === currentPage ? ' is-active' : ''}`}
-                aria-current={page === currentPage ? 'page' : undefined}
+                className="page-nav"
+                disabled={
+                  (pagination?.page ?? page) <= 1 ||
+                  organisationsQuery.isFetching
+                }
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
               >
-                {page}
+                Previous
               </button>
-            ),
-          )}
-        </div>
-        <button type="button" className="page-nav">
-          Next <ChevronRightIcon />
-        </button>
-      </nav>
-
-      {addOpen ? (
-        <AddOrganizationModal onClose={() => setAddOpen(false)} onAdd={addOrg} />
-      ) : null}
-
-      {assigning ? (
-        <AssignCreditsModal
-          org={assigning}
-          onClose={() => setAssigning(null)}
-          onAssign={(amount) => assignCredits(assigning.id, amount)}
-        />
-      ) : null}
+              <span className="page-gap">
+                Page {pagination?.page ?? page} of {pagination?.totalPages ?? 1}
+                {' · '}
+                {pagination?.total ?? organisations.length} total
+              </span>
+              <button
+                type="button"
+                className="page-nav"
+                disabled={
+                  (pagination?.page ?? page) >=
+                    (pagination?.totalPages ?? 1) ||
+                  organisationsQuery.isFetching
+                }
+                onClick={() => setPage((current) => current + 1)}
+              >
+                Next
+              </button>
+            </nav>
+          </>
+        )}
+      </AsyncState>
 
       {suspending ? (
-        <ConfirmModal
-          message="Are you sure you want to suspend organization?"
-          confirmLabel="Suspend"
-          onCancel={() => setSuspending(null)}
-          onConfirm={() => {
-            setStatus(suspending.id, 'Suspended')
-            setSuspending(null)
+        <SuspendOrganisationModal
+          organisation={suspending}
+          isSubmitting={changeStatus.isPending}
+          fieldErrors={statusFieldErrors}
+          onReasonChange={() => {
+            setStatusFieldErrors((current) => {
+              if (!current.reason) return current
+              const next = { ...current }
+              delete next.reason
+              return next
+            })
           }}
+          onCancel={() => {
+            if (!changeStatus.isPending) setSuspending(null)
+          }}
+          onConfirm={(reason) =>
+            void updateStatus(suspending, 'SUSPENDED', reason)
+          }
+        />
+      ) : null}
+
+      {reactivating ? (
+        <ConfirmModal
+          tone="primary"
+          message={`Reactivate ${reactivating.businessName}? This will not generate new API keys.`}
+          confirmLabel="Reactivate"
+          isSubmitting={changeStatus.isPending}
+          onCancel={() => {
+            if (!changeStatus.isPending) setReactivating(null)
+          }}
+          onConfirm={() => void updateStatus(reactivating, 'ACTIVE')}
         />
       ) : null}
     </div>
   )
 }
 
-function AddOrganizationModal({
-  onClose,
-  onAdd,
+function SuspendOrganisationModal({
+  organisation,
+  isSubmitting,
+  fieldErrors,
+  onReasonChange,
+  onCancel,
+  onConfirm,
 }: {
-  onClose: () => void
-  onAdd: (business: string, email: string) => void
+  organisation: AdminOrganisation
+  isSubmitting: boolean
+  fieldErrors: Partial<Record<'status' | 'reason', string>>
+  onReasonChange: () => void
+  onCancel: () => void
+  onConfirm: (reason: string) => void
 }) {
-  const [business, setBusiness] = useState('')
-  const [email, setEmail] = useState('')
+  const [reason, setReason] = useState('')
   const modalRef = useRef<HTMLDivElement>(null)
-  useDismiss(modalRef, onClose)
-
-  const canSubmit = business.trim() !== '' && email.trim() !== ''
+  useDismiss(modalRef, () => {
+    if (!isSubmitting) onCancel()
+  })
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="add-org-title">
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="suspend-organisation-title"
+    >
       <div className="modal" ref={modalRef}>
         <div className="modal-head">
-          <h2 id="add-org-title" className="modal-title">
-            Add Organization
+          <h2 id="suspend-organisation-title" className="modal-title">
+            Suspend Organization
           </h2>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
-            <CloseIcon />
-          </button>
-        </div>
-
-        <div className="modal-body">
-          <div className="modal-field">
-            <label>Business Name</label>
-            <input
-              className="modal-input"
-              placeholder="E.g. Memmcol"
-              value={business}
-              onChange={(e) => setBusiness(e.target.value)}
-            />
-          </div>
-          <div className="modal-field">
-            <label>Email Address</label>
-            <input
-              className="modal-input"
-              type="email"
-              placeholder="E.g. memmcoltechnical@memmcol.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-
           <button
             type="button"
-            className="btn-primary btn-block"
-            disabled={!canSubmit}
-            onClick={() => canSubmit && onAdd(business.trim(), email.trim())}
+            className="modal-close"
+            aria-label="Close"
+            disabled={isSubmitting}
+            onClick={onCancel}
           >
-            Add Organization
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function AssignCreditsModal({
-  org,
-  onClose,
-  onAssign,
-}: {
-  org: Organization
-  onClose: () => void
-  onAssign: (amount: number) => void
-}) {
-  const [amount, setAmount] = useState('')
-  const modalRef = useRef<HTMLDivElement>(null)
-  useDismiss(modalRef, onClose)
-
-  const parsed = Number(amount.replace(/[^\d]/g, ''))
-  const canSubmit = parsed > 0
-
-  return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="assign-credits-title">
-      <div className="modal" ref={modalRef}>
-        <div className="modal-head">
-          <div>
-            <h2 id="assign-credits-title" className="modal-title">
-              Assign Credits
-            </h2>
-            <p className="modal-subtitle">
-              Top up API credits for {org.business} — current balance:{' '}
-              {org.credits.toLocaleString()} credits.
-            </p>
-          </div>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
             <CloseIcon />
           </button>
         </div>
 
         <div className="modal-body">
+          {fieldErrors.status ? (
+            <p className="modal-field-error" role="alert">
+              {fieldErrors.status}
+            </p>
+          ) : null}
+          <p className="confirm-message">
+            Suspending {organisation.businessName} will prevent its live API
+            keys from being used.
+          </p>
           <div className="modal-field">
-            <label>Credits</label>
-            <input
+            <label htmlFor="organisation-suspension-reason">
+              Reason <span className="req">*</span>
+            </label>
+            <textarea
+              id="organisation-suspension-reason"
               className="modal-input"
-              inputMode="numeric"
-              placeholder="E.g. 500,000"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              rows={4}
+              placeholder="E.g. Compliance review."
+              value={reason}
+              disabled={isSubmitting}
+              aria-invalid={Boolean(fieldErrors.reason)}
+              aria-describedby={
+                fieldErrors.reason
+                  ? 'organisation-suspension-reason-error'
+                  : undefined
+              }
+              onChange={(event) => {
+                setReason(event.target.value)
+                onReasonChange()
+              }}
             />
+            {fieldErrors.reason ? (
+              <p
+                id="organisation-suspension-reason-error"
+                className="modal-field-error"
+                role="alert"
+              >
+                {fieldErrors.reason}
+              </p>
+            ) : null}
           </div>
 
           <div className="modal-foot">
-            <button type="button" className="btn-neutral" onClick={onClose}>
+            <button
+              type="button"
+              className="btn-neutral"
+              disabled={isSubmitting}
+              onClick={onCancel}
+            >
               Cancel
             </button>
             <button
               type="button"
-              className="btn-primary"
-              disabled={!canSubmit}
-              onClick={() => canSubmit && onAssign(parsed)}
+              className="btn-danger-solid"
+              disabled={isSubmitting}
+              onClick={() => onConfirm(reason)}
             >
-              Assign Credits
+              {isSubmitting ? 'Please wait…' : 'Suspend'}
             </button>
           </div>
         </div>
@@ -367,20 +480,18 @@ function AssignCreditsModal({
   )
 }
 
-function RowActions({
+function OrganisationRowActions({
   isOpen,
-  status,
+  organisation,
   onToggle,
   onClose,
-  onAssignCredits,
   onSuspend,
   onReactivate,
 }: {
   isOpen: boolean
-  status: OrgStatus
+  organisation: AdminOrganisation
   onToggle: () => void
   onClose: () => void
-  onAssignCredits: () => void
   onSuspend: () => void
   onReactivate: () => void
 }) {
@@ -394,7 +505,7 @@ function RowActions({
         type="button"
         ref={anchorRef}
         className="row-kebab"
-        aria-label="Row actions"
+        aria-label={`Actions for ${organisation.businessName}`}
         aria-expanded={isOpen}
         onClick={onToggle}
       >
@@ -402,16 +513,23 @@ function RowActions({
       </button>
       {isOpen ? (
         <div className="row-menu" style={menuStyle} role="menu">
-          <button type="button" className="row-menu-item" role="menuitem" onClick={onAssignCredits}>
-            <CoinsIcon /> Assign Credits
-          </button>
-          {status === 'Active' ? (
-            <button type="button" className="row-menu-item" role="menuitem" onClick={onSuspend}>
-              <WarnIcon /> Suspend User
+          {organisation.status === 'ACTIVE' ? (
+            <button
+              type="button"
+              className="row-menu-item is-danger"
+              role="menuitem"
+              onClick={onSuspend}
+            >
+              Suspend Organization
             </button>
           ) : (
-            <button type="button" className="row-menu-item" role="menuitem" onClick={onReactivate}>
-              <ReactivateIcon /> Reactivate User
+            <button
+              type="button"
+              className="row-menu-item"
+              role="menuitem"
+              onClick={onReactivate}
+            >
+              Reactivate Organization
             </button>
           )}
         </div>
@@ -420,35 +538,51 @@ function RowActions({
   )
 }
 
-function PlusIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 8v8M8 12h8" />
-    </svg>
-  )
+function formatOwnerName(firstName: string, lastName: string) {
+  return [firstName, lastName].filter(Boolean).join(' ') || '—'
+}
+
+function formatPhoneNumber(dialCode: string, phone: string) {
+  return [dialCode, phone].filter(Boolean).join(' ') || '—'
+}
+
+function formatStatus(status: AdminOrganisationStatus) {
+  return status.charAt(0) + status.slice(1).toLowerCase()
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
 }
 
 function SearchIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.5-3.5" />
-    </svg>
-  )
-}
-
-function SortIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3" />
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
     </svg>
   )
 }
 
 function KebabIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <circle cx="12" cy="5" r="1.6" />
       <circle cx="12" cy="12" r="1.6" />
       <circle cx="12" cy="19" r="1.6" />
@@ -458,53 +592,18 @@ function KebabIcon() {
 
 function CloseIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="M18 6 6 18M6 6l12 12" />
-    </svg>
-  )
-}
-
-function CoinsIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <ellipse cx="12" cy="6" rx="7" ry="3" />
-      <path d="M5 6v6c0 1.66 3.13 3 7 3s7-1.34 7-3V6" />
-      <path d="M5 12v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6" />
-    </svg>
-  )
-}
-
-function WarnIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3 2.5 20h19Z" />
-      <path d="M12 10v4" />
-      <circle cx="12" cy="17" r="0.4" fill="currentColor" />
-    </svg>
-  )
-}
-
-function ReactivateIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 16V8m0 0-3.5 3.5M12 8l3.5 3.5" />
-    </svg>
-  )
-}
-
-function ChevronLeftIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m15 18-6-6 6-6" />
-    </svg>
-  )
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m9 18 6-6-6-6" />
     </svg>
   )
 }

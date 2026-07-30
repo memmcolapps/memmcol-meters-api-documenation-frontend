@@ -1,12 +1,14 @@
 import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useDismiss } from '../../../../app/useDismiss'
+import { AsyncState } from '../../../../app/AsyncState'
 import { ConfirmModal } from '../../../../app/ConfirmModal'
 import { useToast } from '../../../../app/toastContext'
 import {
   useCreateAdminUser,
   useLeaveAdminTeam,
   getCreateAdminUserError,
+  useAdminTeamMembers,
   type AdminRole,
 } from '../../../../features/admin-users/adminUserQueries'
 import { getApiErrorMessage } from '../../../../lib/api/client'
@@ -17,31 +19,11 @@ export const Route = createFileRoute('/admin/_admin/settings/user-management')({
 
 type Role = 'Admin' | 'Developer'
 
-type Member = {
-  id: string
-  firstName: string
-  lastName: string
-  email: string
-  role: Role
-  isOwner?: boolean
-}
-
 const roles: Array<{ name: Role; description: string }> = [
   { name: 'Admin', description: 'All Access' },
   {
     name: 'Developer',
     description: 'Can manage API, Request Log, Incident report, Meter Integration',
-  },
-]
-
-const seededMembers: Member[] = [
-  {
-    id: 'mem-1',
-    firstName: 'Memmcol',
-    lastName: 'App',
-    email: 'Memmcolapp@gmail.com',
-    role: 'Admin',
-    isOwner: true,
   },
 ]
 
@@ -51,13 +33,13 @@ const roleMap: Record<AdminRole, Role> = {
 }
 
 function UserManagementPage() {
-  const [members, setMembers] = useState<Member[]>(seededMembers)
   const [inviteOpen, setInviteOpen] = useState(false)
-  const [removing, setRemoving] = useState<Member | null>(null)
   const [leaving, setLeaving] = useState(false)
   const createAdminUser = useCreateAdminUser()
   const leaveTeam = useLeaveAdminTeam()
+  const membersQuery = useAdminTeamMembers()
   const { showToast } = useToast()
+  const members = membersQuery.data?.items ?? []
 
   const invite = async (firstName: string, lastName: string, email: string, role: Role) => {
     const adminRole: AdminRole = role === 'Admin' ? 'ADMIN' : 'DEVELOPER'
@@ -69,16 +51,6 @@ function UserManagementPage() {
         email,
         role: adminRole,
       })
-      setMembers((prev) => [
-        ...prev,
-        {
-          id: admin.id,
-          firstName: admin.firstName,
-          lastName: admin.lastName,
-          email: admin.email,
-          role: roleMap[admin.role],
-        },
-      ])
       setInviteOpen(false)
       showToast({
         title: 'Invitation sent',
@@ -123,39 +95,59 @@ function UserManagementPage() {
         </button>
       </div>
 
-      <div className="member-list">
-        {members.map((member) => (
-          <div className="member-row" key={member.id}>
-            <div className="member-id">
-              <span className="member-avatar" aria-hidden="true">
-                {member.firstName.charAt(0).toUpperCase()}
-              </span>
-              <div>
-                <p className="member-name">{member.firstName} {member.lastName}</p>
-                <p className="member-email">{member.email}</p>
-              </div>
-            </div>
-            <p className="member-role">{member.role}</p>
-            <div className="member-actions">
-              {member.isOwner ? (
-                <button type="button" className="btn-danger" onClick={() => setLeaving(true)}>
-                  Leave
-                </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className="btn-danger"
-                    onClick={() => setRemoving(member)}
+      <AsyncState
+        isPending={membersQuery.isPending}
+        error={membersQuery.error}
+        onRetry={() => void membersQuery.refetch()}
+      >
+        {members.length > 0 ? (
+          <div className="member-list">
+            {members.map((member) => (
+              <div className="member-row" key={member.id}>
+                <div className="member-id">
+                  <span className="member-avatar" aria-hidden="true">
+                    {member.displayName.charAt(0).toUpperCase()}
+                  </span>
+                  <div>
+                    <p className="member-name">
+                      {member.displayName}
+                      {member.isCurrentUser ? (
+                        <span className="org-member-you">You</span>
+                      ) : null}
+                    </p>
+                    <p className="member-email">{member.email}</p>
+                  </div>
+                </div>
+                <p className="member-role">
+                  {member.isOwner ? 'Owner' : roleMap[member.role]}
+                </p>
+                <div className="member-actions">
+                  <span
+                    className={`code-badge${
+                      member.status === 'ACTIVE' ? ' is-ok' : ' is-warn'
+                    }`}
                   >
-                    Remove
-                  </button>
-                </>
-              )}
-            </div>
+                    {formatMemberStatus(member.status)}
+                  </span>
+                  {member.isCurrentUser ? (
+                    <button
+                      type="button"
+                      className="btn-danger"
+                      onClick={() => setLeaving(true)}
+                    >
+                      Leave
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        ) : (
+          <div className="async-state">
+            <p>No admin team members found.</p>
+          </div>
+        )}
+      </AsyncState>
 
       {inviteOpen ? (
         <MemberFormModal
@@ -167,24 +159,14 @@ function UserManagementPage() {
         />
       ) : null}
 
-      {removing ? (
-        <ConfirmModal
-          message={`Are you sure you want to remove ${removing.firstName} ${removing.lastName}?`}
-          confirmLabel="Remove"
-          onCancel={() => setRemoving(null)}
-          onConfirm={() => {
-            setMembers((prev) => prev.filter((member) => member.id !== removing.id))
-            setRemoving(null)
-          }}
-        />
-      ) : null}
-
       {leaving ? (
         <ConfirmModal
           message="Are you sure you want to leave this workspace?"
           confirmLabel="Leave"
           isSubmitting={leaveTeam.isPending}
-          onCancel={() => setLeaving(false)}
+          onCancel={() => {
+            if (!leaveTeam.isPending) setLeaving(false)
+          }}
           onConfirm={async () => {
             try {
               await leaveTeam.mutateAsync()
@@ -202,6 +184,10 @@ function UserManagementPage() {
       ) : null}
     </div>
   )
+}
+
+function formatMemberStatus(status: string) {
+  return status.charAt(0) + status.slice(1).toLowerCase()
 }
 
 function MemberFormModal({
