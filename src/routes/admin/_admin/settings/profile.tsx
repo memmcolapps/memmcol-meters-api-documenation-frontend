@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useDismiss } from '../../../../app/useDismiss'
 import { useAdminIdentity, adminAuthKeys } from '../../../../features/auth/adminLogin'
-import { useUpdateAdminProfile } from '../../../../features/admin-profile/adminProfileQueries'
+import { useUpdateAdminProfile, useChangeAdminPassword } from '../../../../features/admin-profile/adminProfileQueries'
 import { useToast } from '../../../../app/toastContext'
 import { getApiErrorMessage } from '../../../../lib/api/client'
 
@@ -184,8 +184,26 @@ function EditProfileModal({
 }
 
 function ResetPasswordModal({ onClose }: { onClose: () => void }) {
+  const [oldPassword, setOldPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
   const modalRef = useRef<HTMLDivElement>(null)
+  const changePassword = useChangeAdminPassword()
+  const { showToast } = useToast()
   useDismiss(modalRef, onClose)
+
+  const handleSave = async () => {
+    try {
+      const response = await changePassword.mutateAsync({ currentPassword: oldPassword, newPassword })
+      showToast({ title: response.message, variant: 'success' })
+      onClose()
+    } catch (error) {
+      showToast({
+        title: 'Could not change password',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
+  }
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="reset-title">
@@ -200,15 +218,15 @@ function ResetPasswordModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="modal-body">
-          <PasswordField id="oldPassword" label="Old Password" placeholder="Enter your old password" />
-          <PasswordField id="newPassword" label="New Password" placeholder="Enter your new password" />
-          <PasswordField
-            id="confirmPassword"
-            label="Confirm New Password"
-            placeholder="Enter your new password"
-          />
-          <button type="button" className="btn-primary btn-block" onClick={onClose}>
-            Save Changes
+          <PasswordField id="oldPassword" label="Old Password" placeholder="Enter your old password" value={oldPassword} onChange={setOldPassword} />
+          <PasswordField id="newPassword" label="New Password" placeholder="Enter your new password" value={newPassword} onChange={setNewPassword} />
+          <button
+            type="button"
+            className="btn-primary btn-block"
+            disabled={changePassword.isPending}
+            onClick={handleSave}
+          >
+            {changePassword.isPending ? 'Changing password…' : 'Save Changes'}
           </button>
         </div>
       </div>
@@ -220,10 +238,14 @@ function PasswordField({
   id,
   label,
   placeholder,
+  value,
+  onChange,
 }: {
   id: string
   label: string
   placeholder: string
+  value: string
+  onChange: (value: string) => void
 }) {
   const [show, setShow] = useState(false)
   return (
@@ -236,6 +258,8 @@ function PasswordField({
           type={show ? 'text' : 'password'}
           placeholder={placeholder}
           autoComplete="off"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
         />
         <button
           type="button"
