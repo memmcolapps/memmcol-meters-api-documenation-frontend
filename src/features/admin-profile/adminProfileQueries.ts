@@ -23,3 +23,25 @@ export function useUpdateAdminProfile() {
     mutationFn: updateAdminProfile,
   })
 }
+
+export type ChangeAdminPasswordInput = {
+  currentPassword: string
+  newPassword: string
+}
+
+export type ChangeAdminPasswordResponse = {
+  message: string
+}
+
+export function changeAdminPassword(input: ChangeAdminPasswordInput) {
+  return apiRequest<ChangeAdminPasswordResponse>('/admin/profile/change-password', {
+    method: 'POST',
+    json: input,
+  })
+}
+
+export function useChangeAdminPassword() {
+  return useMutation({
+    mutationFn: changeAdminPassword,
+  })
+}
