@@ -5,10 +5,11 @@ import { ConfirmModal } from '../../../../app/ConfirmModal'
 import { useToast } from '../../../../app/toastContext'
 import {
   useCreateAdminUser,
+  useLeaveAdminTeam,
   getCreateAdminUserError,
   type AdminRole,
 } from '../../../../features/admin-users/adminUserQueries'
-// import { getApiErrorMessage } from '../../../../lib/api/client'
+import { getApiErrorMessage } from '../../../../lib/api/client'
 
 export const Route = createFileRoute('/admin/_admin/settings/user-management')({
   component: UserManagementPage,
@@ -55,6 +56,7 @@ function UserManagementPage() {
   const [removing, setRemoving] = useState<Member | null>(null)
   const [leaving, setLeaving] = useState(false)
   const createAdminUser = useCreateAdminUser()
+  const leaveTeam = useLeaveAdminTeam()
   const { showToast } = useToast()
 
   const invite = async (firstName: string, lastName: string, email: string, role: Role) => {
@@ -181,8 +183,21 @@ function UserManagementPage() {
         <ConfirmModal
           message="Are you sure you want to leave this workspace?"
           confirmLabel="Leave"
+          isSubmitting={leaveTeam.isPending}
           onCancel={() => setLeaving(false)}
-          onConfirm={() => setLeaving(false)}
+          onConfirm={async () => {
+            try {
+              await leaveTeam.mutateAsync()
+              showToast({ title: 'You have left the workspace', variant: 'success' })
+              setLeaving(false)
+            } catch (error) {
+              showToast({
+                title: 'Could not leave workspace',
+                message: getApiErrorMessage(error),
+                variant: 'error',
+              })
+            }
+          }}
         />
       ) : null}
     </div>

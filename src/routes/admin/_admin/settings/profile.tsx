@@ -1,7 +1,11 @@
 import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { useDismiss } from '../../../../app/useDismiss'
-import { useAdminIdentity } from '../../../../features/auth/adminLogin'
+import { useAdminIdentity, adminAuthKeys } from '../../../../features/auth/adminLogin'
+import { useUpdateAdminProfile } from '../../../../features/admin-profile/adminProfileQueries'
+import { useToast } from '../../../../app/toastContext'
+import { getApiErrorMessage } from '../../../../lib/api/client'
 
 export const Route = createFileRoute('/admin/_admin/settings/profile')({
   component: AdminProfilePage,
@@ -104,10 +108,31 @@ function EditProfileModal({
 }) {
   const [draft, setDraft] = useState(profile)
   const modalRef = useRef<HTMLDivElement>(null)
+  const queryClient = useQueryClient()
+  const updateProfile = useUpdateAdminProfile()
+  const { showToast } = useToast()
   useDismiss(modalRef, onClose)
 
   const update = (patch: Partial<AdminProfile>) =>
     setDraft((prev) => ({ ...prev, ...patch }))
+
+  const handleSave = async () => {
+    try {
+      const { admin } = await updateProfile.mutateAsync({
+        firstName: draft.firstName,
+        lastName: draft.lastName,
+      })
+      queryClient.setQueryData(adminAuthKeys.current(), admin)
+      showToast({ title: 'Profile updated', variant: 'success' })
+      onSave(draft)
+    } catch (error) {
+      showToast({
+        title: 'Could not update profile',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
+  }
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-title">
@@ -147,9 +172,10 @@ function EditProfileModal({
           <button
             type="button"
             className="btn-primary btn-block"
-            onClick={() => onSave(draft)}
+            disabled={updateProfile.isPending}
+            onClick={handleSave}
           >
-            Save Changes
+            {updateProfile.isPending ? 'Saving…' : 'Save Changes'}
           </button>
         </div>
       </div>

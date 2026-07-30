@@ -47,6 +47,19 @@ export function useCreateAdminUser() {
   })
 }
 
+export function leaveAdminTeam() {
+  return apiRequest<void>('/admin/team/leave', {
+    method: 'POST',
+    json: { confirmation: true },
+  })
+}
+
+export function useLeaveAdminTeam() {
+  return useMutation({
+    mutationFn: leaveAdminTeam,
+  })
+}
+
 export function getCreateAdminUserError(error: unknown) {
   const payload = error instanceof ApiError
     ? error.details as AdminUserErrorPayload | undefined
