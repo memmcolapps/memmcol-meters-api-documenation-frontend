@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { ApiError, apiRequest } from '../../lib/api/client'
 import { billingPlanKeys } from './billingPlanQueries'
 
@@ -66,6 +71,43 @@ export type BillingPurchaseStatusResponse = {
   account: BillingAccountSnapshot
 }
 
+export type AdminBillingPurchase = {
+  id: string
+  organisation: {
+    id: string
+    name: string
+  }
+  plan: {
+    id: string
+    name: string
+  }
+  credits: number
+  amount: number
+  status: BillingPurchaseStatus
+  paymentReference: string
+  createdAt: string
+  paidAt: string | null
+}
+
+export type AdminBillingPurchaseListParams = {
+  organisationId?: string
+  status?: BillingPurchaseStatus
+  from?: string
+  to?: string
+  page: number
+  limit: number
+}
+
+export type AdminBillingPurchaseListResponse = {
+  items: AdminBillingPurchase[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
 type BillingPurchaseErrorPayload = {
   error?: {
     code?: string
@@ -77,6 +119,9 @@ type BillingPurchaseErrorPayload = {
 
 export const billingPurchaseKeys = {
   all: ['billing-purchases'] as const,
+  adminLists: () => ['billing-purchases', 'admin-list'] as const,
+  adminList: (params: AdminBillingPurchaseListParams) =>
+    ['billing-purchases', 'admin-list', params] as const,
   detail: (id: string) => ['billing-purchases', 'detail', id] as const,
 }
 
@@ -89,6 +134,23 @@ const PURCHASE_POLL_INTERVAL = 5_000
 function getBillingPurchase(purchaseId: string) {
   return apiRequest<BillingPurchaseStatusResponse>(
     `/billing/purchases/${encodeURIComponent(purchaseId)}`,
+  )
+}
+
+function listAdminBillingPurchases(params: AdminBillingPurchaseListParams) {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    limit: String(params.limit),
+  })
+  if (params.organisationId) {
+    query.set('organisationId', params.organisationId)
+  }
+  if (params.status) query.set('status', params.status)
+  if (params.from) query.set('from', params.from)
+  if (params.to) query.set('to', params.to)
+
+  return apiRequest<AdminBillingPurchaseListResponse>(
+    `/admin/billing/purchases?${query.toString()}`,
   )
 }
 
@@ -111,6 +173,16 @@ export function useBillingPurchase(purchaseId: string | undefined) {
       if (error instanceof ApiError && error.status === 404) return false
       return failureCount < 3
     },
+  })
+}
+
+export function useAdminBillingPurchases(
+  params: AdminBillingPurchaseListParams,
+) {
+  return useQuery({
+    queryKey: billingPurchaseKeys.adminList(params),
+    queryFn: () => listAdminBillingPurchases(params),
+    placeholderData: keepPreviousData,
   })
 }
 

@@ -35,6 +35,7 @@ export const adminNavItems: NavItem[] = [
     children: [
       { to: '/admin/settings/user-management', label: 'User Management' },
       { to: '/admin/settings/plans', label: 'Plans & Pricing' },
+      { to: '/admin/settings/purchases', label: 'Purchases' },
       { to: '/admin/settings/profile', label: 'Profile' },
     ],
   },
