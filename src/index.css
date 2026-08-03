@@ -3935,6 +3935,19 @@ h1 {
   color: #b42318;
 }
 
+/* Development-only error detail inside the route error boundary. */
+.route-error-detail {
+  max-width: 48rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: #fff1f0;
+  font-size: 0.85rem;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
 .async-spinner {
   width: 2rem;
   height: 2rem;

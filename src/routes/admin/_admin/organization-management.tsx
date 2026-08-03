@@ -6,6 +6,14 @@ import { useAnchoredMenu } from '../../../app/useAnchoredMenu'
 import { useDismiss } from '../../../app/useDismiss'
 import { useToast } from '../../../app/toastContext'
 import {
+  formatDateTime,
+  formatName,
+  formatNumber,
+  formatStatusLabel,
+  formatText,
+  toList,
+} from '../../../lib/format'
+import {
   getAdminOrganisationStatusError,
   useAdminOrganisations,
   useChangeAdminOrganisationStatus,
@@ -47,7 +55,7 @@ function OrganizationManagementPage() {
     sortBy,
     sortOrder,
   })
-  const organisations = organisationsQuery.data?.items ?? []
+  const organisations = toList<AdminOrganisation>(organisationsQuery.data?.items)
   const pagination = organisationsQuery.data?.pagination
   const isEmpty = !organisationsQuery.isPending && organisations.length === 0
   const hasFilters = Boolean(search || status)
@@ -88,8 +96,8 @@ function OrganizationManagementPage() {
             : 'Organization reactivated',
         message:
           nextStatus === 'SUSPENDED'
-            ? `${organisation.businessName} can no longer use live API keys.`
-            : `${organisation.businessName} is active. No new API keys were generated.`,
+            ? `${organisationLabel(organisation)} can no longer use live API keys.`
+            : `${organisationLabel(organisation)} is active. No new API keys were generated.`,
         variant: 'success',
       })
     } catch (error) {
@@ -240,30 +248,28 @@ function OrganizationManagementPage() {
                             1,
                         ).padStart(2, '0')}
                       </td>
-                      <td>{organisation.businessName}</td>
+                      <td>{formatText(organisation.businessName)}</td>
                       <td>
-                        {formatOwnerName(
-                          organisation.owner.firstName,
-                          organisation.owner.lastName,
+                        {formatName(
+                          organisation.owner?.firstName,
+                          organisation.owner?.lastName,
                         )}
                       </td>
                       <td>
-                        {formatPhoneNumber(
-                          organisation.owner.dialCode,
-                          organisation.owner.phone,
+                        {formatName(
+                          organisation.owner?.dialCode,
+                          organisation.owner?.phone,
                         )}
                       </td>
-                      <td>{organisation.owner.email}</td>
-                      <td>{organisation.creditBalance.toLocaleString()}</td>
+                      <td>{formatText(organisation.owner?.email)}</td>
+                      <td>{formatNumber(organisation.creditBalance)}</td>
                       <td>
                         <span
-                          className={`code-badge${
-                            organisation.status === 'ACTIVE'
-                              ? ' is-ok'
-                              : ' is-error'
-                          }`}
+                          className={`code-badge${statusBadgeClass(
+                            organisation.status,
+                          )}`}
                         >
-                          {formatStatus(organisation.status)}
+                          {formatStatusLabel(organisation.status)}
                         </span>
                       </td>
                       <td>{formatDateTime(organisation.createdAt)}</td>
@@ -356,7 +362,7 @@ function OrganizationManagementPage() {
       {reactivating ? (
         <ConfirmModal
           tone="primary"
-          message={`Reactivate ${reactivating.businessName}? This will not generate new API keys.`}
+          message={`Reactivate ${organisationLabel(reactivating)}? This will not generate new API keys.`}
           confirmLabel="Reactivate"
           isSubmitting={changeStatus.isPending}
           onCancel={() => {
@@ -420,8 +426,8 @@ function SuspendOrganisationModal({
             </p>
           ) : null}
           <p className="confirm-message">
-            Suspending {organisation.businessName} will prevent its live API
-            keys from being used.
+            Suspending {organisationLabel(organisation)} will prevent its live
+            API keys from being used.
           </p>
           <div className="modal-field">
             <label htmlFor="organisation-suspension-reason">
@@ -505,7 +511,7 @@ function OrganisationRowActions({
         type="button"
         ref={anchorRef}
         className="row-kebab"
-        aria-label={`Actions for ${organisation.businessName}`}
+        aria-label={`Actions for ${organisationLabel(organisation)}`}
         aria-expanded={isOpen}
         onClick={onToggle}
       >
@@ -538,21 +544,14 @@ function OrganisationRowActions({
   )
 }
 
-function formatOwnerName(firstName: string, lastName: string) {
-  return [firstName, lastName].filter(Boolean).join(' ') || '—'
+function statusBadgeClass(status?: AdminOrganisationStatus | null) {
+  if (status === 'ACTIVE') return ' is-ok'
+  if (status === 'SUSPENDED') return ' is-error'
+  return ''
 }
 
-function formatPhoneNumber(dialCode: string, phone: string) {
-  return [dialCode, phone].filter(Boolean).join(' ') || '—'
-}
-
-function formatStatus(status: AdminOrganisationStatus) {
-  return status.charAt(0) + status.slice(1).toLowerCase()
-}
-
-function formatDateTime(value: string) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
+function organisationLabel(organisation: AdminOrganisation) {
+  return organisation.businessName?.trim() || 'This organization'
 }
 
 function SearchIcon() {

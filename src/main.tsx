@@ -6,10 +6,16 @@ import './index.css'
 import { routeTree } from './routeTree.gen'
 import { queryClient } from './lib/queryClient'
 import { ToastProvider } from './app/Toast'
+import { RouteError } from './app/RouteError'
 import { emitToast } from './app/toastContext'
 import { setSessionExpiredHandler } from './lib/api/session'
 
-const router = createRouter({ routeTree })
+// A render that throws is contained to the failing route instead of blanking
+// the whole app with the router's default fallback.
+const router = createRouter({
+  routeTree,
+  defaultErrorComponent: RouteError,
+})
 
 declare module '@tanstack/react-router' {
   interface Register {

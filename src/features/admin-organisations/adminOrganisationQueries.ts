@@ -13,20 +13,28 @@ export type AdminOrganisationSortBy =
   | 'createdAt'
 export type AdminOrganisationSortOrder = 'asc' | 'desc'
 
+/**
+ * The API has been observed omitting `owner` (and fields within it) for
+ * organizations whose owner record is missing, so every display field is
+ * treated as optional. Rendering must degrade to a placeholder rather than
+ * throw — a single malformed row must not take the whole route down.
+ */
+export type AdminOrganisationOwner = {
+  id: string
+  firstName?: string | null
+  lastName?: string | null
+  email?: string | null
+  dialCode?: string | null
+  phone?: string | null
+}
+
 export type AdminOrganisation = {
   id: string
-  businessName: string
-  owner: {
-    id: string
-    firstName: string
-    lastName: string
-    email: string
-    dialCode: string
-    phone: string
-  }
-  creditBalance: number
-  status: AdminOrganisationStatus
-  createdAt: string
+  businessName?: string | null
+  owner?: AdminOrganisationOwner | null
+  creditBalance?: number | null
+  status?: AdminOrganisationStatus | null
+  createdAt?: string | null
 }
 
 export type AdminOrganisationListParams = {
