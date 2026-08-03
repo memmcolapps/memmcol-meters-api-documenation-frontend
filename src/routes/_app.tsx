@@ -4,15 +4,34 @@ import {
   Link,
   Outlet,
   createFileRoute,
+  redirect,
   useNavigate,
   useRouterState,
 } from '@tanstack/react-router'
 import { navItems } from '../app/nav'
 import { Logo } from '../app/Logo'
 import { useDismiss } from '../app/useDismiss'
-import { profileKeys, useCurrentProfile } from '../features/profile/profileQueries'
+import { ApiError } from '../lib/api/client'
+import { clearSession } from '../lib/api/session'
+import { queryClient as appQueryClient } from '../lib/queryClient'
+import {
+  currentProfileQueryOptions,
+  profileKeys,
+  useCurrentProfile,
+} from '../features/profile/profileQueries'
 
 export const Route = createFileRoute('/_app')({
+  beforeLoad: async () => {
+    try {
+      await appQueryClient.fetchQuery(currentProfileQueryOptions())
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        appQueryClient.removeQueries({ queryKey: profileKeys.all })
+        throw redirect({ to: '/login' })
+      }
+      throw error
+    }
+  },
   component: AppLayout,
 })
 
@@ -145,9 +164,10 @@ function AccountMenu() {
               type="button"
               className="account-item is-logout"
               role="menuitem"
-              onClick={() => {
-                queryClient.removeQueries({ queryKey: profileKeys.all })
-                navigate({ to: '/login' })
+              onClick={async () => {
+                clearSession()
+                await navigate({ to: '/login' })
+                queryClient.clear()
               }}
             >
               <LogoutIcon /> Logout

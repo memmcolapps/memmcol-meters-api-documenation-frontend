@@ -7,6 +7,7 @@ import {
 } from 'react'
 import {
   ToastContext,
+  setToastEmitter,
   type ToastInput,
 } from './toastContext'
 
@@ -39,6 +40,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     }, TOAST_DURATION)
     timers.current.set(id, timer)
   }, [])
+
+  useEffect(() => {
+    setToastEmitter(showToast)
+    return () => setToastEmitter(null)
+  }, [showToast])
 
   useEffect(() => () => {
     for (const timer of timers.current.values()) window.clearTimeout(timer)

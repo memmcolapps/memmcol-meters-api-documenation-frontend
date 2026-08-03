@@ -14,6 +14,7 @@ import { useDismiss } from '../../app/useDismiss'
 import { useToast } from '../../app/toastContext'
 import { getAuthError } from '../../features/auth/errors'
 import { ApiError } from '../../lib/api/client'
+import { clearSession } from '../../lib/api/session'
 import { queryClient as appQueryClient } from '../../lib/queryClient'
 import {
   adminAuthKeys,
@@ -135,9 +136,10 @@ function AdminAccountMenu() {
   const handleLogout = async () => {
     try {
       await logout.mutateAsync()
+      clearSession()
       setOpen(false)
       await navigate({ to: '/admin/login' })
-      queryClient.removeQueries({ queryKey: adminAuthKeys.current() })
+      queryClient.clear()
     } catch (error) {
       const authError = getAuthError(error)
       showToast({

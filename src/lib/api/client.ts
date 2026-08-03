@@ -1,3 +1,5 @@
+import { markSessionActive, notifySessionExpired } from './session'
+
 export class ApiError extends Error {
   readonly status: number
   readonly details?: unknown
@@ -117,6 +119,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       : await response.text()
 
   if (!response.ok) {
+    if (response.status === 401) notifySessionExpired(path)
     throw new ApiError(
       getErrorMessage(payload, response.statusText),
       response.status,
@@ -124,6 +127,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     )
   }
 
+  markSessionActive(path)
   return payload as T
 }
 
@@ -140,6 +144,7 @@ export async function apiDownload(path: string) {
     const payload: unknown = contentType.includes('application/json')
       ? await response.json()
       : await response.text()
+    if (response.status === 401) notifySessionExpired(path)
     throw new ApiError(
       getErrorMessage(payload, response.statusText),
       response.status,

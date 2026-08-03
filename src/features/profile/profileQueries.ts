@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery } from '@tanstack/react-query'
 import { apiRequest } from '../../lib/api/client'
 
 export type CurrentProfile = {
@@ -38,11 +38,16 @@ export function getCurrentProfile() {
   return apiRequest<CurrentProfile>('/profile')
 }
 
-export function useCurrentProfile() {
-  return useQuery({
+export function currentProfileQueryOptions() {
+  return queryOptions({
     queryKey: profileKeys.current(),
     queryFn: getCurrentProfile,
+    retry: false,
   })
+}
+
+export function useCurrentProfile() {
+  return useQuery(currentProfileQueryOptions())
 }
 
 export function changePassword(input: ChangePasswordInput) {
