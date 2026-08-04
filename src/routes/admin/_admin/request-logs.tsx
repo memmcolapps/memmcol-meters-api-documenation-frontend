@@ -1,50 +1,40 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { AsyncState } from '../../../app/AsyncState'
 import { DatePicker } from '../../../app/DatePicker'
+import { formatDateTime, formatText, toList } from '../../../lib/format'
+import {
+  useAdminRequestLogs,
+  type AdminRequestLog,
+  type AdminRequestLogSortOrder,
+} from '../../../features/admin-request-logs/adminRequestLogQueries'
 
 export const Route = createFileRoute('/admin/_admin/request-logs')({
   component: RequestLogsPage,
 })
 
-type RequestLog = {
-  id: string
-  organization: string
-  time: string
-  service: string
-  code: number
-  response: string
-}
-
-const services = [
-  'Remote Token Management',
-  'Consumption Data',
-  'Event & Alarm Data',
-  'Meter Master Data',
-  'Remote Communication',
-]
-
-const seededLogs: RequestLog[] = Array.from({ length: 10 }, (_, index) => {
-  const isError = index === 0
-  return {
-    id: `rl-${index + 1}`,
-    organization: index === 1 ? 'Memmcol' : 'Momas',
-    time: '6/23/2026, 4:53:21 PM',
-    service: services[Math.floor((index + 1) / 2) % services.length],
-    code: isError ? 400 : 200,
-    response: isError ? 'Calls Exceeded' : 'Token generated successfully',
-  }
-})
-
-const pages = [1, 2, 3, '…', 5, 6, 7]
-const currentPage = 1
+const PAGE_SIZE = 20
 
 function RequestLogsPage() {
   const [search, setSearch] = useState('')
+  const [from, setFrom] = useState<Date | null>(null)
+  const [to, setTo] = useState<Date | null>(null)
+  const [sortOrder, setSortOrder] =
+    useState<AdminRequestLogSortOrder>('desc')
+  const [page, setPage] = useState(1)
 
-  const query = search.trim().toLowerCase()
-  const visibleLogs = query
-    ? seededLogs.filter((log) => log.organization.toLowerCase().includes(query))
-    : seededLogs
+  const requestLogsQuery = useAdminRequestLogs({
+    search: search.trim() || undefined,
+    from: from?.toISOString(),
+    to: to?.toISOString(),
+    page,
+    limit: PAGE_SIZE,
+    sortOrder,
+  })
+  const logs = toList<AdminRequestLog>(requestLogsQuery.data?.items)
+  const pagination = requestLogsQuery.data?.pagination
+  const currentPage = pagination?.page ?? page
+  const totalPages = pagination?.totalPages ?? 1
 
   return (
     <div className="dash">
@@ -69,7 +59,10 @@ function RequestLogsPage() {
               placeholder="Search organization..."
               aria-label="Search organizations"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setPage(1)
+              }}
             />
             <SearchIcon />
           </div>
@@ -79,75 +72,106 @@ function RequestLogsPage() {
           <button type="button" className="filter-btn">
             Sort <SortIcon />
           </button>
-          <DatePicker placeholder="Date Range" />
+          <select
+            className="filter-btn"
+            aria-label="Sort order"
+            value={sortOrder}
+            onChange={(event) => {
+              setSortOrder(event.target.value as AdminRequestLogSortOrder)
+              setPage(1)
+            }}
+          >
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+          </select>
+          <DatePicker
+            placeholder="Date Range"
+            initialDate={from ?? undefined}
+            onChange={(date) => {
+              setFrom(date)
+              setTo(date)
+              setPage(1)
+            }}
+          />
         </div>
       </div>
 
-      <div className="table-scroll">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th className="col-check">
-                <input type="checkbox" aria-label="Select all rows" />
-              </th>
-              <th>S/N</th>
-              <th>Organization</th>
-              <th>Request Time</th>
-              <th>API Service</th>
-              <th>Code</th>
-              <th>Response</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleLogs.map((log, index) => (
-              <tr key={log.id}>
-                <td className="col-check">
-                  <input type="checkbox" aria-label={`Select log ${index + 1}`} />
-                </td>
-                <td>{String(index + 1).padStart(2, '0')}</td>
-                <td>{log.organization}</td>
-                <td>{log.time}</td>
-                <td>{log.service}</td>
-                <td>
-                  <span
-                    className={`code-badge${log.code >= 400 ? ' is-error' : ' is-ok'}`}
-                  >
-                    {log.code}
-                  </span>
-                </td>
-                <td>{log.response}</td>
+      <AsyncState
+        isPending={requestLogsQuery.isPending}
+        error={requestLogsQuery.error}
+        onRetry={() => void requestLogsQuery.refetch()}
+      >
+        <div className="table-scroll" aria-busy={requestLogsQuery.isFetching}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th className="col-check">
+                  <input type="checkbox" aria-label="Select all rows" />
+                </th>
+                <th>S/N</th>
+                <th>Organization</th>
+                <th>Request Time</th>
+                <th>API Service</th>
+                <th>Code</th>
+                <th>Response</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <nav className="pagination" aria-label="Pagination">
-        <button type="button" className="page-nav" disabled>
-          <ChevronLeftIcon /> Previous
-        </button>
-        <div className="page-numbers">
-          {pages.map((page, index) =>
-            page === '…' ? (
-              <span key={`gap-${index}`} className="page-gap">
-                …
-              </span>
-            ) : (
-              <button
-                type="button"
-                key={page}
-                className={`page-num${page === currentPage ? ' is-active' : ''}`}
-                aria-current={page === currentPage ? 'page' : undefined}
-              >
-                {page}
-              </button>
-            ),
-          )}
+            </thead>
+            <tbody>
+              {logs.map((log, index) => (
+                <tr key={log.id}>
+                  <td className="col-check">
+                    <input type="checkbox" aria-label={`Select log ${index + 1}`} />
+                  </td>
+                  <td>
+                    {String(
+                      (currentPage - 1) * PAGE_SIZE + index + 1,
+                    ).padStart(2, '0')}
+                  </td>
+                  <td>{formatText(log.organisation?.name)}</td>
+                  <td>{formatDateTime(log.requestTime)}</td>
+                  <td>{formatText(log.api?.name)}</td>
+                  <td>
+                    <span
+                      className={`code-badge${log.code !== null &&
+                        log.code !== undefined &&
+                        log.code >= 400
+                        ? ' is-error'
+                        : ' is-ok'}`}
+                    >
+                      {log.code ?? '—'}
+                    </span>
+                  </td>
+                  <td>{formatText(log.response)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <button type="button" className="page-nav">
-          Next <ChevronRightIcon />
-        </button>
-      </nav>
+
+        <nav className="pagination" aria-label="Pagination">
+          <button
+            type="button"
+            className="page-nav"
+            disabled={currentPage <= 1 || requestLogsQuery.isFetching}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+          >
+            <ChevronLeftIcon /> Previous
+          </button>
+          <div className="page-numbers">
+            <span className="page-gap">
+              Page {currentPage} of {totalPages}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="page-nav"
+            disabled={currentPage >= totalPages || requestLogsQuery.isFetching}
+            onClick={() => setPage((current) => current + 1)}
+          >
+            Next <ChevronRightIcon />
+          </button>
+        </nav>
+      </AsyncState>
     </div>
   )
 }

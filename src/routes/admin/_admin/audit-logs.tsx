@@ -1,56 +1,45 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { AsyncState } from '../../../app/AsyncState'
+import { DatePicker } from '../../../app/DatePicker'
+import {
+  formatDateTime,
+  formatStatusLabel,
+  formatText,
+  toList,
+} from '../../../lib/format'
+import {
+  useAdminAuditLogs,
+  type AdminAuditLog,
+  type AdminAuditLogSortOrder,
+} from '../../../features/admin-audit-logs/adminAuditLogQueries'
 
 export const Route = createFileRoute('/admin/_admin/audit-logs')({
   component: AuditLogsPage,
 })
 
-type AuditLog = {
-  id: string
-  name: string
-  email: string
-  role: string
-  activity: string
-  userAgent: string
-  ip: string
-  timestamp: string
-}
-
-const seededLogs: AuditLog[] = [
-  {
-    id: 'al-1',
-    name: 'MEMMCOL',
-    email: 'Memmcolapp@gmail.com',
-    role: 'Admin',
-    activity: 'Added Organization',
-    userAgent: 'Mozilla/5.0 ....',
-    ip: '153.67.71.84',
-    timestamp: '6/23/2026, 4:53:21 PM',
-  },
-  ...Array.from({ length: 9 }, (_, index): AuditLog => ({
-    id: `al-${index + 2}`,
-    name: 'Moshood Alimi',
-    email: 'Moshood@gmail.com',
-    role: 'Developer',
-    activity: 'Added Meter',
-    userAgent: 'Mozilla/5.0 ....',
-    ip: '153.67.71.84',
-    timestamp: '6/23/2026, 4:53:21 PM',
-  })),
-]
-
-const pages = [1, 2, 3, '…', 5, 6, 7]
-const currentPage = 1
+const PAGE_SIZE = 20
 
 function AuditLogsPage() {
   const [search, setSearch] = useState('')
+  const [from, setFrom] = useState<Date | null>(null)
+  const [to, setTo] = useState<Date | null>(null)
+  const [sortOrder, setSortOrder] =
+    useState<AdminAuditLogSortOrder>('desc')
+  const [page, setPage] = useState(1)
 
-  const query = search.trim().toLowerCase()
-  const visibleLogs = query
-    ? seededLogs.filter((log) =>
-        `${log.name} ${log.email}`.toLowerCase().includes(query),
-      )
-    : seededLogs
+  const auditLogsQuery = useAdminAuditLogs({
+    search: search.trim() || undefined,
+    from: from?.toISOString(),
+    to: to?.toISOString(),
+    page,
+    limit: PAGE_SIZE,
+    sortOrder,
+  })
+  const logs = toList<AdminAuditLog>(auditLogsQuery.data?.items)
+  const pagination = auditLogsQuery.data?.pagination
+  const currentPage = pagination?.page ?? page
+  const totalPages = pagination?.totalPages ?? 1
 
   return (
     <div className="dash">
@@ -76,7 +65,10 @@ function AuditLogsPage() {
               placeholder="Search user..."
               aria-label="Search users"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setPage(1)
+              }}
             />
             <SearchIcon />
           </div>
@@ -86,65 +78,89 @@ function AuditLogsPage() {
           <button type="button" className="filter-btn">
             Sort <SortIcon />
           </button>
+          <select
+            className="filter-btn"
+            aria-label="Audit log sort order"
+            value={sortOrder}
+            onChange={(event) => {
+              setSortOrder(event.target.value as AdminAuditLogSortOrder)
+              setPage(1)
+            }}
+          >
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+          </select>
+          <DatePicker
+            placeholder="Date Range"
+            initialDate={from ?? undefined}
+            onChange={(date) => {
+              setFrom(date)
+              setTo(date)
+              setPage(1)
+            }}
+          />
         </div>
       </div>
 
-      <div className="table-scroll">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>User</th>
-              <th>Role</th>
-              <th>Activity</th>
-              <th>User Agent</th>
-              <th>IP Address</th>
-              <th>Time Stamp</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleLogs.map((log) => (
-              <tr key={log.id}>
-                <td>
-                  <p className="table-user">{log.name}</p>
-                  <p className="table-user-email">{log.email}</p>
-                </td>
-                <td>{log.role}</td>
-                <td>{log.activity}</td>
-                <td>{log.userAgent}</td>
-                <td>{log.ip}</td>
-                <td>{log.timestamp}</td>
+      <AsyncState
+        isPending={auditLogsQuery.isPending}
+        error={auditLogsQuery.error}
+        onRetry={() => void auditLogsQuery.refetch()}
+      >
+        <div className="table-scroll" aria-busy={auditLogsQuery.isFetching}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Role</th>
+                <th>Activity</th>
+                <th>User Agent</th>
+                <th>IP Address</th>
+                <th>Time Stamp</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <nav className="pagination" aria-label="Pagination">
-        <button type="button" className="page-nav" disabled>
-          <ChevronLeftIcon /> Previous
-        </button>
-        <div className="page-numbers">
-          {pages.map((page, index) =>
-            page === '…' ? (
-              <span key={`gap-${index}`} className="page-gap">
-                …
-              </span>
-            ) : (
-              <button
-                type="button"
-                key={page}
-                className={`page-num${page === currentPage ? ' is-active' : ''}`}
-                aria-current={page === currentPage ? 'page' : undefined}
-              >
-                {page}
-              </button>
-            ),
-          )}
+            </thead>
+            <tbody>
+              {logs.map((log) => (
+                <tr key={log.id}>
+                  <td>
+                    <p className="table-user">{formatText(log.actor?.name)}</p>
+                    <p className="table-user-email">{formatText(log.actor?.email)}</p>
+                  </td>
+                  <td>{formatStatusLabel(log.actor?.role)}</td>
+                  <td>{formatText(log.activity)}</td>
+                  <td>{formatText(log.userAgent)}</td>
+                  <td>{formatText(log.ipAddress)}</td>
+                  <td>{formatDateTime(log.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <button type="button" className="page-nav">
-          Next <ChevronRightIcon />
-        </button>
-      </nav>
+
+        <nav className="pagination" aria-label="Pagination">
+          <button
+            type="button"
+            className="page-nav"
+            disabled={currentPage <= 1 || auditLogsQuery.isFetching}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+          >
+            <ChevronLeftIcon /> Previous
+          </button>
+          <div className="page-numbers">
+            <span className="page-gap">
+              Page {currentPage} of {totalPages}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="page-nav"
+            disabled={currentPage >= totalPages || auditLogsQuery.isFetching}
+            onClick={() => setPage((current) => current + 1)}
+          >
+            Next <ChevronRightIcon />
+          </button>
+        </nav>
+      </AsyncState>
     </div>
   )
 }
