@@ -73,6 +73,34 @@ type ChangeAdminOrganisationStatusResponse = {
   organisation: AdminOrganisationStatusUpdate
 }
 
+export type AdjustOrganisationCreditsInput = {
+  organisationId: string
+  credits: number
+}
+
+export type AdjustOrganisationCreditsResponse = {
+  adjustment: {
+    id: string
+    organisationId: string
+    credits: number
+    balanceAfter: number
+    createdBy: {
+      id: string
+      name: string
+    }
+    createdAt: string
+  }
+  creditHistory: {
+    id: string
+    source: string
+    label: string | null
+    credits: number
+    amount: number | null
+    balanceAfter: number
+    createdAt: string
+  }
+}
+
 type AdminOrganisationErrorPayload = {
   error?: {
     code?: string
@@ -141,6 +169,47 @@ export function useChangeAdminOrganisationStatus() {
       })
     },
   })
+}
+
+function adjustOrganisationCredits(input: AdjustOrganisationCreditsInput) {
+  return apiRequest<AdjustOrganisationCreditsResponse>(
+    '/admin/billing/credit-adjustments',
+    {
+      method: 'POST',
+      json: input,
+    },
+  )
+}
+
+export function useAdjustOrganisationCredits() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: adjustOrganisationCredits,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: adminOrganisationKeys.lists(),
+      })
+    },
+  })
+}
+
+export function getAdjustOrganisationCreditsError(error: unknown) {
+  const payload = error instanceof ApiError
+    ? error.details as AdminOrganisationErrorPayload | undefined
+    : undefined
+
+  return {
+    status: error instanceof ApiError ? error.status : undefined,
+    code: payload?.error?.code,
+    message:
+      payload?.error?.message ??
+      (error instanceof Error
+        ? error.message
+        : 'The credit adjustment could not be completed.'),
+    fields: payload?.error?.fields ?? {},
+    requestId: payload?.error?.requestId,
+  }
 }
 
 export function getAdminOrganisationStatusError(error: unknown) {
