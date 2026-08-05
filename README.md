@@ -58,6 +58,9 @@ Admin incident resolution submits a required resolution to
 `PATCH /admin/incidents/:incidentId/resolve` and uses the returned resolver and
 timestamps as the source of truth.
 
+The incident report reads its searchable, filterable, paginated records from
+`GET /admin/incidents`.
+
 Customer request logs export as CSV through `GET /logs/export`, carrying the
 active date and status-code filters.
 

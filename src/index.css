@@ -3654,6 +3654,30 @@ h1 {
   color: var(--app-muted);
 }
 
+.incident-severity {
+  display: inline-flex;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.incident-severity.is-low {
+  background: #e7f4ec;
+  color: #1f7a4d;
+}
+
+.incident-severity.is-medium {
+  background: #fdf3dd;
+  color: #9a6700;
+}
+
+.incident-severity.is-high,
+.incident-severity.is-critical {
+  background: #fbe9e9;
+  color: #c0392b;
+}
+
 .incident-resolution-input {
   min-height: 8rem;
   resize: vertical;

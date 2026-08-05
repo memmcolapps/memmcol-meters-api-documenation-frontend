@@ -1,58 +1,67 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useDeferredValue, useRef, useState, type FormEvent } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { AsyncState } from '../../../app/AsyncState'
 import { DatePicker } from '../../../app/DatePicker'
 import { useDismiss } from '../../../app/useDismiss'
 import { useToast } from '../../../app/toastContext'
 import {
   getResolveIncidentError,
+  useAdminIncidents,
   useResolveIncident,
-  type ResolvedIncident,
+  type AdminIncident,
+  type AdminIncidentSeverity,
+  type AdminIncidentSortOrder,
+  type AdminIncidentStatus,
 } from '../../../features/admin-incidents/adminIncidentQueries'
-import { formatDateTime } from '../../../lib/format'
+import { formatDateTime, formatStatusLabel, toList } from '../../../lib/format'
 
 export const Route = createFileRoute('/admin/_admin/incident-report')({
   component: IncidentReportPage,
 })
 
-type IncidentStatus = 'UNRESOLVED' | 'RESOLVED'
+const PAGE_SIZE = 20
 
-type Incident = {
-  id: string
-  title: string
-  company: string
-  date: string
-  time: string
-  status: IncidentStatus
-} & Partial<Omit<ResolvedIncident, 'id' | 'status'>>
+function startOfDay(date: Date) {
+  const value = new Date(date)
+  value.setHours(0, 0, 0, 0)
+  return value.toISOString()
+}
 
-const seededIncidents: Incident[] = [
-  ...Array.from({ length: 7 }, (_, index): Incident => ({
-    id: `in-u-${index + 1}`,
-    title: 'Login API 505',
-    company: index === 1 ? 'Buypower' : 'Interswitch',
-    date: 'Aug 19, 2025',
-    time: '8:42 AM',
-    status: 'UNRESOLVED',
-  })),
-  ...Array.from({ length: 6 }, (_, index): Incident => ({
-    id: `in-r-${index + 1}`,
-    title: 'Login API 505',
-    company: 'Interswitch',
-    date: 'Aug 19, 2025',
-    time: '8:42 AM',
-    status: 'RESOLVED',
-  })),
-]
-
-const pages = [1, 2, 3, '…', 5, 6, 7]
-const currentPage = 1
+function endOfDay(date: Date) {
+  const value = new Date(date)
+  value.setHours(23, 59, 59, 999)
+  return value.toISOString()
+}
 
 function IncidentReportPage() {
-  const [incidents, setIncidents] = useState<Incident[]>(seededIncidents)
   const [search, setSearch] = useState('')
-  const [resolving, setResolving] = useState<Incident | null>(null)
+  const [organisationId, setOrganisationId] = useState('')
+  const [status, setStatus] = useState<AdminIncidentStatus | ''>('')
+  const [severity, setSeverity] = useState<AdminIncidentSeverity | ''>('')
+  const [from, setFrom] = useState<Date | null>(null)
+  const [to, setTo] = useState<Date | null>(null)
+  const [sortOrder, setSortOrder] = useState<AdminIncidentSortOrder>('desc')
+  const [page, setPage] = useState(1)
+  const [resolving, setResolving] = useState<AdminIncident | null>(null)
   const resolveIncident = useResolveIncident()
   const { showToast } = useToast()
+  const deferredSearch = useDeferredValue(search.trim())
+  const deferredOrganisationId = useDeferredValue(organisationId.trim())
+  const incidentsQuery = useAdminIncidents({
+    search: deferredSearch || undefined,
+    organisationId: deferredOrganisationId || undefined,
+    status: status || undefined,
+    severity: severity || undefined,
+    from: from ? startOfDay(from) : undefined,
+    to: to ? endOfDay(to) : undefined,
+    page,
+    limit: PAGE_SIZE,
+    sortOrder,
+  })
+  const incidents = toList<AdminIncident>(incidentsQuery.data?.items)
+  const pagination = incidentsQuery.data?.pagination
+  const currentPage = pagination?.page ?? page
+  const totalPages = pagination?.totalPages ?? 1
 
   const resolve = async (resolution: string) => {
     if (!resolving) return
@@ -62,9 +71,6 @@ function IncidentReportPage() {
         incidentId: resolving.id,
         resolution,
       })
-      setIncidents((current) => current.map((incident) =>
-        incident.id === updated.id ? { ...incident, ...updated } : incident,
-      ))
       setResolving(null)
       showToast({
         title: 'Incident resolved',
@@ -75,17 +81,11 @@ function IncidentReportPage() {
       const apiError = getResolveIncidentError(error)
 
       if (apiError.code === 'INCIDENT_ALREADY_RESOLVED') {
-        setIncidents((current) => current.map((incident) =>
-          incident.id === resolving.id
-            ? { ...incident, status: 'RESOLVED' }
-            : incident,
-        ))
         setResolving(null)
+        void incidentsQuery.refetch()
       } else if (apiError.code === 'INCIDENT_NOT_FOUND') {
-        setIncidents((current) => current.filter(
-          (incident) => incident.id !== resolving.id,
-        ))
         setResolving(null)
+        void incidentsQuery.refetch()
       }
 
       if (apiError.status !== 401) {
@@ -108,13 +108,6 @@ function IncidentReportPage() {
     }
   }
 
-  const query = search.trim().toLowerCase()
-  const visibleIncidents = query
-    ? incidents.filter((incident) =>
-        incident.company.toLowerCase().includes(query),
-      )
-    : incidents
-
   return (
     <div className="dash">
       <header className="dash-head">
@@ -131,95 +124,167 @@ function IncidentReportPage() {
             <input
               type="search"
               placeholder="Search organization..."
-              aria-label="Search organizations"
+              aria-label="Search incidents"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setPage(1)
+              }}
             />
             <SearchIcon />
           </div>
-          <button type="button" className="filter-btn">
-            Sort <SortIcon />
-          </button>
-          <DatePicker placeholder="Date Range" />
+          <input
+            type="text"
+            className="filter-input"
+            placeholder="Organisation ID"
+            aria-label="Filter by organisation ID"
+            value={organisationId}
+            onChange={(event) => {
+              setOrganisationId(event.target.value)
+              setPage(1)
+            }}
+          />
+          <select
+            className="filter-btn"
+            aria-label="Filter incidents by status"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value as AdminIncidentStatus | '')
+              setPage(1)
+            }}
+          >
+            <option value="">All statuses</option>
+            <option value="UNRESOLVED">Unresolved</option>
+            <option value="RESOLVED">Resolved</option>
+          </select>
+          <select
+            className="filter-btn"
+            aria-label="Filter incidents by severity"
+            value={severity}
+            onChange={(event) => {
+              setSeverity(event.target.value as AdminIncidentSeverity | '')
+              setPage(1)
+            }}
+          >
+            <option value="">All severities</option>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+            <option value="CRITICAL">Critical</option>
+          </select>
+          <DatePicker
+            placeholder="From date"
+            onChange={(date) => {
+              setFrom(date)
+              setPage(1)
+            }}
+          />
+          <DatePicker
+            placeholder="To date"
+            onChange={(date) => {
+              setTo(date)
+              setPage(1)
+            }}
+          />
+          <select
+            className="filter-btn"
+            aria-label="Sort incidents"
+            value={sortOrder}
+            onChange={(event) => {
+              setSortOrder(event.target.value as AdminIncidentSortOrder)
+              setPage(1)
+            }}
+          >
+            <option value="desc">Newest first</option>
+            <option value="asc">Oldest first</option>
+          </select>
         </div>
       </div>
 
-      <section className="dash-panel">
-        <h2 className="panel-title">Recent Incidents</h2>
-        <div className="incident-list">
-          {visibleIncidents.length === 0 ? (
-            <p className="incident-empty">
-              No incidents{query ? ' match your search' : ''}.
-            </p>
-          ) : (
-            visibleIncidents.map((incident) => (
-              <article
-                key={incident.id}
-                className={`incident-card${incident.status === 'RESOLVED' ? ' is-resolved' : ''}`}
-              >
-                <div className="incident-info">
-                  <p className="incident-title">
-                    <span className="incident-dot" aria-hidden="true" />
-                    {incident.title}
-                  </p>
-                  <p className="incident-meta">Utility Company: {incident.company}</p>
-                  <p className="incident-meta">
-                    {incident.date} • <ClockIcon /> {incident.time}
-                  </p>
-                  {incident.resolution ? (
-                    <p className="incident-meta">Resolution: {incident.resolution}</p>
-                  ) : null}
-                  {incident.resolvedBy && incident.resolvedAt ? (
-                    <p className="incident-meta">
-                      Resolved by {incident.resolvedBy.name} ·{' '}
-                      {formatDateTime(incident.resolvedAt)}
-                    </p>
-                  ) : null}
-                </div>
-                {incident.status === 'UNRESOLVED' ? (
-                  <button
-                    type="button"
-                    className="btn-neutral"
-                    onClick={() => {
-                      resolveIncident.reset()
-                      setResolving(incident)
-                    }}
-                  >
-                    Resolve
-                  </button>
-                ) : null}
-              </article>
-            ))
-          )}
-        </div>
-      </section>
-
-      <nav className="pagination" aria-label="Pagination">
-        <button type="button" className="page-nav" disabled>
-          <ChevronLeftIcon /> Previous
-        </button>
-        <div className="page-numbers">
-          {pages.map((page, index) =>
-            page === '…' ? (
-              <span key={`gap-${index}`} className="page-gap">
-                …
-              </span>
+      <AsyncState
+        isPending={incidentsQuery.isPending}
+        error={incidentsQuery.error}
+        onRetry={() => void incidentsQuery.refetch()}
+      >
+        <section className="dash-panel" aria-busy={incidentsQuery.isFetching}>
+          <h2 className="panel-title">Recent Incidents</h2>
+          <div className="incident-list">
+            {incidents.length === 0 ? (
+              <p className="incident-empty">No incidents found.</p>
             ) : (
-              <button
-                type="button"
-                key={page}
-                className={`page-num${page === currentPage ? ' is-active' : ''}`}
-                aria-current={page === currentPage ? 'page' : undefined}
-              >
-                {page}
-              </button>
-            ),
-          )}
-        </div>
-        <button type="button" className="page-nav">
-          Next <ChevronRightIcon />
-        </button>
-      </nav>
+              incidents.map((incident) => (
+                <article
+                  key={incident.id}
+                  className={`incident-card${incident.status === 'RESOLVED' ? ' is-resolved' : ''}`}
+                >
+                  <div className="incident-info">
+                    <p className="incident-title">
+                      <span className="incident-dot" aria-hidden="true" />
+                      {incident.title}
+                    </p>
+                    <p className="incident-meta">
+                      Utility Company: {incident.organisation.name}
+                    </p>
+                    <p className="incident-meta">
+                      {formatDateTime(incident.detectedAt)} • <ClockIcon />{' '}
+                      Request ID: {incident.requestId}
+                    </p>
+                    <p className="incident-meta">
+                      Severity:{' '}
+                      <span className={`incident-severity is-${incident.severity.toLowerCase()}`}>
+                        {formatStatusLabel(incident.severity)}
+                      </span>
+                    </p>
+                    {incident.resolvedBy && incident.resolvedAt ? (
+                      <p className="incident-meta">
+                        Resolved by {incident.resolvedBy.name} ·{' '}
+                        {formatDateTime(incident.resolvedAt)}
+                      </p>
+                    ) : null}
+                  </div>
+                  {incident.status === 'UNRESOLVED' ? (
+                    <button
+                      type="button"
+                      className="btn-neutral"
+                      onClick={() => {
+                        resolveIncident.reset()
+                        setResolving(incident)
+                      }}
+                    >
+                      Resolve
+                    </button>
+                  ) : null}
+                </article>
+              ))
+            )}
+          </div>
+        </section>
+
+        <nav className="pagination" aria-label="Incident pagination">
+          <button
+            type="button"
+            className="page-nav"
+            disabled={currentPage <= 1 || incidentsQuery.isFetching}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+          >
+            <ChevronLeftIcon /> Previous
+          </button>
+          <div className="page-numbers">
+            <span className="page-gap">
+              Page {currentPage} of {totalPages}
+              {' · '}{pagination?.total ?? incidents.length} total
+            </span>
+          </div>
+          <button
+            type="button"
+            className="page-nav"
+            disabled={currentPage >= totalPages || incidentsQuery.isFetching}
+            onClick={() => setPage((current) => current + 1)}
+          >
+            Next <ChevronRightIcon />
+          </button>
+        </nav>
+      </AsyncState>
 
       {resolving ? (
         <ResolveIncidentModal
@@ -243,7 +308,7 @@ function ResolveIncidentModal({
   onCancel,
   onConfirm,
 }: {
-  incident: Incident
+  incident: AdminIncident
   isSubmitting: boolean
   mutationError: unknown
   onCancel: () => void
@@ -277,7 +342,9 @@ function ResolveIncidentModal({
             <h2 id="resolve-incident-title" className="modal-title">
               Resolve Incident
             </h2>
-            <p className="modal-subtitle">{incident.title} · {incident.company}</p>
+            <p className="modal-subtitle">
+              {incident.title} · {incident.organisation.name}
+            </p>
           </div>
           <button
             type="button"
@@ -335,14 +402,6 @@ function SearchIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3.5-3.5" />
-    </svg>
-  )
-}
-
-function SortIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3" />
     </svg>
   )
 }

@@ -1,4 +1,9 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { ApiError, apiRequest } from '../../lib/api/client'
 
 export type ResolvedIncident = {
@@ -18,6 +23,50 @@ export type ResolveIncidentInput = {
   resolution: string
 }
 
+export type AdminIncidentStatus = 'UNRESOLVED' | 'RESOLVED'
+export type AdminIncidentSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+export type AdminIncidentSortOrder = 'asc' | 'desc'
+
+export type AdminIncident = {
+  id: string
+  title: string
+  organisation: {
+    id: string
+    name: string
+  }
+  severity: AdminIncidentSeverity
+  status: AdminIncidentStatus
+  requestId: string
+  detectedAt: string
+  resolvedAt: string | null
+  resolvedBy: {
+    id: string
+    name: string
+  } | null
+}
+
+export type AdminIncidentListParams = {
+  search?: string
+  organisationId?: string
+  status?: AdminIncidentStatus
+  severity?: AdminIncidentSeverity
+  from?: string
+  to?: string
+  page: number
+  limit: number
+  sortOrder?: AdminIncidentSortOrder
+}
+
+export type AdminIncidentListResponse = {
+  items: AdminIncident[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
 type ResolveIncidentResponse = {
   incident: ResolvedIncident
 }
@@ -33,6 +82,27 @@ type IncidentErrorPayload = {
 
 export const adminIncidentKeys = {
   all: ['admin-incidents'] as const,
+  lists: () => ['admin-incidents', 'list'] as const,
+  list: (params: AdminIncidentListParams) =>
+    ['admin-incidents', 'list', params] as const,
+}
+
+function listAdminIncidents(params: AdminIncidentListParams) {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    limit: String(params.limit),
+  })
+  if (params.search) query.set('search', params.search)
+  if (params.organisationId) query.set('organisationId', params.organisationId)
+  if (params.status) query.set('status', params.status)
+  if (params.severity) query.set('severity', params.severity)
+  if (params.from) query.set('from', params.from)
+  if (params.to) query.set('to', params.to)
+  if (params.sortOrder) query.set('sortOrder', params.sortOrder)
+
+  return apiRequest<AdminIncidentListResponse>(
+    `/admin/incidents?${query.toString()}`,
+  )
 }
 
 async function resolveIncident(input: ResolveIncidentInput) {
@@ -54,6 +124,14 @@ export function useResolveIncident() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: adminIncidentKeys.all })
     },
+  })
+}
+
+export function useAdminIncidents(params: AdminIncidentListParams) {
+  return useQuery({
+    queryKey: adminIncidentKeys.list(params),
+    queryFn: () => listAdminIncidents(params),
+    placeholderData: keepPreviousData,
   })
 }
 
