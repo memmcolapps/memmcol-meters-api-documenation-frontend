@@ -5,7 +5,6 @@ import { ConfirmModal } from '../../../app/ConfirmModal'
 import { useAnchoredMenu } from '../../../app/useAnchoredMenu'
 import { useDismiss } from '../../../app/useDismiss'
 import { useToast } from '../../../app/toastContext'
-import {ArrowUpCircleIcon} from 'lucide-react'
 import {
   formatDateTime,
   formatName,
@@ -890,10 +889,11 @@ function OrganisationRowActions({
           {organisation.status === 'ACTIVE' ? (
             <button
               type="button"
-              className="row-menu-item is-danger"
+              className="row-menu-item"
               role="menuitem"
               onClick={onSuspend}
             >
+              <BanIcon />
               Suspend Organization
             </button>
           ) : (
@@ -903,7 +903,7 @@ function OrganisationRowActions({
               role="menuitem"
               onClick={onReactivate}
             >
-              <ArrowUpCircleIcon size={18}/>
+                <ArrowUpCircleIcon />
               Reactivate Organization
             </button>
           )}
@@ -1011,6 +1011,45 @@ function CirclePlusIcon() {
     >
       <circle cx="12" cy="12" r="9" />
       <path d="M12 8v8M8 12h8" />
+    </svg>
+  )
+}
+
+function ArrowUpCircleIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 16V8" />
+      <path d="m8 12 4-4 4 4" />
+    </svg>
+  )
+}
+
+function BanIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 12h8" />
     </svg>
   )
 }
