@@ -39,6 +39,8 @@ function OrganizationManagementPage() {
     useState<AdminOrganisationSortOrder>('desc')
   const [page, setPage] = useState(1)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [assigningCredits, setAssigningCredits] =
+    useState<AdminOrganisation | null>(null)
   const [suspending, setSuspending] = useState<AdminOrganisation | null>(null)
   const [reactivating, setReactivating] =
     useState<AdminOrganisation | null>(null)
@@ -285,6 +287,10 @@ function OrganizationManagementPage() {
                             )
                           }
                           onClose={() => setOpenMenu(null)}
+                          onAssignCredits={() => {
+                            setOpenMenu(null)
+                            setAssigningCredits(organisation)
+                          }}
                           onSuspend={() => {
                             setStatusFieldErrors({})
                             setOpenMenu(null)
@@ -337,6 +343,14 @@ function OrganizationManagementPage() {
         )}
       </AsyncState>
 
+      {assigningCredits ? (
+        <AssignCreditsModal
+          organisation={assigningCredits}
+          onClose={() => setAssigningCredits(null)}
+          onAssign={() => setAssigningCredits(null)}
+        />
+      ) : null}
+
       {suspending ? (
         <SuspendOrganisationModal
           organisation={suspending}
@@ -371,6 +385,84 @@ function OrganizationManagementPage() {
           onConfirm={() => void updateStatus(reactivating, 'ACTIVE')}
         />
       ) : null}
+    </div>
+  )
+}
+
+function AssignCreditsModal({
+  organisation,
+  onClose,
+  onAssign,
+}: {
+  organisation: AdminOrganisation
+  onClose: () => void
+  onAssign: (amount: number) => void
+}) {
+  const [amount, setAmount] = useState('')
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, onClose)
+
+  const parsedAmount = Number(amount.replace(/[^\d]/g, ''))
+  const canSubmit = Number.isSafeInteger(parsedAmount) && parsedAmount > 0
+
+  return (
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="assign-credits-title"
+    >
+      <div className="modal" ref={modalRef}>
+        <div className="modal-head">
+          <div>
+            <h2 id="assign-credits-title" className="modal-title">
+              Assign Credits
+            </h2>
+            <p className="modal-subtitle">
+              Top up API credits for {organisationLabel(organisation)} — current
+              balance: {formatNumber(organisation.creditBalance)} credits.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Close"
+            onClick={onClose}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div className="modal-body">
+          <div className="modal-field">
+            <label htmlFor="organisation-credit-amount">Credits</label>
+            <input
+              id="organisation-credit-amount"
+              className="modal-input"
+              inputMode="numeric"
+              placeholder="E.g. 500,000"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+            />
+          </div>
+
+          <div className="modal-foot">
+            <button type="button" className="btn-neutral" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={!canSubmit}
+              onClick={() => {
+                if (canSubmit) onAssign(parsedAmount)
+              }}
+            >
+              Assign Credits
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -491,6 +583,7 @@ function OrganisationRowActions({
   organisation,
   onToggle,
   onClose,
+  onAssignCredits,
   onSuspend,
   onReactivate,
 }: {
@@ -498,6 +591,7 @@ function OrganisationRowActions({
   organisation: AdminOrganisation
   onToggle: () => void
   onClose: () => void
+  onAssignCredits: () => void
   onSuspend: () => void
   onReactivate: () => void
 }) {
@@ -519,6 +613,14 @@ function OrganisationRowActions({
       </button>
       {isOpen ? (
         <div className="row-menu" style={menuStyle} role="menu">
+          <button
+            type="button"
+            className="row-menu-item"
+            role="menuitem"
+            onClick={onAssignCredits}
+          >
+            <CoinsIcon /> Assign Credits
+          </button>
           {organisation.status === 'ACTIVE' ? (
             <button
               type="button"
@@ -603,6 +705,26 @@ function CloseIcon() {
       aria-hidden="true"
     >
       <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  )
+}
+
+function CoinsIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <ellipse cx="12" cy="6" rx="7" ry="3" />
+      <path d="M5 6v6c0 1.66 3.13 3 7 3s7-1.34 7-3V6" />
+      <path d="M5 12v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6" />
     </svg>
   )
 }
