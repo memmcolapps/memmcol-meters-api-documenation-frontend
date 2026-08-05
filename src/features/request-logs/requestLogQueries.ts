@@ -1,5 +1,5 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { apiRequest } from '../../lib/api/client'
+import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
+import { apiDownload, apiRequest } from '../../lib/api/client'
 
 export type RequestLogOutcome = 'SUCCESS' | 'CLIENT_ERROR' | 'SERVER_ERROR'
 export type RequestLogSortOrder = 'asc' | 'desc'
@@ -45,6 +45,11 @@ export type RequestLogListResponse = {
   }
 }
 
+export type RequestLogExportParams = {
+  date?: string
+  statusCode?: number
+}
+
 export const requestLogKeys = {
   all: ['request-logs'] as const,
   list: (params: RequestLogListParams) =>
@@ -70,10 +75,25 @@ function listRequestLogs(params: RequestLogListParams) {
   )
 }
 
+function exportRequestLogs(params: RequestLogExportParams) {
+  const query = new URLSearchParams({ format: 'csv' })
+  if (params.date) query.set('date', params.date)
+  if (params.statusCode !== undefined) {
+    query.set('statusCode', String(params.statusCode))
+  }
+  return apiDownload(`/logs/export?${query.toString()}`)
+}
+
 export function useRequestLogs(params: RequestLogListParams) {
   return useQuery({
     queryKey: requestLogKeys.list(params),
     queryFn: () => listRequestLogs(params),
     placeholderData: keepPreviousData,
+  })
+}
+
+export function useExportRequestLogs() {
+  return useMutation({
+    mutationFn: exportRequestLogs,
   })
 }

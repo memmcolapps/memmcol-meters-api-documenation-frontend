@@ -2,12 +2,15 @@ import { useDeferredValue, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { AsyncState } from '../../app/AsyncState'
 import { DatePicker } from '../../app/DatePicker'
+import { useToast } from '../../app/toastContext'
 import {
+  useExportRequestLogs,
   useRequestLogs,
   type RequestLog,
   type RequestLogOutcome,
   type RequestLogSortOrder,
 } from '../../features/request-logs/requestLogQueries'
+import { getApiErrorMessage } from '../../lib/api/client'
 import { formatDateTime, formatNumber, formatText, toList } from '../../lib/format'
 
 export const Route = createFileRoute('/_app/logs')({
@@ -28,15 +31,23 @@ function endOfDay(date: Date) {
   return value.toISOString()
 }
 
+function formatDateParam(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function LogsPage() {
   const [search, setSearch] = useState('')
   const [apiId, setApiId] = useState('')
   const [code, setCode] = useState('')
   const [outcome, setOutcome] = useState<RequestLogOutcome | ''>('')
-  const [from, setFrom] = useState<Date | null>(null)
-  const [to, setTo] = useState<Date | null>(null)
+  const [date, setDate] = useState<Date | null>(null)
   const [sortOrder, setSortOrder] = useState<RequestLogSortOrder>('desc')
   const [page, setPage] = useState(1)
+  const exportLogs = useExportRequestLogs()
+  const { showToast } = useToast()
   const deferredSearch = useDeferredValue(search.trim())
   const deferredApiId = useDeferredValue(apiId.trim())
   const numericCode = Number(code)
@@ -49,8 +60,8 @@ function LogsPage() {
     apiId: deferredApiId || undefined,
     code: codeFilter,
     outcome: outcome || undefined,
-    from: from ? startOfDay(from) : undefined,
-    to: to ? endOfDay(to) : undefined,
+    from: date ? startOfDay(date) : undefined,
+    to: date ? endOfDay(date) : undefined,
     page,
     limit: PAGE_SIZE,
     sortOrder,
@@ -66,6 +77,31 @@ function LogsPage() {
     { label: 'Failed API Calls', value: formatNumber(summary?.failedApiCalls) },
     { label: 'Credit Balance', value: formatNumber(summary?.creditBalance) },
   ]
+
+  const handleExport = async () => {
+    try {
+      const { blob, filename } = await exportLogs.mutateAsync({
+        date: date ? formatDateParam(date) : undefined,
+        statusCode: codeFilter,
+      })
+      const downloadUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = filename || `request-logs-${date
+        ? formatDateParam(date)
+        : new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1_000)
+    } catch (error) {
+      showToast({
+        title: 'Could not export logs',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
+  }
 
   return (
     <div className="dash">
@@ -136,16 +172,9 @@ function LogsPage() {
             <option value="SERVER_ERROR">Server error</option>
           </select>
           <DatePicker
-            placeholder="From date"
+            placeholder="Date"
             onChange={(date) => {
-              setFrom(date)
-              setPage(1)
-            }}
-          />
-          <DatePicker
-            placeholder="To date"
-            onChange={(date) => {
-              setTo(date)
+              setDate(date)
               setPage(1)
             }}
           />
@@ -162,6 +191,14 @@ function LogsPage() {
             <option value="asc">Oldest first</option>
           </select>
         </div>
+        <button
+          type="button"
+          className="btn-outline btn-icon"
+          disabled={exportLogs.isPending}
+          onClick={() => void handleExport()}
+        >
+          {exportLogs.isPending ? 'Exporting…' : 'Download'} <DownloadIcon />
+        </button>
       </div>
 
       <AsyncState
@@ -289,6 +326,15 @@ function ApiIcon() {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="2" y="7" width="20" height="10" rx="2" />
       <path d="M7 12h.01M12 12h.01M17 12h.01" />
+    </svg>
+  )
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
+      <path d="M5 21h14" />
     </svg>
   )
 }

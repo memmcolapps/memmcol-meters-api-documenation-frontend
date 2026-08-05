@@ -51,6 +51,16 @@ from `error.fields` are displayed on the matching form controls. The optional
 password is sent only in the create request and is not retained in client-side
 meter state.
 
+The admin dashboard is populated by `GET /admin/dashboard/summary`, scoped to
+the selected calendar year with `from` and `to` query parameters.
+
+Admin incident resolution submits a required resolution to
+`PATCH /admin/incidents/:incidentId/resolve` and uses the returned resolver and
+timestamps as the source of truth.
+
+Customer request logs export as CSV through `GET /logs/export`, carrying the
+active date and status-code filters.
+
 The OBIS form uses the returned `obisCode` as the source of truth. No seeded or
 mock OBIS records are used.
 

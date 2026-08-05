@@ -3580,6 +3580,13 @@ h1 {
   color: #2f9e44;
 }
 
+.dashboard-api-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  margin-top: 1rem;
+}
+
 @media (max-width: 1100px) {
   .dash-stats--4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3645,6 +3652,11 @@ h1 {
 .incident-empty {
   margin: 0;
   color: var(--app-muted);
+}
+
+.incident-resolution-input {
+  min-height: 8rem;
+  resize: vertical;
 }
 
 /* Two-line user cell (audit logs) */
