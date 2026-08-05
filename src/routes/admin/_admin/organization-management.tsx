@@ -15,6 +15,8 @@ import {
 } from '../../../lib/format'
 import {
   getAdminOrganisationStatusError,
+  getAdjustOrganisationCreditsError,
+  useAdjustOrganisationCredits,
   useAdminOrganisations,
   useChangeAdminOrganisationStatus,
   type AdminOrganisation,
@@ -347,7 +349,6 @@ function OrganizationManagementPage() {
         <AssignCreditsModal
           organisation={assigningCredits}
           onClose={() => setAssigningCredits(null)}
-          onAssign={() => setAssigningCredits(null)}
         />
       ) : null}
 
@@ -392,18 +393,70 @@ function OrganizationManagementPage() {
 function AssignCreditsModal({
   organisation,
   onClose,
-  onAssign,
 }: {
   organisation: AdminOrganisation
   onClose: () => void
-  onAssign: (amount: number) => void
 }) {
   const [amount, setAmount] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<'credits', string>>
+  >({})
+  const adjustCredits = useAdjustOrganisationCredits()
+  const { showToast } = useToast()
   const modalRef = useRef<HTMLDivElement>(null)
-  useDismiss(modalRef, onClose)
+  useDismiss(modalRef, () => {
+    if (!adjustCredits.isPending) onClose()
+  })
 
   const parsedAmount = Number(amount.replace(/[^\d]/g, ''))
-  const canSubmit = Number.isSafeInteger(parsedAmount) && parsedAmount > 0
+  const canSubmit =
+    Number.isSafeInteger(parsedAmount) &&
+    parsedAmount > 0 &&
+    !adjustCredits.isPending
+
+  const clearFieldError = (field: 'credits') => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+
+  const handleSubmit = async () => {
+    setFieldErrors({})
+    try {
+      const response = await adjustCredits.mutateAsync({
+        organisationId: organisation.id,
+        credits: parsedAmount,
+      })
+      onClose()
+      showToast({
+        title: 'Credits adjusted',
+        message: `${formatNumber(
+          response.adjustment.credits,
+        )} credits added to ${organisationLabel(
+          organisation,
+        )}. New balance: ${formatNumber(response.adjustment.balanceAfter)}.`,
+        variant: 'success',
+      })
+    } catch (error) {
+      const apiError = getAdjustOrganisationCreditsError(error)
+      setFieldErrors(apiError.fields as Partial<Record<'credits', string>>)
+      showToast({
+        title: apiError.message,
+        message: [
+          [...new Set(Object.values(apiError.fields))].join(' '),
+          apiError.requestId
+            ? `Request ID: ${apiError.requestId}`
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' · ') || undefined,
+        variant: 'error',
+      })
+    }
+  }
 
   return (
     <div
@@ -428,6 +481,7 @@ function AssignCreditsModal({
             className="modal-close"
             aria-label="Close"
             onClick={onClose}
+            disabled={adjustCredits.isPending}
           >
             <CloseIcon />
           </button>
@@ -442,23 +496,45 @@ function AssignCreditsModal({
               inputMode="numeric"
               placeholder="E.g. 500,000"
               value={amount}
-              onChange={(event) => setAmount(event.target.value)}
+              disabled={adjustCredits.isPending}
+              aria-invalid={Boolean(fieldErrors.credits)}
+              aria-describedby={
+                fieldErrors.credits
+                  ? 'organisation-credit-amount-error'
+                  : undefined
+              }
+              onChange={(event) => {
+                setAmount(event.target.value)
+                clearFieldError('credits')
+              }}
             />
+            {fieldErrors.credits ? (
+              <p
+                id="organisation-credit-amount-error"
+                className="modal-field-error"
+                role="alert"
+              >
+                {fieldErrors.credits}
+              </p>
+            ) : null}
           </div>
 
           <div className="modal-foot">
-            <button type="button" className="btn-neutral" onClick={onClose}>
+            <button
+              type="button"
+              className="btn-neutral"
+              onClick={onClose}
+              disabled={adjustCredits.isPending}
+            >
               Cancel
             </button>
             <button
               type="button"
               className="btn-primary"
               disabled={!canSubmit}
-              onClick={() => {
-                if (canSubmit) onAssign(parsedAmount)
-              }}
+              onClick={() => void handleSubmit()}
             >
-              Assign Credits
+              {adjustCredits.isPending ? 'Assigning…' : 'Assign Credits'}
             </button>
           </div>
         </div>
