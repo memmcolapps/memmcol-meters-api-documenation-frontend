@@ -6,6 +6,7 @@ import {
   type QueryClient,
 } from '@tanstack/react-query'
 import { ApiError, apiRequest } from '../../lib/api/client'
+import { billingOverviewKeys } from './billingOverviewQueries'
 
 export type BillingPlanStatus = 'ACTIVE' | 'INACTIVE'
 
@@ -65,11 +66,6 @@ type UpdateBillingPlanResponse = {
   plan: BillingPlanUpdate
 }
 
-type BillingPlanListResponse =
-  | BillingPlan[]
-  | { plans: BillingPlan[] }
-  | { items: BillingPlan[] }
-
 export type AdminBillingPlanListParams = {
   search?: string
   status?: BillingPlanStatus
@@ -102,7 +98,6 @@ export const billingPlanKeys = {
   adminList: (params: AdminBillingPlanListParams) =>
     ['billing-plans', 'admin-list', params] as const,
   detail: (id: string) => ['billing-plans', 'detail', id] as const,
-  active: () => ['billing-plans', 'active'] as const,
 }
 
 async function createBillingPlan(input: CreateBillingPlanInput) {
@@ -141,16 +136,6 @@ async function updateBillingPlan(input: UpdateBillingPlanInput) {
   return response.plan
 }
 
-async function listActiveBillingPlans() {
-  const response = await apiRequest<BillingPlanListResponse>('/billing/plans')
-  const plans = Array.isArray(response)
-    ? response
-    : 'plans' in response
-      ? response.plans
-      : response.items
-  return plans.filter((plan) => plan.status === 'ACTIVE')
-}
-
 async function changeBillingPlanStatus(input: ChangeBillingPlanStatusInput) {
   const response = await apiRequest<ChangeBillingPlanStatusResponse>(
     `/admin/billing/plans/${encodeURIComponent(input.planId)}/status`,
@@ -172,18 +157,9 @@ export function useCreateBillingPlan() {
     mutationFn: createBillingPlan,
     onSuccess: async (plan) => {
       queryClient.setQueryData(billingPlanKeys.detail(plan.id), plan)
-      queryClient.setQueryData<BillingPlan[]>(
-        billingPlanKeys.active(),
-        (current) => {
-          if (!current) return current
-          return plan.status === 'ACTIVE'
-            ? [...current.filter((item) => item.id !== plan.id), plan]
-            : current.filter((item) => item.id !== plan.id)
-        },
-      )
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: billingPlanKeys.adminLists() }),
-        queryClient.invalidateQueries({ queryKey: billingPlanKeys.active() }),
+        queryClient.invalidateQueries({ queryKey: billingOverviewKeys.all }),
       ])
     },
   })
@@ -215,30 +191,11 @@ export function useUpdateBillingPlan() {
         billingPlanKeys.detail(plan.id),
         (current) => current ? { ...current, ...plan } : current,
       )
-      queryClient.setQueryData<BillingPlan[]>(
-        billingPlanKeys.active(),
-        (current) => {
-          if (!current) return current
-          if (plan.status === 'INACTIVE') {
-            return current.filter((item) => item.id !== plan.id)
-          }
-          return current.map((item) => item.id === plan.id
-            ? { ...item, ...plan }
-            : item)
-        },
-      )
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: billingPlanKeys.adminLists() }),
-        queryClient.invalidateQueries({ queryKey: billingPlanKeys.active() }),
+        queryClient.invalidateQueries({ queryKey: billingOverviewKeys.all }),
       ])
     },
-  })
-}
-
-export function useActiveBillingPlans() {
-  return useQuery({
-    queryKey: billingPlanKeys.active(),
-    queryFn: listActiveBillingPlans,
   })
 }
 
@@ -252,15 +209,9 @@ export function useChangeBillingPlanStatus() {
         billingPlanKeys.detail(plan.id),
         (current) => current ? { ...current, ...plan } : current,
       )
-      if (plan.status === 'INACTIVE') {
-        queryClient.setQueryData<BillingPlan[]>(
-          billingPlanKeys.active(),
-          (current) => current?.filter((item) => item.id !== plan.id),
-        )
-      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: billingPlanKeys.adminLists() }),
-        queryClient.invalidateQueries({ queryKey: billingPlanKeys.active() }),
+        queryClient.invalidateQueries({ queryKey: billingOverviewKeys.all }),
       ])
     },
   })

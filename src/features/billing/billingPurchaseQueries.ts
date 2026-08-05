@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { ApiError, apiRequest } from '../../lib/api/client'
-import { billingPlanKeys } from './billingPlanQueries'
+import { billingOverviewKeys } from './billingOverviewQueries'
 
 /**
  * A purchase opens as PENDING and becomes PAID once the provider confirms
@@ -201,7 +201,7 @@ export function useStartBillingPurchase() {
     onError: async (error) => {
       // A rejected plan means our cached list no longer matches the server.
       if (stalePlanErrorCodes.has(getBillingPurchaseError(error).code ?? '')) {
-        await queryClient.invalidateQueries({ queryKey: billingPlanKeys.active() })
+        await queryClient.invalidateQueries({ queryKey: billingOverviewKeys.all })
       }
     },
   })

@@ -79,7 +79,7 @@ Billing credit plans are created and consumed through these endpoints:
 | `POST` | `/admin/billing/plans` | Create a billing credit plan |
 | `PATCH` | `/admin/billing/plans/:planId` | Update billing plan details |
 | `PATCH` | `/admin/billing/plans/:planId/status` | Activate or deactivate a billing plan |
-| `GET` | `/billing/plans` | List customer-visible billing plans |
+| `GET` | `/billing` | Load the customer account, active plans, and credit history |
 
 Plan amounts and credit quantities are represented as numbers. The customer
 billing page also filters the list to `ACTIVE` plans before rendering it.
