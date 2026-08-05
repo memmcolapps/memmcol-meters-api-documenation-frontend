@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, apiRequest } from '../../lib/api/client'
+import { publicApiKeys } from '../public-apis/publicApiQueries'
 
 export type AdminApiStatus = 'ACTIVE' | 'DEPRECATED'
 export type AdminApiPublication = 'PUBLISHED' | 'UNPUBLISHED'
@@ -262,7 +263,10 @@ export function useChangeApiPublication() {
         adminApiKeys.detail(api.id),
         (current) => current ? { ...current, ...api } : current,
       )
-      await queryClient.invalidateQueries({ queryKey: adminApiKeys.lists() })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminApiKeys.lists() }),
+        queryClient.invalidateQueries({ queryKey: publicApiKeys.all }),
+      ])
     },
   })
 }
@@ -277,7 +281,10 @@ export function useChangeApiStatus() {
         adminApiKeys.detail(api.id),
         (current) => current ? { ...current, ...api } : current,
       )
-      await queryClient.invalidateQueries({ queryKey: adminApiKeys.lists() })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminApiKeys.lists() }),
+        queryClient.invalidateQueries({ queryKey: publicApiKeys.all }),
+      ])
     },
   })
 }
@@ -308,7 +315,10 @@ export function useUpdateApiService() {
           ? { ...current, ...submittedUpdates, ...api }
           : current,
       )
-      await queryClient.invalidateQueries({ queryKey: adminApiKeys.lists() })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminApiKeys.lists() }),
+        queryClient.invalidateQueries({ queryKey: publicApiKeys.all }),
+      ])
     },
   })
 }
@@ -322,6 +332,7 @@ export function useDeleteAdminApi() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminApiKeys.all })
+      queryClient.invalidateQueries({ queryKey: publicApiKeys.all })
     },
   })
 }

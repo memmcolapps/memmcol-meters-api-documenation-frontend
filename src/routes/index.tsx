@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { apis } from '../app/apis'
+import { AsyncState } from '../app/AsyncState'
+import { usePublicApis } from '../features/public-apis/publicApiQueries'
 
 export const Route = createFileRoute('/')({
   component: DocsHome,
@@ -14,6 +15,8 @@ const gettingStarted = [
 ]
 
 function DocsHome() {
+  const apisQuery = usePublicApis()
+
   return (
     <div className="docs-home">
       <section className="docs-intro">
@@ -57,23 +60,35 @@ function DocsHome() {
           </p>
         </div>
 
-        <div className="api-grid">
-          {apis.map((api) => (
-            <Link
-              key={api.slug}
-              to="/docs/$slug"
-              params={{ slug: api.slug }}
-              className="api-card"
-            >
-              <span className="api-card-icon" aria-hidden="true">
-                <ApiIcon />
-              </span>
-              <span className="api-card-title">{api.name}</span>
-              <span className="api-card-blurb">{api.blurb}</span>
-              <span className="api-card-link">Read docs →</span>
-            </Link>
-          ))}
-        </div>
+        <AsyncState
+          isPending={apisQuery.isPending}
+          error={apisQuery.error}
+          onRetry={() => void apisQuery.refetch()}
+        >
+          {apisQuery.data?.length ? (
+            <div className="api-grid" aria-busy={apisQuery.isFetching}>
+              {apisQuery.data.map((api) => (
+                <Link
+                  key={api.id}
+                  to="/docs/$slug"
+                  params={{ slug: api.id }}
+                  className="api-card"
+                >
+                  <span className="api-card-icon" aria-hidden="true">
+                    <ApiIcon />
+                  </span>
+                  <span className="api-card-title">{api.name}</span>
+                  <span className="api-card-blurb">{api.summary}</span>
+                  <span className="api-card-link">Read docs →</span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="doc-detail-placeholder">
+              <p>No APIs are published yet.</p>
+            </div>
+          )}
+        </AsyncState>
       </section>
     </div>
   )

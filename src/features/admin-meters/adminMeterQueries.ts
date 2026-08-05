@@ -5,6 +5,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { ApiError, apiRequest } from '../../lib/api/client'
+import { publicMeterIntegrationKeys } from '../public-meter-integrations/publicMeterIntegrationQueries'
 
 export type CreateMeterIntegrationInput = {
   manufacturer: string
@@ -446,6 +447,7 @@ export function useCreateMeterIntegration() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() }),
         queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.options() }),
+        queryClient.invalidateQueries({ queryKey: publicMeterIntegrationKeys.all }),
       ])
     },
   })
@@ -480,6 +482,7 @@ export function useUpdateMeterIntegration() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() }),
         queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.options() }),
+        queryClient.invalidateQueries({ queryKey: publicMeterIntegrationKeys.all }),
       ])
     },
   })
@@ -498,6 +501,7 @@ export function useChangeMeterIntegrationStatus() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() }),
         queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.options() }),
+        queryClient.invalidateQueries({ queryKey: publicMeterIntegrationKeys.all }),
       ])
     },
   })

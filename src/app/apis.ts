@@ -83,16 +83,6 @@ export const guides: ApiEntry[] = [
         heading: 'Currently Supported Models',
         body:
           'The meters below are fully integrated and can be onboarded right away — no integration request needed.',
-        table: {
-          columns: ['Manufacturer', 'Model', 'Status'],
-          rows: [
-            ['Momas', 'MX3', 'Supported'],
-            ['Momas', 'MX5', 'Supported'],
-            ['Momas', 'MX7 Pro', 'Supported'],
-            ['Hexing', 'HXE110-KP', 'Supported'],
-            ['Conlog', 'BEC44', 'Supported'],
-          ],
-        },
       },
       {
         heading: "Don't See Your Meter?",

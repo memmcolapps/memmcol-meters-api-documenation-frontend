@@ -19,6 +19,8 @@ export class ApiError extends Error {
 type ApiRequestOptions = Omit<RequestInit, 'body'> & {
   json?: unknown
   formData?: FormData
+  /** Public endpoints must not send cookies or affect authenticated session state. */
+  auth?: 'session' | 'none'
 }
 
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL
@@ -81,7 +83,8 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   headers.set('Accept', 'application/json')
 
   const method = (options.method ?? 'GET').toUpperCase()
-  const isUnsafeRequest = unsafeMethods.has(method)
+  const usesSession = (options.auth ?? 'session') === 'session'
+  const isUnsafeRequest = usesSession && unsafeMethods.has(method)
   const csrfToken = isUnsafeRequest ? getCookie('XSRF-TOKEN') : null
   if (csrfToken) headers.set('X-XSRF-TOKEN', csrfToken)
 
@@ -93,10 +96,15 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     body = options.formData
   }
 
-  const { json: _json, formData: _formData, ...requestOptions } = options
+  const {
+    json: _json,
+    formData: _formData,
+    auth: _auth,
+    ...requestOptions
+  } = options
   const request: RequestInit = {
     ...requestOptions,
-    credentials: options.credentials ?? 'include',
+    credentials: usesSession ? (options.credentials ?? 'include') : 'omit',
     headers,
     body,
   }
@@ -119,7 +127,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       : await response.text()
 
   if (!response.ok) {
-    if (response.status === 401) notifySessionExpired(path)
+    if (usesSession && response.status === 401) notifySessionExpired(path)
     throw new ApiError(
       getErrorMessage(payload, response.statusText),
       response.status,
@@ -127,7 +135,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     )
   }
 
-  markSessionActive(path)
+  if (usesSession) markSessionActive(path)
   return payload as T
 }
 

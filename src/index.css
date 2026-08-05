@@ -1229,6 +1229,21 @@ h1 {
   color: var(--app-muted);
 }
 
+.filter-input {
+  width: 10rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--app-text);
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+.filter-input--code {
+  width: 7.5rem;
+}
+
 .table-search {
   position: relative;
   display: inline-flex;
@@ -3153,6 +3168,101 @@ h1 {
 
 .doc-section-table td {
   color: #46564f;
+}
+
+.doc-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.doc-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  color: #55635c;
+  font-size: 0.9rem;
+}
+
+.doc-pagination button {
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #cfd9d2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f6f58;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.doc-pagination button:hover:not(:disabled) {
+  border-color: #1f6f58;
+  background: #f2f7f4;
+}
+
+.doc-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.api-reference-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(7rem, 1fr));
+  gap: 1rem;
+  margin: 0.5rem 0 0;
+}
+
+.api-reference-meta > div {
+  min-width: 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid #dde4de;
+  border-radius: 10px;
+  background: #f7faf8;
+}
+
+.api-reference-meta dt {
+  margin-bottom: 0.35rem;
+  color: #6b756f;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.api-reference-meta dd {
+  margin: 0;
+  color: #13231d;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.api-reference-meta code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.api-reference-code {
+  margin: 0;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid #d7e1da;
+  border-radius: 10px;
+  background: #13231d;
+  color: #ecf6f0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.api-reference-documentation {
+  white-space: pre-line;
+}
+
+@media (max-width: 520px) {
+  .api-reference-meta {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Footer */
