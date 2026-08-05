@@ -5,6 +5,7 @@ import { ConfirmModal } from '../../../app/ConfirmModal'
 import { useAnchoredMenu } from '../../../app/useAnchoredMenu'
 import { useDismiss } from '../../../app/useDismiss'
 import { useToast } from '../../../app/toastContext'
+import {ArrowUpCircleIcon} from 'lucide-react'
 import {
   formatDateTime,
   formatName,
@@ -16,9 +17,11 @@ import {
 import {
   getAdminOrganisationStatusError,
   getAdjustOrganisationCreditsError,
+  getCreateAdminOrganisationError,
   useAdjustOrganisationCredits,
   useAdminOrganisations,
   useChangeAdminOrganisationStatus,
+  useCreateAdminOrganisation,
   type AdminOrganisation,
   type AdminOrganisationSortBy,
   type AdminOrganisationSortOrder,
@@ -41,6 +44,7 @@ function OrganizationManagementPage() {
     useState<AdminOrganisationSortOrder>('desc')
   const [page, setPage] = useState(1)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [addOrganisationOpen, setAddOrganisationOpen] = useState(false)
   const [assigningCredits, setAssigningCredits] =
     useState<AdminOrganisation | null>(null)
   const [suspending, setSuspending] = useState<AdminOrganisation | null>(null)
@@ -134,6 +138,13 @@ function OrganizationManagementPage() {
             View organizations, owners, account status, and credit balances.
           </p>
         </div>
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => setAddOrganisationOpen(true)}
+        >
+          Add Organization <CirclePlusIcon />
+        </button>
       </header>
 
       <div className="dash-tabs" role="tablist">
@@ -352,6 +363,12 @@ function OrganizationManagementPage() {
         />
       ) : null}
 
+      {addOrganisationOpen ? (
+        <AddOrganisationModal
+          onClose={() => setAddOrganisationOpen(false)}
+        />
+      ) : null}
+
       {suspending ? (
         <SuspendOrganisationModal
           organisation={suspending}
@@ -386,6 +403,179 @@ function OrganizationManagementPage() {
           onConfirm={() => void updateStatus(reactivating, 'ACTIVE')}
         />
       ) : null}
+    </div>
+  )
+}
+
+type AddOrganisationField = 'businessName' | 'ownerEmail'
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function AddOrganisationModal({ onClose }: { onClose: () => void }) {
+  const [businessName, setBusinessName] = useState('')
+  const [ownerEmail, setOwnerEmail] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<AddOrganisationField, string>>
+  >({})
+  const createOrganisation = useCreateAdminOrganisation()
+  const { showToast } = useToast()
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, () => {
+    if (!createOrganisation.isPending) onClose()
+  })
+
+  const clearFieldError = (field: AddOrganisationField) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+
+  const handleSubmit = async () => {
+    const errors: Partial<Record<AddOrganisationField, string>> = {}
+    if (!businessName.trim()) {
+      errors.businessName = 'Business name is required.'
+    }
+    if (!ownerEmail.trim()) {
+      errors.ownerEmail = 'Email address is required.'
+    } else if (!emailPattern.test(ownerEmail.trim())) {
+      errors.ownerEmail = 'Enter a valid email address.'
+    }
+    setFieldErrors(errors)
+    if (Object.keys(errors).length > 0) return
+
+    try {
+      await createOrganisation.mutateAsync({
+        businessName: businessName.trim(),
+        ownerEmail: ownerEmail.trim(),
+      })
+      onClose()
+      showToast({
+        title: 'Organization created',
+        message: `${businessName.trim()} has been created.`,
+        variant: 'success',
+      })
+    } catch (error) {
+      const apiError = getCreateAdminOrganisationError(error)
+      setFieldErrors(
+        apiError.fields as Partial<Record<AddOrganisationField, string>>,
+      )
+      showToast({
+        title: apiError.message,
+        message: [
+          [...new Set(Object.values(apiError.fields))].join(' '),
+          apiError.requestId
+            ? `Request ID: ${apiError.requestId}`
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' · ') || undefined,
+        variant: 'error',
+      })
+    }
+  }
+
+  return (
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-organisation-title"
+    >
+      <div className="modal" ref={modalRef}>
+        <div className="modal-head">
+          <h2 id="add-organisation-title" className="modal-title">
+            Add Organization
+          </h2>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Close"
+            onClick={onClose}
+            disabled={createOrganisation.isPending}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div className="modal-body">
+          <div className="modal-field">
+            <label htmlFor="organisation-business-name">Business Name</label>
+            <input
+              id="organisation-business-name"
+              className="modal-input"
+              type="text"
+              placeholder="Enter business name"
+              value={businessName}
+              disabled={createOrganisation.isPending}
+              aria-invalid={Boolean(fieldErrors.businessName)}
+              aria-describedby={
+                fieldErrors.businessName
+                  ? 'organisation-business-name-error'
+                  : undefined
+              }
+              onChange={(event) => {
+                setBusinessName(event.target.value)
+                clearFieldError('businessName')
+              }}
+            />
+            {fieldErrors.businessName ? (
+              <p
+                id="organisation-business-name-error"
+                className="modal-field-error"
+                role="alert"
+              >
+                {fieldErrors.businessName}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="modal-field">
+            <label htmlFor="organisation-owner-email">Email Address</label>
+            <input
+              id="organisation-owner-email"
+              className="modal-input"
+              type="email"
+              autoComplete="email"
+              placeholder="Enter owner email address"
+              value={ownerEmail}
+              disabled={createOrganisation.isPending}
+              aria-invalid={Boolean(fieldErrors.ownerEmail)}
+              aria-describedby={
+                fieldErrors.ownerEmail
+                  ? 'organisation-owner-email-error'
+                  : undefined
+              }
+              onChange={(event) => {
+                setOwnerEmail(event.target.value)
+                clearFieldError('ownerEmail')
+              }}
+            />
+            {fieldErrors.ownerEmail ? (
+              <p
+                id="organisation-owner-email-error"
+                className="modal-field-error"
+                role="alert"
+              >
+                {fieldErrors.ownerEmail}
+              </p>
+            ) : null}
+          </div>
+
+          <button
+            type="button"
+            className="btn-primary btn-block"
+            disabled={createOrganisation.isPending}
+            onClick={() => void handleSubmit()}
+          >
+            {createOrganisation.isPending
+              ? 'Adding…'
+              : 'Add Organization'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -713,6 +903,7 @@ function OrganisationRowActions({
               role="menuitem"
               onClick={onReactivate}
             >
+              <ArrowUpCircleIcon size={18}/>
               Reactivate Organization
             </button>
           )}
@@ -801,6 +992,25 @@ function CoinsIcon() {
       <ellipse cx="12" cy="6" rx="7" ry="3" />
       <path d="M5 6v6c0 1.66 3.13 3 7 3s7-1.34 7-3V6" />
       <path d="M5 12v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6" />
+    </svg>
+  )
+}
+
+function CirclePlusIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v8M8 12h8" />
     </svg>
   )
 }

@@ -78,6 +78,15 @@ export type AdjustOrganisationCreditsInput = {
   credits: number
 }
 
+export type CreateAdminOrganisationInput = {
+  businessName: string
+  ownerEmail: string
+}
+
+export type CreateAdminOrganisationResponse = {
+  organisation: AdminOrganisation
+}
+
 export type AdjustOrganisationCreditsResponse = {
   adjustment: {
     id: string
@@ -179,6 +188,47 @@ function adjustOrganisationCredits(input: AdjustOrganisationCreditsInput) {
       json: input,
     },
   )
+}
+
+function createAdminOrganisation(input: CreateAdminOrganisationInput) {
+  return apiRequest<CreateAdminOrganisationResponse>('/admin/organisations', {
+    method: 'POST',
+    headers: {
+      'Idempotency-Key': crypto.randomUUID(),
+    },
+    json: input,
+  })
+}
+
+export function useCreateAdminOrganisation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: createAdminOrganisation,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: adminOrganisationKeys.lists(),
+      })
+    },
+  })
+}
+
+export function getCreateAdminOrganisationError(error: unknown) {
+  const payload = error instanceof ApiError
+    ? error.details as AdminOrganisationErrorPayload | undefined
+    : undefined
+
+  return {
+    status: error instanceof ApiError ? error.status : undefined,
+    code: payload?.error?.code,
+    message:
+      payload?.error?.message ??
+      (error instanceof Error
+        ? error.message
+        : 'The organization could not be created.'),
+    fields: payload?.error?.fields ?? {},
+    requestId: payload?.error?.requestId,
+  }
 }
 
 export function useAdjustOrganisationCredits() {
