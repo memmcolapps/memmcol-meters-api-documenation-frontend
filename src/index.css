@@ -3676,6 +3676,13 @@ h1 {
   color: var(--app-text);
 }
 
+.member-status {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 90px;
+}
+
 .member-actions {
   display: flex;
   align-items: center;
@@ -3687,9 +3694,9 @@ h1 {
   align-items: center;
   justify-content: center;
   width: 42px;
-  height: 42px;
+  height: 38px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--app-green);
   color: #ffffff;
   cursor: pointer;
