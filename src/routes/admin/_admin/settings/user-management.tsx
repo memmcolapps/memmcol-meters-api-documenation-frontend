@@ -7,9 +7,13 @@ import { useToast } from '../../../../app/toastContext'
 import {
   useCreateAdminUser,
   useLeaveAdminTeam,
+  useRemoveAdminTeamMember,
+  useUpdateAdminTeamMemberRole,
+  getAdminTeamMemberError,
   getCreateAdminUserError,
   useAdminTeamMembers,
   type AdminRole,
+  type AdminTeamMember,
 } from '../../../../features/admin-users/adminUserQueries'
 import { getApiErrorMessage } from '../../../../lib/api/client'
 
@@ -35,9 +39,13 @@ const roleMap: Record<AdminRole, Role> = {
 function UserManagementPage() {
   const [inviteOpen, setInviteOpen] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  const [removeModalMember, setRemoveModalMember] = useState<AdminTeamMember | null>(null)
+  const [editModalMember, setEditModalMember] = useState<AdminTeamMember | null>(null)
   const navigate = useNavigate()
   const createAdminUser = useCreateAdminUser()
   const leaveTeam = useLeaveAdminTeam()
+  const removeMember = useRemoveAdminTeamMember()
+  const updateRole = useUpdateAdminTeamMemberRole()
   const membersQuery = useAdminTeamMembers()
   const { showToast } = useToast()
   const members = membersQuery.data?.items ?? []
@@ -122,7 +130,7 @@ function UserManagementPage() {
                 <p className="member-role">
                   {member.isOwner ? 'Owner' : roleMap[member.role]}
                 </p>
-                <div className="member-actions">
+                <span className="member-status">
                   <span
                     className={`code-badge${
                       member.status === 'ACTIVE' ? ' is-ok' : ' is-warn'
@@ -130,6 +138,8 @@ function UserManagementPage() {
                   >
                     {formatMemberStatus(member.status)}
                   </span>
+                </span>
+                <div className="member-actions">
                   {member.isCurrentUser ? (
                     <button
                       type="button"
@@ -138,6 +148,24 @@ function UserManagementPage() {
                     >
                       Leave
                     </button>
+                  ) : !member.isOwner ? (
+                    <>
+                      <button
+                        type="button"
+                        className="icon-btn-primary"
+                        aria-label={`Edit ${member.displayName}`}
+                        onClick={() => setEditModalMember(member)}
+                      >
+                        <PencilIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-remove"
+                        onClick={() => setRemoveModalMember(member)}
+                      >
+                        Remove
+                      </button>
+                    </>
                   ) : null}
                 </div>
               </div>
@@ -182,12 +210,134 @@ function UserManagementPage() {
           }}
         />
       ) : null}
+
+      {editModalMember ? (
+        <EditMemberModal
+          member={editModalMember}
+          onClose={() => {
+            if (!updateRole.isPending) setEditModalMember(null)
+          }}
+        />
+      ) : null}
+
+      {removeModalMember ? (
+        <ConfirmModal
+          message={`Are you sure you want to remove ${removeModalMember.displayName} from this team?`}
+          confirmLabel="Remove"
+          isSubmitting={removeMember.isPending}
+          onCancel={() => {
+            if (!removeMember.isPending) setRemoveModalMember(null)
+          }}
+          onConfirm={async () => {
+            try {
+              await removeMember.mutateAsync(removeModalMember.id)
+              setRemoveModalMember(null)
+              showToast({
+                title: 'Member removed',
+                message: `${removeModalMember.displayName} has been removed from the team.`,
+                variant: 'success',
+              })
+            } catch (error) {
+              const apiError = getAdminTeamMemberError(error)
+              showToast({
+                title: 'Could not remove member',
+                message: [apiError.message, apiError.requestId ? `Request ID: ${apiError.requestId}` : '']
+                  .filter(Boolean)
+                  .join(' · ') || undefined,
+                variant: 'error',
+              })
+            }
+          }}
+        />
+      ) : null}
     </div>
   )
 }
 
 function formatMemberStatus(status: string) {
   return status.charAt(0) + status.slice(1).toLowerCase()
+}
+
+function EditMemberModal({
+  member,
+  onClose,
+}: {
+  member: AdminTeamMember
+  onClose: () => void
+}) {
+  const [role, setRole] = useState<Role>(roleMap[member.role])
+  const updateRole = useUpdateAdminTeamMemberRole()
+  const { showToast } = useToast()
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, () => {
+    if (!updateRole.isPending) onClose()
+  })
+
+  const handleSave = async () => {
+    try {
+      await updateRole.mutateAsync({ memberId: member.id, role: role === 'Admin' ? 'ADMIN' : 'DEVELOPER' })
+      onClose()
+      showToast({
+        title: 'Member updated',
+        message: `${member.displayName}'s role is now ${role}.`,
+        variant: 'success',
+      })
+    } catch (error) {
+      const apiError = getAdminTeamMemberError(error)
+      showToast({
+        title: 'Could not update member',
+        message: [apiError.message, apiError.requestId ? `Request ID: ${apiError.requestId}` : '']
+          .filter(Boolean)
+          .join(' · ') || undefined,
+        variant: 'error',
+      })
+    }
+  }
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-member-title">
+      <div className="modal" ref={modalRef}>
+        <div className="modal-head">
+          <h2 id="edit-member-title" className="modal-title">
+            Edit Member
+          </h2>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Close"
+            onClick={onClose}
+            disabled={updateRole.isPending}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div className="modal-body">
+          <RoleSelect value={role} onChange={setRole} disabled={updateRole.isPending} />
+
+          <div className="modal-foot modal-foot--end">
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={updateRole.isPending || role === roleMap[member.role]}
+              onClick={() => void handleSave()}
+            >
+              {updateRole.isPending ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PencilIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  )
 }
 
 function MemberFormModal({
