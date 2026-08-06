@@ -1,35 +1,13 @@
-import { useDeferredValue, useState } from 'react'
+import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { AsyncState } from '../../app/AsyncState'
-import { DatePicker } from '../../app/DatePicker'
-import { useToast } from '../../app/toastContext'
-import {
-  useExportRequestLogs,
-  useRequestLogs,
-  type RequestLog,
-  type RequestLogOutcome,
-  type RequestLogSortOrder,
-} from '../../features/request-logs/requestLogQueries'
-import { getApiErrorMessage } from '../../lib/api/client'
+import { DateRangePicker, type DateRange } from '../../app/DateRangePicker'
+import { useUsageSummary } from '../../features/usage-summary/usageSummaryQueries'
 import { formatDateTime, formatNumber, formatText, toList } from '../../lib/format'
 
 export const Route = createFileRoute('/_app/logs')({
   component: LogsPage,
 })
-
-const PAGE_SIZE = 20
-
-function startOfDay(date: Date) {
-  const value = new Date(date)
-  value.setHours(0, 0, 0, 0)
-  return value.toISOString()
-}
-
-function endOfDay(date: Date) {
-  const value = new Date(date)
-  value.setHours(23, 59, 59, 999)
-  return value.toISOString()
-}
 
 function formatDateParam(date: Date) {
   const year = date.getFullYear()
@@ -39,69 +17,29 @@ function formatDateParam(date: Date) {
 }
 
 function LogsPage() {
-  const [search, setSearch] = useState('')
-  const [apiId, setApiId] = useState('')
-  const [code, setCode] = useState('')
-  const [outcome, setOutcome] = useState<RequestLogOutcome | ''>('')
-  const [date, setDate] = useState<Date | null>(null)
-  const [sortOrder, setSortOrder] = useState<RequestLogSortOrder>('desc')
-  const [page, setPage] = useState(1)
-  const exportLogs = useExportRequestLogs()
-  const { showToast } = useToast()
-  const deferredSearch = useDeferredValue(search.trim())
-  const deferredApiId = useDeferredValue(apiId.trim())
-  const numericCode = Number(code)
-  const codeFilter = /^\d{3}$/.test(code) && numericCode >= 100 && numericCode <= 599
-    ? numericCode
-    : undefined
-
-  const logsQuery = useRequestLogs({
-    search: deferredSearch || undefined,
-    apiId: deferredApiId || undefined,
-    code: codeFilter,
-    outcome: outcome || undefined,
-    from: date ? startOfDay(date) : undefined,
-    to: date ? endOfDay(date) : undefined,
-    page,
-    limit: PAGE_SIZE,
-    sortOrder,
+  const [range, setRange] = useState<DateRange>(() => {
+    const today = new Date()
+    return { from: today, to: today }
   })
-  const logs = toList<RequestLog>(logsQuery.data?.items)
-  const summary = logsQuery.data?.summary
-  const pagination = logsQuery.data?.pagination
-  const currentPage = pagination?.page ?? page
-  const totalPages = pagination?.totalPages ?? 1
+  const today = new Date()
+
+  const summaryQuery = useUsageSummary({
+    from: formatDateParam(range.from ?? today),
+    to: formatDateParam(range.to ?? today),
+  })
+  const summary = summaryQuery.data?.summary
+  const services = toList<NonNullable<typeof summary>['usageByService'][number]>(
+    summary?.usageByService,
+  )
+  const recentLogs = toList<NonNullable<typeof summary>['recentLogs'][number]>(
+    summary?.recentLogs,
+  )
   const stats = [
     { label: 'Total API Calls', value: formatNumber(summary?.totalApiCalls) },
     { label: 'Successful API Calls', value: formatNumber(summary?.successfulApiCalls) },
     { label: 'Failed API Calls', value: formatNumber(summary?.failedApiCalls) },
     { label: 'Credit Balance', value: formatNumber(summary?.creditBalance) },
   ]
-
-  const handleExport = async () => {
-    try {
-      const { blob, filename } = await exportLogs.mutateAsync({
-        date: date ? formatDateParam(date) : undefined,
-        statusCode: codeFilter,
-      })
-      const downloadUrl = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = downloadUrl
-      link.download = filename || `request-logs-${date
-        ? formatDateParam(date)
-        : new Date().toISOString().slice(0, 10)}.csv`
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1_000)
-    } catch (error) {
-      showToast({
-        title: 'Could not export logs',
-        message: getApiErrorMessage(error),
-        variant: 'error',
-      })
-    }
-  }
 
   return (
     <div className="dash">
@@ -120,93 +58,20 @@ function LogsPage() {
 
       <div className="dash-toolbar">
         <div className="dash-filters">
-          <div className="table-search">
-            <input
-              type="search"
-              placeholder="Search logs..."
-              aria-label="Search request logs"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value)
-                setPage(1)
-              }}
-            />
-            <SearchIcon />
-          </div>
-          <input
-            className="filter-input"
-            type="text"
-            placeholder="API ID"
-            aria-label="Filter by API ID"
-            value={apiId}
-            onChange={(event) => {
-              setApiId(event.target.value)
-              setPage(1)
-            }}
+          <DateRangePicker
+            placeholder="Date Range"
+            value={range}
+            onChange={setRange}
           />
-          <input
-            className="filter-input filter-input--code"
-            type="number"
-            min="100"
-            max="599"
-            placeholder="All codes"
-            aria-label="Filter by response code"
-            value={code}
-            onChange={(event) => {
-              setCode(event.target.value)
-              setPage(1)
-            }}
-          />
-          <select
-            className="filter-btn"
-            aria-label="Filter by outcome"
-            value={outcome}
-            onChange={(event) => {
-              setOutcome(event.target.value as RequestLogOutcome | '')
-              setPage(1)
-            }}
-          >
-            <option value="">All outcomes</option>
-            <option value="SUCCESS">Success</option>
-            <option value="CLIENT_ERROR">Client error</option>
-            <option value="SERVER_ERROR">Server error</option>
-          </select>
-          <DatePicker
-            placeholder="Date"
-            onChange={(date) => {
-              setDate(date)
-              setPage(1)
-            }}
-          />
-          <select
-            className="filter-btn"
-            aria-label="Sort order"
-            value={sortOrder}
-            onChange={(event) => {
-              setSortOrder(event.target.value as RequestLogSortOrder)
-              setPage(1)
-            }}
-          >
-            <option value="desc">Newest first</option>
-            <option value="asc">Oldest first</option>
-          </select>
         </div>
-        <button
-          type="button"
-          className="btn-outline btn-icon"
-          disabled={exportLogs.isPending}
-          onClick={() => void handleExport()}
-        >
-          {exportLogs.isPending ? 'Exporting…' : 'Download'} <DownloadIcon />
-        </button>
       </div>
 
       <AsyncState
-        isPending={logsQuery.isPending}
-        error={logsQuery.error}
-        onRetry={() => void logsQuery.refetch()}
+        isPending={summaryQuery.isPending}
+        error={summaryQuery.error}
+        onRetry={() => void summaryQuery.refetch()}
       >
-        <section className="dash-stats dash-stats--4" aria-busy={logsQuery.isFetching}>
+        <section className="dash-stats dash-stats--4" aria-busy={summaryQuery.isFetching}>
           {stats.map((stat) => (
             <article className="stat-card" key={stat.label}>
               <div className="stat-text">
@@ -220,13 +85,47 @@ function LogsPage() {
           ))}
         </section>
 
-        {logs.length ? (
-          <section className="table-wrap">
-            <div className="table-scroll" aria-busy={logsQuery.isFetching}>
+        <section className="dash-panel">
+          <div className="panel-head">
+            <h2 className="panel-title">Usage by Service</h2>
+          </div>
+          {services.length ? (
+            <div className="table-scroll">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>S/N</th>
+                    <th>API Service</th>
+                    <th>Calls</th>
+                    <th>Credits Used</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {services.map((service) => (
+                    <tr key={service.apiId}>
+                      <td>{formatText(service.name)}</td>
+                      <td>{formatNumber(service.calls)}</td>
+                      <td>{formatNumber(service.creditsUsed)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="meter-empty">
+              <p className="meter-empty-text">No usage data is available for this period.</p>
+            </div>
+          )}
+        </section>
+
+        <section className="dash-panel">
+          <div className="panel-head">
+            <h2 className="panel-title">Recent Logs</h2>
+          </div>
+          {recentLogs.length ? (
+            <div className="table-scroll" aria-busy={summaryQuery.isFetching}>
+              <table className="data-table">
+                <thead>
+                  <tr>
                     <th>Request ID</th>
                     <th>Request Time</th>
                     <th>API Service</th>
@@ -236,16 +135,11 @@ function LogsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {logs.map((log, index) => (
+                  {recentLogs.map((log) => (
                     <tr key={log.id}>
-                      <td>
-                        {String(
-                          (currentPage - 1) * (pagination?.limit ?? PAGE_SIZE) + index + 1,
-                        ).padStart(2, '0')}
-                      </td>
                       <td>{formatText(log.requestId)}</td>
                       <td>{formatDateTime(log.requestTime)}</td>
-                      <td>{formatText(log.api?.name)}</td>
+                      <td>{formatText(log.apiName)}</td>
                       <td>
                         <span
                           className={`code-badge${log.code >= 400 ? ' is-error' : ' is-ok'}`}
@@ -260,64 +154,14 @@ function LogsPage() {
                 </tbody>
               </table>
             </div>
-
-            <nav className="pagination" aria-label="Request logs pagination">
-              <button
-                type="button"
-                className="page-nav"
-                disabled={currentPage <= 1 || logsQuery.isFetching}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-              >
-                <ChevronLeftIcon /> Previous
-              </button>
-              <div className="page-numbers">
-                <span className="page-gap">
-                  Page {currentPage} of {totalPages}
-                  {' · '}{pagination?.total ?? logs.length} total
-                </span>
-              </div>
-              <button
-                type="button"
-                className="page-nav"
-                disabled={currentPage >= totalPages || logsQuery.isFetching}
-                onClick={() => setPage((current) => current + 1)}
-              >
-                Next <ChevronRightIcon />
-              </button>
-            </nav>
-          </section>
-        ) : (
-          <div className="meter-empty">
-            <p className="meter-empty-text">No request logs found.</p>
-          </div>
-        )}
+          ) : (
+            <div className="meter-empty">
+              <p className="meter-empty-text">No recent logs are available for this period.</p>
+            </div>
+          )}
+        </section>
       </AsyncState>
     </div>
-  )
-}
-
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.5-3.5" />
-    </svg>
-  )
-}
-
-function ChevronLeftIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m15 18-6-6 6-6" />
-    </svg>
-  )
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m9 18 6-6-6-6" />
-    </svg>
   )
 }
 
@@ -326,15 +170,6 @@ function ApiIcon() {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="2" y="7" width="20" height="10" rx="2" />
       <path d="M7 12h.01M12 12h.01M17 12h.01" />
-    </svg>
-  )
-}
-
-function DownloadIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
-      <path d="M5 21h14" />
     </svg>
   )
 }

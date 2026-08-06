@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { AsyncState } from '../../../app/AsyncState'
-import { DatePicker } from '../../../app/DatePicker'
+import { DateRangePicker, type DateRange } from '../../../app/DateRangePicker'
 import {
   formatDateTime,
   formatStatusLabel,
@@ -22,16 +22,15 @@ const PAGE_SIZE = 20
 
 function AuditLogsPage() {
   const [search, setSearch] = useState('')
-  const [from, setFrom] = useState<Date | null>(null)
-  const [to, setTo] = useState<Date | null>(null)
+  const [range, setRange] = useState<DateRange>({ from: null, to: null })
   const [sortOrder, setSortOrder] =
     useState<AdminAuditLogSortOrder>('desc')
   const [page, setPage] = useState(1)
 
   const auditLogsQuery = useAdminAuditLogs({
     search: search.trim() || undefined,
-    from: from?.toISOString(),
-    to: to?.toISOString(),
+    from: range.from ? startOfDay(range.from).toISOString() : undefined,
+    to: range.to ? endOfDay(range.to).toISOString() : undefined,
     page,
     limit: PAGE_SIZE,
     sortOrder,
@@ -72,12 +71,12 @@ function AuditLogsPage() {
             />
             <SearchIcon />
           </div>
-          <button type="button" className="filter-btn">
+          {/* <button type="button" className="filter-btn">
             Filter <ChevronRightIcon />
           </button>
           <button type="button" className="filter-btn">
             Sort <SortIcon />
-          </button>
+          </button> */}
           <select
             className="filter-btn"
             aria-label="Audit log sort order"
@@ -90,12 +89,11 @@ function AuditLogsPage() {
             <option value="desc">Descending</option>
             <option value="asc">Ascending</option>
           </select>
-          <DatePicker
+          <DateRangePicker
             placeholder="Date Range"
-            initialDate={from ?? undefined}
-            onChange={(date) => {
-              setFrom(date)
-              setTo(date)
+            value={range}
+            onChange={(next) => {
+              setRange(next)
               setPage(1)
             }}
           />
@@ -165,6 +163,9 @@ function AuditLogsPage() {
   )
 }
 
+const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
+const endOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999)
+
 function SearchIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -174,13 +175,13 @@ function SearchIcon() {
   )
 }
 
-function SortIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3" />
-    </svg>
-  )
-}
+// function SortIcon() {
+//   return (
+//     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+//       <path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3" />
+//     </svg>
+//   )
+// }
 
 function ChevronLeftIcon() {
   return (
