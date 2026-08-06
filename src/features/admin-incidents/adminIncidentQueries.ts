@@ -27,21 +27,33 @@ export type AdminIncidentStatus = 'UNRESOLVED' | 'RESOLVED'
 export type AdminIncidentSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 export type AdminIncidentSortOrder = 'asc' | 'desc'
 
+export type AdminIncidentOrganisation = {
+  id?: string | null
+  name?: string | null
+  businessName?: string | null
+}
+
+/**
+ * Incident list payloads are external input. Fields that are not required to
+ * perform an action stay optional so one incomplete row can render with
+ * placeholders instead of taking down the entire route.
+ */
 export type AdminIncident = {
   id: string
-  title: string
-  organisation: {
-    id: string
-    name: string
-  }
-  severity: AdminIncidentSeverity
-  status: AdminIncidentStatus
-  requestId: string
-  detectedAt: string
-  resolvedAt: string | null
-  resolvedBy: {
-    id: string
-    name: string
+  title?: string | null
+  organisation?: AdminIncidentOrganisation | null
+  organization?: AdminIncidentOrganisation | null
+  organisationName?: string | null
+  organizationName?: string | null
+  company?: string | null
+  severity?: AdminIncidentSeverity | null
+  status?: AdminIncidentStatus | null
+  requestId?: string | null
+  detectedAt?: string | null
+  resolvedAt?: string | null
+  resolvedBy?: {
+    id?: string | null
+    name?: string | null
   } | null
 }
 

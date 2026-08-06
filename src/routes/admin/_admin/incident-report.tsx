@@ -13,7 +13,12 @@ import {
   type AdminIncidentSortOrder,
   type AdminIncidentStatus,
 } from '../../../features/admin-incidents/adminIncidentQueries'
-import { formatDateTime, formatStatusLabel, toList } from '../../../lib/format'
+import {
+  formatDateTime,
+  formatStatusLabel,
+  formatText,
+  toList,
+} from '../../../lib/format'
 
 export const Route = createFileRoute('/admin/_admin/incident-report')({
   component: IncidentReportPage,
@@ -74,7 +79,7 @@ function IncidentReportPage() {
       setResolving(null)
       showToast({
         title: 'Incident resolved',
-        message: `${resolving.title} was resolved by ${updated.resolvedBy.name}.`,
+        message: `${formatText(resolving.title, 'The incident')} was resolved by ${formatText(updated.resolvedBy?.name, 'an administrator')}.`,
         variant: 'success',
       })
     } catch (error) {
@@ -220,24 +225,26 @@ function IncidentReportPage() {
                   <div className="incident-info">
                     <p className="incident-title">
                       <span className="incident-dot" aria-hidden="true" />
-                      {incident.title}
+                      {formatText(incident.title)}
                     </p>
                     <p className="incident-meta">
-                      Utility Company: {incident.organisation.name}
+                      Utility Company: {incidentOrganisationName(incident)}
                     </p>
                     <p className="incident-meta">
                       {formatDateTime(incident.detectedAt)} • <ClockIcon />{' '}
-                      Request ID: {incident.requestId}
+                      Request ID: {formatText(incident.requestId)}
                     </p>
                     <p className="incident-meta">
                       Severity:{' '}
-                      <span className={`incident-severity is-${incident.severity.toLowerCase()}`}>
+                      <span
+                        className={`incident-severity${severityBadgeClass(incident.severity)}`}
+                      >
                         {formatStatusLabel(incident.severity)}
                       </span>
                     </p>
                     {incident.resolvedBy && incident.resolvedAt ? (
                       <p className="incident-meta">
-                        Resolved by {incident.resolvedBy.name} ·{' '}
+                        Resolved by {formatText(incident.resolvedBy.name)} ·{' '}
                         {formatDateTime(incident.resolvedAt)}
                       </p>
                     ) : null}
@@ -343,7 +350,7 @@ function ResolveIncidentModal({
               Resolve Incident
             </h2>
             <p className="modal-subtitle">
-              {incident.title} · {incident.organisation.name}
+              {formatText(incident.title)} · {incidentOrganisationName(incident)}
             </p>
           </div>
           <button
@@ -395,6 +402,26 @@ function ResolveIncidentModal({
       </div>
     </div>
   )
+}
+
+function incidentOrganisationName(incident: AdminIncident) {
+  return formatText(
+    incident.organisation?.name ??
+      incident.organisation?.businessName ??
+      incident.organization?.name ??
+      incident.organization?.businessName ??
+      incident.organisationName ??
+      incident.organizationName ??
+      incident.company,
+  )
+}
+
+function severityBadgeClass(severity: unknown) {
+  if (severity === 'LOW') return ' is-low'
+  if (severity === 'MEDIUM') return ' is-medium'
+  if (severity === 'HIGH') return ' is-high'
+  if (severity === 'CRITICAL') return ' is-critical'
+  return ''
 }
 
 function SearchIcon() {
