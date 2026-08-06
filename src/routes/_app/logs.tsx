@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { AsyncState } from '../../app/AsyncState'
-import { DateRangePicker, type DateRange } from '../../app/DateRangePicker'
+import { DatePicker } from '../../app/DatePicker'
 import { useUsageSummary } from '../../features/usage-summary/usageSummaryQueries'
 import { formatDateTime, formatNumber, formatText, toList } from '../../lib/format'
 
@@ -17,15 +17,13 @@ function formatDateParam(date: Date) {
 }
 
 function LogsPage() {
-  const [range, setRange] = useState<DateRange>(() => {
-    const today = new Date()
-    return { from: today, to: today }
-  })
+  const [from, setFrom] = useState<Date | null>(null)
+  const [to, setTo] = useState<Date | null>(null)
   const today = new Date()
 
   const summaryQuery = useUsageSummary({
-    from: formatDateParam(range.from ?? today),
-    to: formatDateParam(range.to ?? today),
+    from: formatDateParam(from ?? today),
+    to: formatDateParam(to ?? today),
   })
   const summary = summaryQuery.data?.summary
   const services = toList<NonNullable<typeof summary>['usageByService'][number]>(
@@ -58,10 +56,13 @@ function LogsPage() {
 
       <div className="dash-toolbar">
         <div className="dash-filters">
-          <DateRangePicker
-            placeholder="Date Range"
-            value={range}
-            onChange={setRange}
+          <DatePicker
+            placeholder="From date"
+            onChange={setFrom}
+          />
+          <DatePicker
+            placeholder="To date"
+            onChange={setTo}
           />
         </div>
       </div>
