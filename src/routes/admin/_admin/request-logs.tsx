@@ -2,8 +2,11 @@ import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { AsyncState } from '../../../app/AsyncState'
 import { DatePicker } from '../../../app/DatePicker'
+import { useToast } from '../../../app/toastContext'
+import { getApiErrorMessage } from '../../../lib/api/client'
 import { formatDateTime, formatText, toList } from '../../../lib/format'
 import {
+  useExportAdminRequestLogs,
   useAdminRequestLogs,
   type AdminRequestLog,
   type AdminRequestLogSortOrder,
@@ -22,19 +25,45 @@ function RequestLogsPage() {
   const [sortOrder, setSortOrder] =
     useState<AdminRequestLogSortOrder>('desc')
   const [page, setPage] = useState(1)
+  const exportLogs = useExportAdminRequestLogs()
+  const { showToast } = useToast()
 
-  const requestLogsQuery = useAdminRequestLogs({
+  const activeFilters = {
     search: search.trim() || undefined,
     from: from?.toISOString(),
     to: to?.toISOString(),
+    sortOrder,
+  }
+
+  const requestLogsQuery = useAdminRequestLogs({
+    ...activeFilters,
     page,
     limit: PAGE_SIZE,
-    sortOrder,
   })
   const logs = toList<AdminRequestLog>(requestLogsQuery.data?.items)
   const pagination = requestLogsQuery.data?.pagination
   const currentPage = pagination?.page ?? page
   const totalPages = pagination?.totalPages ?? 1
+
+  const handleExport = async () => {
+    try {
+      const { blob, filename } = await exportLogs.mutateAsync(activeFilters)
+      const downloadUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = filename || `admin-request-logs-${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1_000)
+    } catch (error) {
+      showToast({
+        title: 'Could not export request logs',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
+  }
 
   return (
     <div className="dash">
@@ -94,6 +123,14 @@ function RequestLogsPage() {
             }}
           />
         </div>
+        <button
+          type="button"
+          className="btn-outline btn-icon"
+          disabled={exportLogs.isPending}
+          onClick={() => void handleExport()}
+        >
+          {exportLogs.isPending ? 'Exporting…' : 'Export Logs'} <DownloadIcon />
+        </button>
       </div>
 
       <AsyncState
@@ -205,6 +242,15 @@ function ChevronRightIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="m9 18 6-6-6-6" />
+    </svg>
+  )
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
+      <path d="M5 21h14" />
     </svg>
   )
 }
