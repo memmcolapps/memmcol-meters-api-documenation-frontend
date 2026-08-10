@@ -10,8 +10,8 @@ const monthYear = (date: Date) =>
 
 const stats = [
   { label: 'Total API Calls', value: '1000' },
-  { label: 'Used API Calls', value: '500' },
-  { label: 'API Calls Left', value: '500' },
+  { label: 'Credits Used', value: '500' },
+  { label: 'Credit Balance', value: '500' },
 ]
 
 const CHART_MAX = 500
