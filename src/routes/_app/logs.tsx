@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { AsyncState } from '../../app/AsyncState'
 import { DatePicker } from '../../app/DatePicker'
+import { useToast } from '../../app/toastContext'
+import { useExportRequestLogs } from '../../features/request-logs/requestLogQueries'
 import { useUsageSummary } from '../../features/usage-summary/usageSummaryQueries'
+import { getApiErrorMessage } from '../../lib/api/client'
 import { formatDateTime, formatNumber, formatText, toList } from '../../lib/format'
 
 export const Route = createFileRoute('/_app/logs')({
@@ -20,10 +23,12 @@ function LogsPage() {
   const [from, setFrom] = useState<Date | null>(null)
   const [to, setTo] = useState<Date | null>(null)
   const today = new Date()
+  const exportLogs = useExportRequestLogs()
+  const { showToast } = useToast()
 
   const summaryQuery = useUsageSummary({
-    from: formatDateParam(from ?? today),
-    to: formatDateParam(to ?? today),
+    from: from ? formatDateParam(from) : undefined,
+    to: to ? formatDateParam(to) : undefined,
   })
   const summary = summaryQuery.data?.summary
   const services = toList<NonNullable<typeof summary>['usageByService'][number]>(
@@ -38,6 +43,26 @@ function LogsPage() {
     { label: 'Failed API Calls', value: formatNumber(summary?.failedApiCalls) },
     { label: 'Credit Balance', value: formatNumber(summary?.creditBalance) },
   ]
+
+  const handleExport = async () => {
+    try {
+      const { blob, filename } = await exportLogs.mutateAsync({})
+      const downloadUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = filename || `request-logs-${formatDateParam(today)}.csv`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1_000)
+    } catch (error) {
+      showToast({
+        title: 'Could not export logs',
+        message: getApiErrorMessage(error),
+        variant: 'error',
+      })
+    }
+  }
 
   return (
     <div className="dash">
@@ -65,6 +90,14 @@ function LogsPage() {
             onChange={setTo}
           />
         </div>
+        <button
+          type="button"
+          className="btn-outline btn-icon"
+          disabled={exportLogs.isPending}
+          onClick={() => void handleExport()}
+        >
+          {exportLogs.isPending ? 'Exporting…' : 'Export Logs'} <DownloadIcon />
+        </button>
       </div>
 
       <AsyncState
@@ -171,6 +204,15 @@ function ApiIcon() {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="2" y="7" width="20" height="10" rx="2" />
       <path d="M7 12h.01M12 12h.01M17 12h.01" />
+    </svg>
+  )
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
+      <path d="M5 21h14" />
     </svg>
   )
 }
