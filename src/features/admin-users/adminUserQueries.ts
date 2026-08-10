@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, apiRequest } from '../../lib/api/client'
 
-export type AdminRole = 'ADMIN' | 'DEVELOPER'
+export type AdminRole = 'SUPER_ADMIN' | 'ADMIN' | 'DEVELOPER'
 
 export type CreateAdminUserInput = {
   firstName: string
@@ -36,6 +36,7 @@ export type AdminTeamMember = {
   status: AdminTeamMemberStatus
   isCurrentUser: boolean
   isOwner: boolean
+  isSuperAdmin: boolean
 }
 
 type CreateAdminUserResponse = {

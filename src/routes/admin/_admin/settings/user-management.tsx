@@ -21,9 +21,10 @@ export const Route = createFileRoute('/admin/_admin/settings/user-management')({
   component: UserManagementPage,
 })
 
-type Role = 'Admin' | 'Developer'
+type Role = 'Super Admin' | 'Admin' | 'Developer'
 
 const roles: Array<{ name: Role; description: string }> = [
+  { name: 'Super Admin', description: 'All Access' },
   { name: 'Admin', description: 'All Access' },
   {
     name: 'Developer',
@@ -32,8 +33,20 @@ const roles: Array<{ name: Role; description: string }> = [
 ]
 
 const roleMap: Record<AdminRole, Role> = {
+  SUPER_ADMIN: 'Super Admin',
   ADMIN: 'Admin',
   DEVELOPER: 'Developer',
+}
+
+function toAdminRole(role: Role): AdminRole {
+  switch (role) {
+    case 'Super Admin':
+      return 'SUPER_ADMIN'
+    case 'Admin':
+      return 'ADMIN'
+    case 'Developer':
+      return 'DEVELOPER'
+  }
 }
 
 function UserManagementPage() {
@@ -49,9 +62,12 @@ function UserManagementPage() {
   const membersQuery = useAdminTeamMembers()
   const { showToast } = useToast()
   const members = membersQuery.data?.items ?? []
+  const isCurrentUserSuperAdmin = members.some(
+    (member) => member.isCurrentUser && member.isSuperAdmin,
+  )
 
   const invite = async (firstName: string, lastName: string, email: string, role: Role) => {
-    const adminRole: AdminRole = role === 'Admin' ? 'ADMIN' : 'DEVELOPER'
+    const adminRole: AdminRole = toAdminRole(role)
 
     try {
       const admin = await createAdminUser.mutateAsync({
@@ -128,7 +144,11 @@ function UserManagementPage() {
                   </div>
                 </div>
                 <p className="member-role">
-                  {member.isOwner ? 'Owner' : roleMap[member.role]}
+                  {member.isSuperAdmin
+                    ? 'Super Admin'
+                    : member.isOwner
+                      ? 'Owner'
+                      : roleMap[member.role]}
                 </p>
                 <span className="member-status">
                   <span
@@ -183,6 +203,7 @@ function UserManagementPage() {
           title="Invite Member"
           submitLabel="Invite"
           isSubmitting={createAdminUser.isPending}
+          canSelectSuperAdmin={isCurrentUserSuperAdmin}
           onClose={() => setInviteOpen(false)}
           onSubmit={(firstName, lastName, email, role) => void invite(firstName, lastName, email, role)}
         />
@@ -214,6 +235,7 @@ function UserManagementPage() {
       {editModalMember ? (
         <EditMemberModal
           member={editModalMember}
+          canSelectSuperAdmin={isCurrentUserSuperAdmin}
           onClose={() => {
             if (!updateRole.isPending) setEditModalMember(null)
           }}
@@ -260,9 +282,11 @@ function formatMemberStatus(status: string) {
 
 function EditMemberModal({
   member,
+  canSelectSuperAdmin,
   onClose,
 }: {
   member: AdminTeamMember
+  canSelectSuperAdmin: boolean
   onClose: () => void
 }) {
   const [role, setRole] = useState<Role>(roleMap[member.role])
@@ -275,7 +299,7 @@ function EditMemberModal({
 
   const handleSave = async () => {
     try {
-      await updateRole.mutateAsync({ memberId: member.id, role: role === 'Admin' ? 'ADMIN' : 'DEVELOPER' })
+      await updateRole.mutateAsync({ memberId: member.id, role: toAdminRole(role) })
       onClose()
       showToast({
         title: 'Member updated',
@@ -313,7 +337,12 @@ function EditMemberModal({
         </div>
 
         <div className="modal-body">
-          <RoleSelect value={role} onChange={setRole} disabled={updateRole.isPending} />
+          <RoleSelect
+            value={role}
+            onChange={setRole}
+            disabled={updateRole.isPending}
+            canSelectSuperAdmin={canSelectSuperAdmin}
+          />
 
           <div className="modal-foot modal-foot--end">
             <button
@@ -348,6 +377,7 @@ function MemberFormModal({
   initialLastName,
   initialEmail,
   initialRole,
+  canSelectSuperAdmin,
   onClose,
   onSubmit,
 }: {
@@ -358,6 +388,7 @@ function MemberFormModal({
   initialLastName?: string
   initialEmail?: string
   initialRole?: Role
+  canSelectSuperAdmin: boolean
   onClose: () => void
   onSubmit: (firstName: string, lastName: string, email: string, role: Role) => void
 }) {
@@ -419,7 +450,12 @@ function MemberFormModal({
             />
           </div>
 
-          <RoleSelect value={role} onChange={setRole} disabled={isSubmitting} />
+          <RoleSelect
+            value={role}
+            onChange={setRole}
+            disabled={isSubmitting}
+            canSelectSuperAdmin={canSelectSuperAdmin}
+          />
 
           <div className="modal-foot modal-foot--end">
             <button
@@ -441,14 +477,19 @@ function RoleSelect({
   value,
   onChange,
   disabled,
+  canSelectSuperAdmin,
 }: {
   value: Role | ''
   onChange: (role: Role) => void
   disabled?: boolean
+  canSelectSuperAdmin: boolean
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useDismiss(ref, () => setOpen(false), open)
+  const visibleRoles = canSelectSuperAdmin
+    ? roles
+    : roles.filter((option) => option.name !== 'Super Admin')
 
   return (
     <div className="role-select" ref={ref}>
@@ -465,7 +506,7 @@ function RoleSelect({
       </button>
       {open ? (
         <div className="role-menu" role="listbox" aria-label="Roles">
-          {roles.map((option) => (
+          {visibleRoles.map((option) => (
             <button
               type="button"
               key={option.name}
