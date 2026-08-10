@@ -96,7 +96,7 @@ function DashboardSummary({
   ]
   const meters = toList<AdminDashboardSummary['meterCountByIntegration'][number]>(
     summary.meterCountByIntegration,
-  )
+  ).sort((a, b) => b.count - a.count)
   const meterScale = chartScale(meters.map((meter) => meter.count))
   const apiUsage = toList<AdminDashboardSummary['apiUsageBreakdown'][number]>(
     summary.apiUsageBreakdown,
