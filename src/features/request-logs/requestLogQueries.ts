@@ -46,6 +46,8 @@ export type RequestLogListResponse = {
 }
 
 export type RequestLogExportParams = {
+  from?: string
+  to?: string
   date?: string
   statusCode?: number
 }
@@ -77,6 +79,8 @@ function listRequestLogs(params: RequestLogListParams) {
 
 function exportRequestLogs(params: RequestLogExportParams) {
   const query = new URLSearchParams({ format: 'csv' })
+  if (params.from) query.set('from', params.from)
+  if (params.to) query.set('to', params.to)
   if (params.date) query.set('date', params.date)
   if (params.statusCode !== undefined) {
     query.set('statusCode', String(params.statusCode))

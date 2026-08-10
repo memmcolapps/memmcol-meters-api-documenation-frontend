@@ -62,7 +62,7 @@ The incident report reads its searchable, filterable, paginated records from
 `GET /admin/incidents`.
 
 Customer request logs export as CSV through `GET /logs/export`, carrying the
-active date and status-code filters.
+active `from` and `to` date filters.
 
 The OBIS form uses the returned `obisCode` as the source of truth. No seeded or
 mock OBIS records are used.

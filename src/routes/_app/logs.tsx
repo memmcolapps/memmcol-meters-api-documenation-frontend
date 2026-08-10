@@ -46,7 +46,10 @@ function LogsPage() {
 
   const handleExport = async () => {
     try {
-      const { blob, filename } = await exportLogs.mutateAsync({})
+      const { blob, filename } = await exportLogs.mutateAsync({
+        from: from ? formatDateParam(from) : undefined,
+        to: to ? formatDateParam(to) : undefined,
+      })
       const downloadUrl = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = downloadUrl
