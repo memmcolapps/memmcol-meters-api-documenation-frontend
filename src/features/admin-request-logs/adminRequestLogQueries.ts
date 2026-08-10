@@ -1,5 +1,5 @@
-import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
-import { apiDownload, apiRequest } from '../../lib/api/client'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { apiRequest } from '../../lib/api/client'
 
 export type AdminRequestLogOutcome = 'SUCCESS' | 'FAILURE'
 export type AdminRequestLogSortOrder = 'asc' | 'desc'
@@ -39,11 +39,6 @@ export type AdminRequestLogListParams = {
   sortOrder?: AdminRequestLogSortOrder
 }
 
-export type AdminRequestLogExportParams = Omit<
-  AdminRequestLogListParams,
-  'page' | 'limit'
->
-
 export type AdminRequestLogListResponse = {
   items: AdminRequestLog[]
   pagination: {
@@ -81,31 +76,10 @@ function listAdminRequestLogs(params: AdminRequestLogListParams) {
   )
 }
 
-function exportAdminRequestLogs(params: AdminRequestLogExportParams) {
-  const query = new URLSearchParams({ format: 'csv' })
-
-  if (params.search) query.set('search', params.search)
-  if (params.organisationId) query.set('organisationId', params.organisationId)
-  if (params.apiId) query.set('apiId', params.apiId)
-  if (params.code !== undefined) query.set('code', String(params.code))
-  if (params.outcome) query.set('outcome', params.outcome)
-  if (params.from) query.set('from', params.from)
-  if (params.to) query.set('to', params.to)
-  if (params.sortOrder) query.set('sortOrder', params.sortOrder)
-
-  return apiDownload(`/admin/request-logs/export?${query.toString()}`)
-}
-
 export function useAdminRequestLogs(params: AdminRequestLogListParams) {
   return useQuery({
     queryKey: adminRequestLogKeys.list(params),
     queryFn: () => listAdminRequestLogs(params),
     placeholderData: keepPreviousData,
-  })
-}
-
-export function useExportAdminRequestLogs() {
-  return useMutation({
-    mutationFn: exportAdminRequestLogs,
   })
 }
