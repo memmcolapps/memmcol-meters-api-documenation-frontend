@@ -2792,7 +2792,7 @@ h1 {
     color: var(--app-muted);
   }
 
-  .member-action {
+  .member-actions {
     grid-row: 1;
     grid-column: 2;
   }
@@ -3793,10 +3793,10 @@ h1 {
 }
 
 .member-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(6rem, 1fr) minmax(5rem, 1fr) auto;
   align-items: center;
   gap: 1rem;
-  flex-wrap: wrap;
   padding: 1.1rem 0;
   border-bottom: 1px solid var(--app-border);
 }
@@ -3809,8 +3809,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 0.9rem;
-  flex: 1.2;
-  min-width: 220px;
+  min-width: 0;
 }
 
 .member-avatar {
@@ -3839,16 +3838,14 @@ h1 {
 }
 
 .member-role {
-  flex: 1;
   margin: 0;
   color: var(--app-text);
 }
 
 .member-status {
-  flex: 1;
   display: flex;
   align-items: center;
-  min-width: 90px;
+  min-width: 0;
 }
 
 .member-actions {
