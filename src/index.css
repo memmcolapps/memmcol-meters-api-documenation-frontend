@@ -1921,6 +1921,10 @@ h1 {
   gap: 1.25rem;
 }
 
+.modal-field-wide {
+  grid-column: 1 / -1;
+}
+
 .modal-foot {
   display: flex;
   align-items: center;

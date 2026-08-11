@@ -7,6 +7,22 @@ import {
 import { ApiError, apiRequest } from '../../lib/api/client'
 import { publicMeterIntegrationKeys } from '../public-meter-integrations/publicMeterIntegrationQueries'
 
+export type HlsSecurityConfig = {
+  securityPolicy: string
+  authMechanism: string
+  encryptionKey: string
+  masterKey: string
+  globalBroadcastEncryptionKey: string
+  destinationAddress: string
+  clientId: string
+}
+
+export type LlsSecurityConfig = {
+  clientId: string
+  destinationAddress: string
+  password: string
+}
+
 export type CreateMeterIntegrationInput = {
   manufacturer: string
   model: string
@@ -14,7 +30,10 @@ export type CreateMeterIntegrationInput = {
   category: string
   protocol: string
   authenticationType: string
-  password: string
+  serial?: string
+  multiplier: string
+  hlsConfig?: HlsSecurityConfig | null
+  llsConfig?: LlsSecurityConfig | null
   description?: string
 }
 

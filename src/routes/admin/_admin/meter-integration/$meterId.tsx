@@ -81,9 +81,8 @@ function MeterView({ meter }: { meter: MeterIntegration }) {
         class: data.meterClass.toLowerCase().replaceAll('-', ' '),
         category: data.category.toLowerCase().replaceAll('-', ''),
         protocol: data.protocol,
+        multiplier: data.multiplier,
         authenticationType: data.authenticationType,
-        password: data.password,
-        ...(data.description ? { description: data.description } : {}),
       })
       setEditOpen(false)
       showToast({
@@ -175,7 +174,6 @@ function MeterView({ meter }: { meter: MeterIntegration }) {
             model: meter.model,
             protocol: meter.protocol,
             authenticationType: meter.authenticationType,
-            description: meter.description,
           }}
           isSubmitting={updateMeter.isPending}
           fieldErrors={fieldErrors}
