@@ -213,9 +213,9 @@ function DashboardSummary({
                 <tbody>
                   {recentLogs.map((log) => (
                     <tr key={log.id}>
-                      <td>{formatText(log.organisation?.name ?? log.organization?.name)}</td>
+                      <td>{formatText(log.organisationName ?? log.organisation?.name ?? log.organization?.name)}</td>
                       <td>{formatDateTime(log.requestTime)}</td>
-                      <td>{formatText(log.api?.name)}</td>
+                      <td>{formatText(log.apiName ?? log.api?.name)}</td>
                       <td>
                         <span
                           className={`code-badge${typeof log.code === 'number' && log.code >= 400
