@@ -7,6 +7,12 @@ import {
   MeterFormModal,
   type MeterFormField,
   type MeterFormValues,
+  HlsSecurityDialog,
+  LlsSecurityDialog,
+  type HlsSecurityField,
+  type HlsSecurityValues,
+  type LlsSecurityField,
+  type LlsSecurityValues,
 } from '../../../../app/MeterFormModal'
 import { useToast } from '../../../../app/toastContext'
 import {
@@ -29,6 +35,8 @@ export const Route = createFileRoute('/admin/_admin/meter-integration/')({
 
 type MeterIntegrationStatusField = 'status' | 'reason'
 
+type SecurityField = LlsSecurityField | HlsSecurityField
+
 function MeterIntegrationPage() {
   const navigate = useNavigate()
   const createMeter = useCreateMeterIntegration()
@@ -39,10 +47,15 @@ function MeterIntegrationPage() {
   const [page, setPage] = useState(1)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [integrateOpen, setIntegrateOpen] = useState(false)
+  const [authStep, setAuthStep] = useState<'HLS' | 'LLS' | null>(null)
+  const [basicValues, setBasicValues] = useState<MeterFormValues | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deprecating, setDeprecating] = useState<MeterIntegrationSummary | null>(null)
   const [createFieldErrors, setCreateFieldErrors] = useState<
     Partial<Record<MeterFormField, string>>
+  >({})
+  const [authFieldErrors, setAuthFieldErrors] = useState<
+    Partial<Record<SecurityField, string>>
   >({})
   const [statusFieldErrors, setStatusFieldErrors] = useState<
     Partial<Record<MeterIntegrationStatusField, string>>
@@ -60,25 +73,43 @@ function MeterIntegrationPage() {
   const openIntegrateModal = () => {
     createMeter.reset()
     setCreateFieldErrors({})
+    setAuthFieldErrors({})
+    setBasicValues(null)
+    setAuthStep(null)
     setIntegrateOpen(true)
   }
 
-  const integrateMeter = async (data: MeterFormValues) => {
-    setCreateFieldErrors({})
+  const handleBasicSubmit = (data: MeterFormValues) => {
+    setBasicValues(data)
+    setAuthStep(data.authenticationType === 'LLS' ? 'LLS' : 'HLS')
+  }
+
+  const integrateMeter = async (
+    basic: MeterFormValues,
+    configs: {
+      hlsConfig: HlsSecurityValues | null
+      llsConfig: LlsSecurityValues | null
+    },
+  ) => {
+    setAuthFieldErrors({})
 
     try {
       const integration = await createMeter.mutateAsync({
-        manufacturer: data.manufacturer,
-        model: data.model,
-        class: data.meterClass.toLowerCase().replaceAll('-', ' '),
-        category: data.category.toLowerCase().replace('-', ''),
-        protocol: data.protocol,
-        authenticationType: data.authenticationType,
-        password: data.password,
-        ...(data.description ? { description: data.description } : {}),
+        manufacturer: basic.manufacturer,
+        model: basic.model,
+        class: basic.meterClass.toLowerCase().replaceAll('-', ' '),
+        category: basic.category.toLowerCase().replace('-', ''),
+        protocol: basic.protocol,
+        authenticationType: basic.authenticationType,
+        serial: basic.serialNumber,
+        multiplier: basic.multiplier,
+        hlsConfig: configs.hlsConfig,
+        llsConfig: configs.llsConfig,
       })
 
       setIntegrateOpen(false)
+      setAuthStep(null)
+      setBasicValues(null)
       showToast({
         title: 'Meter integrated',
         message: `${integration.manufacturer} ${integration.model} is now active.`,
@@ -87,6 +118,7 @@ function MeterIntegrationPage() {
     } catch (error) {
       const apiError = getMeterIntegrationError(error)
       const { class: meterClassError, ...fieldErrors } = apiError.fields
+      setAuthFieldErrors(fieldErrors)
       const fieldMessage = [...new Set(Object.values(apiError.fields))].join(' ')
       setCreateFieldErrors({
         ...fieldErrors,
@@ -320,11 +352,13 @@ function MeterIntegrationPage() {
         )}
       </AsyncState>
 
-      {integrateOpen ? (
+      {integrateOpen && !authStep ? (
         <MeterFormModal
           title="Integrate Meter"
-          submitLabel="Integrate"
+          submitLabel="Next"
+          initial={basicValues ?? undefined}
           isSubmitting={createMeter.isPending}
+          showSerialNumber
           fieldErrors={createFieldErrors}
           onFieldChange={(field) => {
             setCreateFieldErrors((current) => {
@@ -337,7 +371,69 @@ function MeterIntegrationPage() {
           onClose={() => {
             if (!createMeter.isPending) setIntegrateOpen(false)
           }}
-          onSubmit={integrateMeter}
+          onSubmit={handleBasicSubmit}
+        />
+      ) : null}
+
+      {authStep === 'LLS' && basicValues ? (
+        <LlsSecurityDialog
+          isSubmitting={createMeter.isPending}
+          fieldErrors={authFieldErrors}
+          onFieldChange={(field) => {
+            setAuthFieldErrors((current) => {
+              if (!current[field]) return current
+              const next = { ...current }
+              delete next[field]
+              return next
+            })
+          }}
+          onBack={() => {
+            if (!createMeter.isPending) {
+              setAuthFieldErrors({})
+              setAuthStep(null)
+            }
+          }}
+          onClose={() => {
+            if (!createMeter.isPending) {
+              setAuthStep(null)
+              setBasicValues(null)
+              setIntegrateOpen(false)
+            }
+          }}
+          onSubmit={(security) =>
+            void integrateMeter(basicValues, { hlsConfig: null, llsConfig: security })
+          }
+        />
+      ) : null}
+
+      {authStep === 'HLS' && basicValues ? (
+        <HlsSecurityDialog
+          isSubmitting={createMeter.isPending}
+          fieldErrors={authFieldErrors}
+          onFieldChange={(field) => {
+            setAuthFieldErrors((current) => {
+              if (!current[field]) return current
+              const next = { ...current }
+              delete next[field]
+              return next
+            })
+          }}
+          onBack={() => {
+            if (!createMeter.isPending) {
+              setAuthFieldErrors({})
+              setAuthStep(null)
+            }
+          }}
+          onClose={() => {
+            if (!createMeter.isPending) {
+              setAuthStep(null)
+              setBasicValues(null)
+              setIntegrateOpen(false)
+            }
+          }}
+          onSubmit={(security) =>
+            void integrateMeter(basicValues, { hlsConfig: security, llsConfig: null })
+          }
         />
       ) : null}
 
@@ -400,9 +496,8 @@ function EditMeterIntegrationModal({
         class: data.meterClass.toLowerCase().replaceAll('-', ' '),
         category: data.category.toLowerCase().replaceAll('-', ''),
         protocol: data.protocol,
+        multiplier: data.multiplier,
         authenticationType: data.authenticationType,
-        password: data.password,
-        ...(data.description ? { description: data.description } : {}),
       })
       onClose()
       showToast({
@@ -473,7 +568,6 @@ function EditMeterIntegrationModal({
         model: meter.model,
         protocol: meter.protocol,
         authenticationType: meter.authenticationType,
-        description: meter.description,
       }}
       isSubmitting={updateMeter.isPending}
       fieldErrors={fieldErrors}

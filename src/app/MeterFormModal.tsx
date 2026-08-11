@@ -10,13 +10,29 @@ export type MeterFormValues = Pick<
   | 'model'
   | 'protocol'
   | 'authenticationType'
-  | 'description'
-> & { password: string }
+> & { serialNumber: string; multiplier: string }
 
 export type MeterFormField = keyof MeterFormValues
 
 const meterCategories = ['Prepaid', 'Post-paid']
 const meterClasses = ['MD', 'Single-Phase', 'Three-Phase']
+const meterProtocols = ['DLMS/COSEM']
+const meterAuthenticationTypes = ['HLS', 'LLS']
+
+export type LlsSecurityField = 'clientId' | 'destinationAddress' | 'password'
+
+export type LlsSecurityValues = Record<LlsSecurityField, string>
+
+export type HlsSecurityField =
+  | 'securityPolicy'
+  | 'authMechanism'
+  | 'encryptionKey'
+  | 'masterKey'
+  | 'globalBroadcastEncryptionKey'
+  | 'clientId'
+  | 'destinationAddress'
+
+export type HlsSecurityValues = Record<HlsSecurityField, string>
 
 export function MeterFormModal({
   title,
@@ -24,6 +40,7 @@ export function MeterFormModal({
   submittingLabel = 'Integrating…',
   initial,
   isSubmitting = false,
+  showSerialNumber = false,
   fieldErrors = {},
   onFieldChange,
   onClose,
@@ -34,6 +51,7 @@ export function MeterFormModal({
   submittingLabel?: string
   initial?: Partial<MeterFormValues>
   isSubmitting?: boolean
+  showSerialNumber?: boolean
   fieldErrors?: Partial<Record<MeterFormField | 'class', string>>
   onFieldChange?: (field: MeterFormField) => void
   onClose: () => void
@@ -44,10 +62,10 @@ export function MeterFormModal({
     category: initial?.category ?? '',
     meterClass: initial?.meterClass ?? '',
     model: initial?.model ?? '',
+    serialNumber: initial?.serialNumber ?? '',
+    multiplier: initial?.multiplier ?? '',
     protocol: initial?.protocol ?? '',
     authenticationType: initial?.authenticationType ?? '',
-    password: '',
-    description: initial?.description ?? '',
   })
   const modalRef = useRef<HTMLDivElement>(null)
   useDismiss(modalRef, onClose)
@@ -62,9 +80,9 @@ export function MeterFormModal({
     form.category.trim() &&
     form.meterClass.trim() &&
     form.model.trim() &&
+    form.multiplier.trim() &&
     form.protocol.trim() &&
-    form.authenticationType.trim() &&
-    form.password.trim()
+    form.authenticationType.trim()
 
   const handleSubmit = () => {
     if (!canSubmit) return
@@ -73,10 +91,10 @@ export function MeterFormModal({
       category: form.category,
       meterClass: form.meterClass,
       model: form.model.trim(),
+      serialNumber: form.serialNumber.trim(),
+      multiplier: form.multiplier.trim(),
       protocol: form.protocol.trim(),
       authenticationType: form.authenticationType.trim(),
-      password: form.password,
-      description: form.description.trim(),
     })
   }
 
@@ -152,6 +170,25 @@ export function MeterFormModal({
             </Field>
           </div>
 
+          {showSerialNumber ? (
+            <div className="modal-grid">
+              <Field
+                label="Meter Serial No"
+                error={fieldErrors.serialNumber}
+                className="modal-field-wide"
+              >
+                <input
+                  className="modal-input"
+                  placeholder="Enter Serial No"
+                  value={form.serialNumber}
+                  onChange={(e) => set('serialNumber', e.target.value)}
+                  aria-invalid={Boolean(fieldErrors.serialNumber)}
+                  disabled={isSubmitting}
+                />
+              </Field>
+            </div>
+          ) : null}
+
           <Field label="Meter Model" error={fieldErrors.model}>
             <input
               className="modal-input"
@@ -164,53 +201,60 @@ export function MeterFormModal({
           </Field>
 
           <div className="modal-grid">
-            <Field label="Protocol" error={fieldErrors.protocol}>
+            <Field
+              label="Multiplier"
+              error={fieldErrors.multiplier}
+              className="modal-field-wide"
+            >
               <input
                 className="modal-input"
-                placeholder="Enter Protocol"
-                value={form.protocol}
-                onChange={(e) => set('protocol', e.target.value)}
-                aria-invalid={Boolean(fieldErrors.protocol)}
-                disabled={isSubmitting}
-              />
-            </Field>
-            <Field label="Authentication" error={fieldErrors.authenticationType}>
-              <input
-                className="modal-input"
-                placeholder="Enter Authentication"
-                value={form.authenticationType}
-                onChange={(e) => set('authenticationType', e.target.value)}
-                aria-invalid={Boolean(fieldErrors.authenticationType)}
+                placeholder="Enter Multiplier"
+                value={form.multiplier}
+                onChange={(e) => set('multiplier', e.target.value)}
+                aria-invalid={Boolean(fieldErrors.multiplier)}
                 disabled={isSubmitting}
               />
             </Field>
           </div>
 
-          <Field label="Password" required error={fieldErrors.password}>
-            <input
-              className="modal-input"
-              type="password"
-              required
-              placeholder="Enter Password"
-              value={form.password}
-              onChange={(e) => set('password', e.target.value)}
-              aria-invalid={Boolean(fieldErrors.password)}
-              autoComplete="new-password"
-              disabled={isSubmitting}
-            />
-          </Field>
-
-          <Field label="Description" error={fieldErrors.description}>
-            <textarea
-              className="modal-input"
-              rows={3}
-              placeholder="Describe this meter integration"
-              value={form.description}
-              onChange={(e) => set('description', e.target.value)}
-              aria-invalid={Boolean(fieldErrors.description)}
-              disabled={isSubmitting}
-            />
-          </Field>
+          <div className="modal-grid">
+            <Field label="Protocol" error={fieldErrors.protocol}>
+              <select
+                className="modal-select"
+                value={form.protocol}
+                onChange={(e) => set('protocol', e.target.value)}
+                aria-invalid={Boolean(fieldErrors.protocol)}
+                disabled={isSubmitting}
+              >
+                <option value="" disabled>
+                  Select Protocol
+                </option>
+                {meterProtocols.map((protocol) => (
+                  <option key={protocol} value={protocol}>
+                    {protocol}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Authentication" error={fieldErrors.authenticationType}>
+              <select
+                className="modal-select"
+                value={form.authenticationType}
+                onChange={(e) => set('authenticationType', e.target.value)}
+                aria-invalid={Boolean(fieldErrors.authenticationType)}
+                disabled={isSubmitting}
+              >
+                <option value="" disabled>
+                  Select Authentication
+                </option>
+                {meterAuthenticationTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
 
           <div className="modal-foot">
             <button type="button" className="btn-neutral" onClick={onClose} disabled={isSubmitting}>
@@ -230,18 +274,349 @@ function Field({
   label,
   required,
   error,
+  className,
   children,
 }: {
   label: string
   required?: boolean
   error?: string
+  className?: string
   children: React.ReactNode
 }) {
   return (
-    <div className="modal-field">
+    <div className={`modal-field${className ? ` ${className}` : ''}`}>
       <label>{label} {required ? <span className="req">*</span> : null}</label>
       {children}
       {error ? <span className="modal-field-error" role="alert">{error}</span> : null}
+    </div>
+  )
+}
+
+function SecurityDialogFoot({
+  isSubmitting,
+  submittingLabel,
+  canSubmit,
+  onBack,
+  onSubmit,
+}: {
+  isSubmitting: boolean
+  submittingLabel: string
+  canSubmit: boolean
+  onBack: () => void
+  onSubmit: () => void
+}) {
+  return (
+    <div className="modal-foot">
+      <button type="button" className="btn-neutral" onClick={onBack} disabled={isSubmitting}>
+        Back
+      </button>
+      <button
+        type="button"
+        className="btn-primary"
+        disabled={!canSubmit || isSubmitting}
+        onClick={onSubmit}
+      >
+        {isSubmitting ? 'Integrating…' : submittingLabel}
+      </button>
+    </div>
+  )
+}
+
+export function LlsSecurityDialog({
+  isSubmitting = false,
+  submittingLabel = 'Integrate',
+  fieldErrors = {},
+  onFieldChange,
+  onBack,
+  onClose,
+  onSubmit,
+}: {
+  isSubmitting?: boolean
+  submittingLabel?: string
+  fieldErrors?: Partial<Record<LlsSecurityField, string>>
+  onFieldChange?: (field: LlsSecurityField) => void
+  onBack: () => void
+  onClose: () => void
+  onSubmit: (values: LlsSecurityValues) => void
+}) {
+  const [form, setForm] = useState<LlsSecurityValues>({
+    clientId: '',
+    destinationAddress: '',
+    password: '',
+  })
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, onClose)
+
+  const set = (key: LlsSecurityField, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }))
+    onFieldChange?.(key)
+  }
+
+  const canSubmit = Boolean(
+    form.clientId.trim() &&
+    form.destinationAddress.trim() &&
+    form.password.trim(),
+  )
+
+  const handleSubmit = () => {
+    if (!canSubmit) return
+    onSubmit({
+      clientId: form.clientId.trim(),
+      destinationAddress: form.destinationAddress.trim(),
+      password: form.password,
+    })
+  }
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="lls-security-title">
+      <div className="modal" ref={modalRef}>
+        <div className="modal-head">
+          <div>
+            <h2 id="lls-security-title" className="modal-title">
+              Integrate Meter
+            </h2>
+            <p className="modal-subtitle">LLS Information</p>
+          </div>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Close"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+        <div className="modal-body">
+          <Field label="Client ID" error={fieldErrors.clientId}>
+            <input
+              className="modal-input"
+              placeholder="Enter Client ID"
+              value={form.clientId}
+              onChange={(e) => set('clientId', e.target.value)}
+              aria-invalid={Boolean(fieldErrors.clientId)}
+              disabled={isSubmitting}
+            />
+          </Field>
+          <Field label="Destination Address" error={fieldErrors.destinationAddress}>
+            <input
+              className="modal-input"
+              placeholder="Enter Destination Address"
+              value={form.destinationAddress}
+              onChange={(e) => set('destinationAddress', e.target.value)}
+              aria-invalid={Boolean(fieldErrors.destinationAddress)}
+              disabled={isSubmitting}
+            />
+          </Field>
+          <Field label="Password"  error={fieldErrors.password}>
+            <input
+              className="modal-input"
+              type="password"
+              placeholder="Enter Password"
+              value={form.password}
+              onChange={(e) => set('password', e.target.value)}
+              aria-invalid={Boolean(fieldErrors.password)}
+              autoComplete="new-password"
+              disabled={isSubmitting}
+            />
+          </Field>
+          <SecurityDialogFoot
+            isSubmitting={isSubmitting}
+            submittingLabel={submittingLabel}
+            canSubmit={canSubmit}
+            onBack={onBack}
+            onSubmit={handleSubmit}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function HlsSecurityDialog({
+  isSubmitting = false,
+  submittingLabel = 'Integrate',
+  fieldErrors = {},
+  onFieldChange,
+  onBack,
+  onClose,
+  onSubmit,
+}: {
+  isSubmitting?: boolean
+  submittingLabel?: string
+  fieldErrors?: Partial<Record<HlsSecurityField, string>>
+  onFieldChange?: (field: HlsSecurityField) => void
+  onBack: () => void
+  onClose: () => void
+  onSubmit: (values: HlsSecurityValues) => void
+}) {
+  const [form, setForm] = useState<HlsSecurityValues>({
+    securityPolicy: '',
+    authMechanism: '',
+    encryptionKey: '',
+    masterKey: '',
+    globalBroadcastEncryptionKey: '',
+    clientId: '',
+    destinationAddress: '',
+  })
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, onClose)
+
+  const set = (key: HlsSecurityField, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }))
+    onFieldChange?.(key)
+  }
+
+  const canSubmit = Boolean(
+    form.securityPolicy.trim() &&
+    form.authMechanism.trim() &&
+    form.encryptionKey.trim() &&
+    form.masterKey.trim() &&
+    form.globalBroadcastEncryptionKey.trim() &&
+    form.clientId.trim() &&
+    form.destinationAddress.trim(),
+  )
+
+  const handleSubmit = () => {
+    if (!canSubmit) return
+    onSubmit({
+      securityPolicy: form.securityPolicy,
+      authMechanism: form.authMechanism,
+      encryptionKey: form.encryptionKey.trim(),
+      masterKey: form.masterKey.trim(),
+      globalBroadcastEncryptionKey: form.globalBroadcastEncryptionKey.trim(),
+      clientId: form.clientId.trim(),
+      destinationAddress: form.destinationAddress.trim(),
+    })
+  }
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="hls-security-title">
+      <div className="modal" ref={modalRef}>
+        <div className="modal-head">
+          <div>
+            <h2 id="hls-security-title" className="modal-title">
+              Integrate Meter
+            </h2>
+            <p className="modal-subtitle">HLS Information</p>
+          </div>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Close"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+        <div className="modal-body">
+          <div className="modal-grid">
+            <Field
+              label="Security Policy"
+              error={fieldErrors.securityPolicy}
+              className="modal-field-wide"
+            >
+              <input
+                className="modal-input"
+                placeholder="Enter Security Policy"
+                value={form.securityPolicy}
+                onChange={(e) => set('securityPolicy', e.target.value)}
+                aria-invalid={Boolean(fieldErrors.securityPolicy)}
+                disabled={isSubmitting}
+              />
+            </Field>
+          </div>
+
+          <div className="modal-grid">
+            <Field
+              label="Auth Mechanism"
+              error={fieldErrors.authMechanism}
+              className="modal-field-wide"
+            >
+              <input
+                className="modal-input"
+                placeholder="Enter Auth Mechanism"
+                value={form.authMechanism}
+                onChange={(e) => set('authMechanism', e.target.value)}
+                aria-invalid={Boolean(fieldErrors.authMechanism)}
+                disabled={isSubmitting}
+              />
+            </Field>
+          </div>
+
+          <div className="modal-grid">
+            <Field label="Encryption Key" error={fieldErrors.encryptionKey}>
+              <input
+                className="modal-input"
+                placeholder="Enter Encryption Key"
+                value={form.encryptionKey}
+                onChange={(e) => set('encryptionKey', e.target.value)}
+                aria-invalid={Boolean(fieldErrors.encryptionKey)}
+                disabled={isSubmitting}
+              />
+            </Field>
+            <Field label="Master Key" error={fieldErrors.masterKey}>
+              <input
+                className="modal-input"
+                placeholder="Enter Master Key"
+                value={form.masterKey}
+                onChange={(e) => set('masterKey', e.target.value)}
+                aria-invalid={Boolean(fieldErrors.masterKey)}
+                disabled={isSubmitting}
+              />
+            </Field>
+          </div>
+
+          <div className="modal-grid">
+            <Field
+              label="Global Broadcast Encryption Key"
+              error={fieldErrors.globalBroadcastEncryptionKey}
+              className="modal-field-wide"
+            >
+              <input
+                className="modal-input"
+                placeholder="Enter Global Broadcast Encryption Key"
+                value={form.globalBroadcastEncryptionKey}
+                onChange={(e) => set('globalBroadcastEncryptionKey', e.target.value)}
+                aria-invalid={Boolean(fieldErrors.globalBroadcastEncryptionKey)}
+                disabled={isSubmitting}
+              />
+            </Field>
+          </div>
+
+          <div className="modal-grid">
+            <Field label="Client ID" error={fieldErrors.clientId}>
+              <input
+                className="modal-input"
+                placeholder="Enter Client ID"
+                value={form.clientId}
+                onChange={(e) => set('clientId', e.target.value)}
+                aria-invalid={Boolean(fieldErrors.clientId)}
+                disabled={isSubmitting}
+              />
+            </Field>
+            <Field label="Destination Address" error={fieldErrors.destinationAddress}>
+              <input
+                className="modal-input"
+                placeholder="Enter Destination Address"
+                value={form.destinationAddress}
+                onChange={(e) => set('destinationAddress', e.target.value)}
+                aria-invalid={Boolean(fieldErrors.destinationAddress)}
+                disabled={isSubmitting}
+              />
+            </Field>
+          </div>
+
+          <SecurityDialogFoot
+            isSubmitting={isSubmitting}
+            submittingLabel={submittingLabel}
+            canSubmit={canSubmit}
+            onBack={onBack}
+            onSubmit={handleSubmit}
+          />
+        </div>
+      </div>
     </div>
   )
 }
