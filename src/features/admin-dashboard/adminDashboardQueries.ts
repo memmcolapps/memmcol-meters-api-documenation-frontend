@@ -3,9 +3,11 @@ import { apiRequest } from '../../lib/api/client'
 
 export type AdminDashboardRecentLog = {
   id: string
+  organisationName?: string | null
   organisation?: { id: string; name?: string | null } | null
   organization?: { id: string; name?: string | null } | null
   requestTime?: string | null
+  apiName?: string | null
   api?: { id: string; name?: string | null } | null
   code?: number | null
   response?: string | null
