@@ -2594,6 +2594,145 @@ h1 {
   cursor: not-allowed;
 }
 
+.integrated-actions {
+  position: relative;
+}
+
+.integrated-actions-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.integrated-actions-trigger svg {
+  flex-shrink: 0;
+  color: var(--app-muted);
+}
+
+.integrated-actions-trigger[aria-invalid="true"] {
+  border-color: #b42318;
+}
+
+.integrated-actions-placeholder {
+  color: var(--app-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.integrated-actions-value {
+  color: var(--app-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.integrated-actions-menu {
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.integrated-actions-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.integrated-actions-check.is-checked {
+  background: var(--app-green);
+  border-color: var(--app-green);
+  color: #ffffff;
+}
+
+.view-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem 1.5rem;
+}
+
+.view-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.view-label {
+  color: var(--app-muted);
+  font-size: 0.9rem;
+}
+
+.view-value {
+  color: var(--app-text);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.view-value code {
+  font-family: inherit;
+  font-size: 0.92rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background: #f3f5f4;
+}
+
+.view-integrated {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.view-integrated-box {
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  overflow-y: auto;
+  max-height: 220px;
+}
+
+.view-integrated-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.view-integrated-row:last-child {
+  border-bottom: none;
+}
+
+.view-integrated-action {
+  color: var(--app-text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.view-integrated-sep {
+  color: var(--app-muted);
+}
+
+.view-integrated-row code {
+  font-family: inherit;
+  font-size: 0.92rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background: #f3f5f4;
+  overflow-wrap: anywhere;
+}
+
+.view-modal {
+  max-width: 640px;
+}
+
 .modal-phone {
   display: grid;
   grid-template-columns: 8rem minmax(0, 1fr);

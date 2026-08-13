@@ -233,7 +233,9 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [deprecating, setDeprecating] = useState<ObisCode | null>(null)
   const [editing, setEditing] = useState<ObisCode | null>(null)
-  const [addOpen, setAddOpen] = useState(false)
+  const [viewing, setViewing] = useState<ObisCode | null>(null)
+  const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const [addMode, setAddMode] = useState<'realtime' | 'profile' | null>(null)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<ObisFormField, string>>
@@ -254,12 +256,16 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
   })
   const codes = codesQuery.data?.items ?? []
   const pagination = codesQuery.data?.pagination
+  const availableActions = [
+    ...new Set(codes.map((code) => code.action).filter(Boolean)),
+  ]
 
-  const openAddModal = () => {
+  const openAddModal = (mode: 'realtime' | 'profile') => {
     createObisCode.reset()
     updateObisCode.reset()
     setFieldErrors({})
-    setAddOpen(true)
+    setAddMenuOpen(false)
+    setAddMode(mode)
   }
 
   const openEditModal = (code: ObisCode) => {
@@ -285,7 +291,7 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
         code: values.code,
         ...(values.description ? { description: values.description } : {}),
       })
-      setAddOpen(false)
+      setAddMode(null)
       showToast({
         title: 'OBIS code added',
         message: `${obisCode.action} was added with status ${obisCode.status}.`,
@@ -345,7 +351,6 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
         obisCodeId: editing.id,
         action: values.action,
         code: values.code,
-        description: values.description,
       })
       setEditing(null)
       showToast({
@@ -421,9 +426,12 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
           <button type="button" className="btn-neutral" onClick={openUploadModal}>
             Upload CSV <UploadIcon />
           </button>
-          <button type="button" className="btn-primary" onClick={openAddModal}>
-            Add OBIS Code <PlusIcon />
-          </button>
+          <AddObisDropdown
+            isOpen={addMenuOpen}
+            onToggle={() => setAddMenuOpen((current) => !current)}
+            onClose={() => setAddMenuOpen(false)}
+            onSelect={openAddModal}
+          />
         </div>
       </div>
 
@@ -519,6 +527,10 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
                             setOpenMenu((current) => current === code.id ? null : code.id)
                           }
                           onClose={() => setOpenMenu(null)}
+                          onView={() => {
+                            setOpenMenu(null)
+                            setViewing(code)
+                          }}
                           onEdit={() => openEditModal(code)}
                           onDeprecate={() => {
                             setOpenMenu(null)
@@ -564,11 +576,12 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
         )}
       </AsyncState>
 
-      {addOpen ? (
+      {addMode === 'realtime' ? (
         <ObisFormModal
-          title="Add OBIS Code"
-          submitLabel="Add"
+          title="Add Real-time OBIS Code"
+          submitLabel="Add OBIS"
           submittingLabel="Adding…"
+          showDescription={false}
           isSubmitting={createObisCode.isPending}
           fieldErrors={fieldErrors}
           onFieldChange={(field) => {
@@ -580,7 +593,31 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
             })
           }}
           onClose={() => {
-            if (!createObisCode.isPending) setAddOpen(false)
+            if (!createObisCode.isPending) setAddMode(null)
+          }}
+          onSubmit={addCode}
+        />
+      ) : null}
+
+      {addMode === 'profile' ? (
+        <ObisFormModal
+          title="Add Profile OBIS Code"
+          submitLabel="Add OBIS"
+          submittingLabel="Adding…"
+          labelPrefix="Profile "
+          integratedActions={availableActions}
+          isSubmitting={createObisCode.isPending}
+          fieldErrors={fieldErrors}
+          onFieldChange={(field) => {
+            setFieldErrors((current) => {
+              if (!current[field]) return current
+              const next = { ...current }
+              delete next[field]
+              return next
+            })
+          }}
+          onClose={() => {
+            if (!createObisCode.isPending) setAddMode(null)
           }}
           onSubmit={addCode}
         />
@@ -596,6 +633,7 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
             code: editing.code,
             description: editing.description,
           }}
+          showDescription={false}
           isSubmitting={updateObisCode.isPending}
           fieldErrors={fieldErrors}
           onFieldChange={(field) => {
@@ -654,7 +692,81 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
           }
         />
       ) : null}
+
+      {viewing ? (
+        <ViewObisCodeModal code={viewing} onClose={() => setViewing(null)} />
+      ) : null}
     </section>
+  )
+}
+
+function ViewObisCodeModal({ code, onClose }: { code: ObisCode; onClose: () => void }) {
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, onClose)
+
+  return (
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+        aria-labelledby="view-obis-code-title"
+    >
+      <div className="modal view-modal" ref={modalRef}>
+        <div className="modal-head">
+          <div>
+            <h2 id="view-obis-code-title" className="modal-title">View OBIS Code</h2>
+          </div>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Close"
+            onClick={onClose}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div className="modal-body">
+          <div className="view-grid">
+            <div className="view-cell">
+              <span className="view-label">OBIS Action</span>
+              <span className="view-value">{code.action}</span>
+            </div>
+            <div className="view-cell">
+              <span className="view-label">OBIS Code</span>
+              <span className="view-value"><code>{code.code}</code></span>
+            </div>
+            <div className="view-cell">
+              <span className="view-label">OBIS Type</span>
+              <span className="view-value">{code.type || '—'}</span>
+            </div>
+            <div className="view-cell">
+              <span className="view-label">Linked Real-Time Code</span>
+              <span className="view-value">{code.linkedRealTimeCode || '—'}</span>
+            </div>
+          </div>
+
+          {code.integratedRealTimeCodes && code.integratedRealTimeCodes.length > 0 && (
+            <div className="view-integrated">
+              <span className="view-label">Integrated Real-time OBIS</span>
+              <div className="view-integrated-box">
+                {code.integratedRealTimeCodes.map((item) => (
+                  <div className="view-integrated-row" key={`${item.action}-${item.code}`}>
+                    <span className="view-integrated-action">{item.action}</span>
+                    <span className="view-integrated-sep">:</span>
+                    <code>{item.code}</code>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="modal-foot">
+            <button type="button" className="btn-outline" onClick={onClose}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -760,6 +872,7 @@ function ObisRowActions({
   isPending,
   onToggle,
   onClose,
+  onView,
   onEdit,
   onDeprecate,
   onActivate,
@@ -769,6 +882,7 @@ function ObisRowActions({
   isPending: boolean
   onToggle: () => void
   onClose: () => void
+  onView: () => void
   onEdit: () => void
   onDeprecate: () => void
   onActivate: () => void
@@ -791,6 +905,14 @@ function ObisRowActions({
       </button>
       {isOpen ? (
         <div className="row-menu" style={menuStyle} role="menu">
+          <button
+            type="button"
+            className="row-menu-item"
+            role="menuitem"
+            onClick={onView}
+          >
+            <EyeIcon /> View OBIS Code
+          </button>
           <button
             type="button"
             className="row-menu-item"
@@ -821,6 +943,56 @@ function ObisRowActions({
               <ActiveIcon /> Activate
             </button>
           )}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function AddObisDropdown({
+  isOpen,
+  onToggle,
+  onClose,
+  onSelect,
+}: {
+  isOpen: boolean
+  onToggle: () => void
+  onClose: () => void
+  onSelect: (mode: 'realtime' | 'profile') => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  useDismiss(ref, onClose, isOpen)
+  const { anchorRef, menuStyle } = useAnchoredMenu(isOpen)
+
+  return (
+    <div className="add-obis-dropdown" ref={ref}>
+      <button
+        type="button"
+        ref={anchorRef}
+        className="btn-primary"
+        aria-expanded={isOpen}
+        onClick={onToggle}
+      >
+        Add OBIS Code <PlusIcon />
+      </button>
+      {isOpen ? (
+        <div className="row-menu" style={menuStyle} role="menu">
+          <button
+            type="button"
+            className="row-menu-item"
+            role="menuitem"
+            onClick={() => onSelect('realtime')}
+          >
+            <ClockCheckIcon /> Real-time OBIS Code
+          </button>
+          <button
+            type="button"
+            className="row-menu-item"
+            role="menuitem"
+            onClick={() => onSelect('profile')}
+          >
+            <ClockRewindIcon /> Profile OBIS Code
+          </button>
         </div>
       ) : null}
     </div>
@@ -1024,6 +1196,9 @@ function ObisFormModal({
   onFieldChange,
   onClose,
   onSubmit,
+  labelPrefix = '',
+  showDescription = true,
+  integratedActions,
 }: {
   title: string
   submitLabel: string
@@ -1034,14 +1209,38 @@ function ObisFormModal({
   onFieldChange: (field: ObisFormField) => void
   onClose: () => void
   onSubmit: (values: ObisFormValues) => void
+  labelPrefix?: string
+  showDescription?: boolean
+  integratedActions?: string[]
 }) {
   const [action, setAction] = useState(initial?.action ?? '')
   const [code, setCode] = useState(initial?.code ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
+  const [selectedActions, setSelectedActions] = useState<string[]>(() => {
+    if (!initial?.description) return []
+    return initial.description
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+  })
+  const [actionsOpen, setActionsOpen] = useState(false)
   const modalRef = useRef<HTMLDivElement>(null)
+  const actionsRef = useRef<HTMLDivElement>(null)
   useDismiss(modalRef, onClose)
+  useDismiss(actionsRef, () => setActionsOpen(false), actionsOpen)
+  const { anchorRef, menuStyle } = useAnchoredMenu(actionsOpen, 240)
 
+  const isIntegratedPicker = integratedActions !== undefined
   const canSubmit = action.trim() !== '' && code.trim() !== ''
+
+  const toggleAction = (value: string) => {
+    setSelectedActions((current) =>
+      current.includes(value)
+        ? current.filter((item) => item !== value)
+        : [...current, value],
+    )
+    onFieldChange('description')
+  }
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="obis-form-title">
@@ -1063,7 +1262,7 @@ function ObisFormModal({
 
         <div className="modal-body">
           <div className="modal-field">
-            <label>OBIS Action</label>
+            <label>{labelPrefix}OBIS Action</label>
             <input
               className="modal-input"
               placeholder="Enter action"
@@ -1080,7 +1279,7 @@ function ObisFormModal({
             ) : null}
           </div>
           <div className="modal-field">
-            <label>OBIS Code</label>
+            <label>{labelPrefix}OBIS Code</label>
             <input
               className="modal-input"
               placeholder="Enter OBIS code"
@@ -1096,24 +1295,96 @@ function ObisFormModal({
               <span className="modal-field-error" role="alert">{fieldErrors.code}</span>
             ) : null}
           </div>
-          <div className="modal-field">
-            <label>Description</label>
-            <textarea
-              className="modal-input"
-              rows={3}
-              placeholder="Describe this OBIS command"
-              value={description}
-              onChange={(e) => {
-                setDescription(e.target.value)
-                onFieldChange('description')
-              }}
-              aria-invalid={Boolean(fieldErrors.description)}
-              disabled={isSubmitting}
-            />
-            {fieldErrors.description ? (
-              <span className="modal-field-error" role="alert">{fieldErrors.description}</span>
-            ) : null}
-          </div>
+          {isIntegratedPicker ? (
+            <div className="modal-field">
+              <label>Integrated Real-time Actions</label>
+              
+              +
+              <div className="integrated-actions" ref={actionsRef}>
+                <button
+                  type="button"
+                  ref={anchorRef}
+                  className="modal-input integrated-actions-trigger"
+                  aria-haspopup="listbox"
+                  aria-expanded={actionsOpen}
+                  aria-invalid={Boolean(fieldErrors.description)}
+                  disabled={isSubmitting}
+                  onClick={() => setActionsOpen((current) => !current)}
+                >
+                  <span
+                    className={
+                      selectedActions.length
+                        ? 'integrated-actions-value'
+                        : 'integrated-actions-placeholder'
+                    }
+                  >
+                    {selectedActions.length
+                      ? selectedActions.join(', ')
+                      : 'Select real-time actions'}
+                  </span>
+                  <ChevronDownIcon />
+                </button>
+                {actionsOpen ? (
+                  <div
+                    className="row-menu integrated-actions-menu"
+                    style={menuStyle}
+                    role="listbox"
+                    aria-multiselectable="true"
+                  >
+                    {integratedActions.length ? (
+                      integratedActions.map((value) => {
+                        const isSelected = selectedActions.includes(value)
+                        return (
+                          <button
+                            type="button"
+                            className="row-menu-item"
+                            role="option"
+                            aria-selected={isSelected}
+                            key={value}
+                            onClick={() => toggleAction(value)}
+                          >
+                            <span
+                              className={`integrated-actions-check${isSelected ? ' is-checked' : ''}`}
+                              aria-hidden="true"
+                            >
+                              {isSelected ? <CheckIcon /> : null}
+                            </span>
+                            {value}
+                          </button>
+                        )
+                      })
+                    ) : (
+                      <p className="integrated-actions-empty">
+                        No real-time actions available.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+              {fieldErrors.description ? (
+                <span className="modal-field-error" role="alert">{fieldErrors.description}</span>
+              ) : null}
+            </div>
+          ) : showDescription ? (
+            <div className="modal-field">
+              <label>{labelPrefix}Description</label>
+              <textarea
+                className="modal-input"
+                rows={3}
+                placeholder="Describe this OBIS command"
+                value={description}
+                onChange={(e) => {
+                  setDescription(e.target.value)
+                  onFieldChange('description')
+                }}
+                aria-invalid={Boolean(fieldErrors.description)}
+                disabled={isSubmitting}
+              />
+              {fieldErrors.description ? (
+                <span className="modal-field-error" role="alert">{fieldErrors.description}</span>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="modal-foot">
             <button type="button" className="btn-neutral" onClick={onClose} disabled={isSubmitting}>
@@ -1126,7 +1397,9 @@ function ObisFormModal({
               onClick={() => canSubmit && onSubmit({
                 action: action.trim(),
                 code: code.trim(),
-                description: description.trim(),
+                description: isIntegratedPicker
+                  ? ''
+                  : description.trim(),
               })}
             >
               {isSubmitting ? submittingLabel : submitLabel}
@@ -1157,6 +1430,26 @@ function PlusIcon() {
   )
 }
 
+function ClockCheckIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+      <path d="m16 16 2 2 4-4" />
+    </svg>
+  )
+}
+
+function ClockRewindIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 5v5h5" />
+      <path d="M3.5 9A9 9 0 1 1 3 12" />
+      <path d="M12 8v4l3 2" />
+    </svg>
+  )
+}
+
 function UploadIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1181,6 +1474,15 @@ function KebabIcon() {
       <circle cx="12" cy="5" r="1.6" />
       <circle cx="12" cy="12" r="1.6" />
       <circle cx="12" cy="19" r="1.6" />
+    </svg>
+  )
+}
+
+function EyeIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   )
 }
@@ -1225,6 +1527,22 @@ function CloseIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m5 13 4 4L19 7" />
+    </svg>
+  )
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m6 9 6 6 6-6" />
     </svg>
   )
 }
