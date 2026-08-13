@@ -482,22 +482,42 @@ function EditMeterIntegrationModal({
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<MeterFormField | 'class', string>>
   >({})
+  const [authFieldErrors, setAuthFieldErrors] = useState<
+    Partial<Record<SecurityField, string>>
+  >({})
+  const [basicValues, setBasicValues] = useState<MeterFormValues | null>(null)
+  const [authStep, setAuthStep] = useState<'HLS' | 'LLS' | null>(null)
   const meter = meterQuery.data
 
-  const updateIntegration = async (data: MeterFormValues) => {
+  const handleBasicSubmit = (data: MeterFormValues) => {
+    setBasicValues(data)
+    setAuthStep(data.authenticationType === 'LLS' ? 'LLS' : 'HLS')
+  }
+
+  const updateIntegration = async (
+    basic: MeterFormValues,
+    configs: {
+      hlsConfig: HlsSecurityValues | null
+      llsConfig: LlsSecurityValues | null
+    },
+  ) => {
     if (!meter) return
-    setFieldErrors({})
+    setAuthFieldErrors({})
 
     try {
       const integration = await updateMeter.mutateAsync({
         meterIntegrationId,
-        manufacturer: data.manufacturer,
-        model: data.model,
-        class: data.meterClass.toLowerCase().replaceAll('-', ' '),
-        category: data.category.toLowerCase().replaceAll('-', ''),
-        protocol: data.protocol,
-        multiplier: data.multiplier,
-        authenticationType: data.authenticationType,
+        manufacturer: basic.manufacturer,
+        model: basic.model,
+        class: basic.meterClass.toLowerCase().replaceAll('-', ' '),
+        category: basic.category.toLowerCase().replaceAll('-', ''),
+        protocol: basic.protocol,
+        authenticationType: basic.authenticationType,
+        serial: basic.serialNumber || undefined,
+        multiplier: basic.multiplier,
+        hlsConfig: configs.hlsConfig,
+        llsConfig: configs.llsConfig,
+        description: basic.description || undefined,
       })
       onClose()
       showToast({
@@ -512,6 +532,7 @@ function EditMeterIntegrationModal({
         ...serverFields,
         ...(meterClassError ? { meterClass: meterClassError } : {}),
       }
+      setAuthFieldErrors(serverFields)
       setFieldErrors(apiError.status === 409 &&
         Object.keys(normalizedFields).length === 0
         ? {
@@ -556,34 +577,113 @@ function EditMeterIntegrationModal({
     )
   }
 
+  const meterInitial = {
+    manufacturer: meter.manufacturer,
+    category: formatCategoryForForm(meter.category),
+    meterClass: formatClassForForm(meter.class),
+    model: meter.model,
+    serialNumber: meter.serial ?? '',
+    multiplier: meter.multiplier ?? '',
+    protocol: meter.protocol,
+    authenticationType: meter.authenticationType,
+    description: meter.description,
+  }
+
+  const closeAll = () => {
+    if (!updateMeter.isPending) {
+      setAuthStep(null)
+      setBasicValues(null)
+      onClose()
+    }
+  }
+
   return (
-    <MeterFormModal
-      title="Edit Meter"
-      submitLabel="Save"
-      submittingLabel="Saving…"
-      initial={{
-        manufacturer: meter.manufacturer,
-        category: formatCategoryForForm(meter.category),
-        meterClass: formatClassForForm(meter.class),
-        model: meter.model,
-        protocol: meter.protocol,
-        authenticationType: meter.authenticationType,
-      }}
-      isSubmitting={updateMeter.isPending}
-      fieldErrors={fieldErrors}
-      onFieldChange={(field) => {
-        setFieldErrors((current) => {
-          if (!current[field]) return current
-          const next = { ...current }
-          delete next[field]
-          return next
-        })
-      }}
-      onClose={() => {
-        if (!updateMeter.isPending) onClose()
-      }}
-      onSubmit={(values) => void updateIntegration(values)}
-    />
+    <>
+      {!authStep ? (
+        <MeterFormModal
+          title="Edit Meter"
+          submitLabel="Next"
+          submittingLabel="Saving…"
+          initial={basicValues ?? meterInitial}
+          showSerialNumber
+          showDescription
+          isSubmitting={updateMeter.isPending}
+          fieldErrors={fieldErrors}
+          onFieldChange={(field) => {
+            setFieldErrors((current) => {
+              if (!current[field]) return current
+              const next = { ...current }
+              delete next[field]
+              return next
+            })
+          }}
+          onClose={closeAll}
+          onSubmit={handleBasicSubmit}
+        />
+      ) : authStep === 'LLS' ? (
+        <LlsSecurityDialog
+          title="Edit Meter"
+          subtitle="LLS Information"
+          submittingLabel="Save"
+          pendingLabel="Saving…"
+          initial={meter.llsConfig ?? undefined}
+          isSubmitting={updateMeter.isPending}
+          fieldErrors={authFieldErrors}
+          onFieldChange={(field) => {
+            setAuthFieldErrors((current) => {
+              if (!current[field]) return current
+              const next = { ...current }
+              delete next[field]
+              return next
+            })
+          }}
+          onBack={() => {
+            if (!updateMeter.isPending) {
+              setAuthFieldErrors({})
+              setAuthStep(null)
+            }
+          }}
+          onClose={closeAll}
+          onSubmit={(security) =>
+            void updateIntegration(basicValues ?? meterInitial, {
+              hlsConfig: null,
+              llsConfig: security,
+            })
+          }
+        />
+      ) : (
+        <HlsSecurityDialog
+          title="Edit Meter"
+          subtitle="HLS Information"
+          submittingLabel="Save"
+          pendingLabel="Saving…"
+          initial={meter.hlsConfig ?? undefined}
+          isSubmitting={updateMeter.isPending}
+          fieldErrors={authFieldErrors}
+          onFieldChange={(field) => {
+            setAuthFieldErrors((current) => {
+              if (!current[field]) return current
+              const next = { ...current }
+              delete next[field]
+              return next
+            })
+          }}
+          onBack={() => {
+            if (!updateMeter.isPending) {
+              setAuthFieldErrors({})
+              setAuthStep(null)
+            }
+          }}
+          onClose={closeAll}
+          onSubmit={(security) =>
+            void updateIntegration(basicValues ?? meterInitial, {
+              hlsConfig: security,
+              llsConfig: null,
+            })
+          }
+        />
+      )}
+    </>
   )
 }
 

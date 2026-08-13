@@ -74,6 +74,10 @@ export type MeterIntegration = MeterIntegrationSummary & {
   class: string
   category: string
   description: string
+  serial?: string
+  multiplier?: string
+  hlsConfig?: HlsSecurityConfig | null
+  llsConfig?: LlsSecurityConfig | null
 }
 
 export type MeterIntegrationListParams = {
@@ -114,6 +118,16 @@ export type ObisCode = {
   description: string
   status: ObisCodeStatus
   statusReason?: string
+  type?: string
+  linkedRealTimeCode?: string
+  scaler?: string
+  unit?: string
+  multiplyBy?: string
+  actionType?: string
+  integratedRealTimeCodes?: {
+    action: string
+    code: string
+  }[]
   addedBy?: {
     id: string
     name: string
