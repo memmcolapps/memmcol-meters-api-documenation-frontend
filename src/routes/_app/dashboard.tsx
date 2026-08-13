@@ -1,42 +1,37 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { DatePicker } from '../../app/DatePicker'
+import { useMemo, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { DatePicker } from "../../app/DatePicker";
+import { getApiErrorMessage } from "../../lib/api/client";
+import {
+  toMonthRange,
+  useDashboardSummary,
+} from "../../features/customer-dashboard/customerDashboardQueries";
 
 export const Route = createFileRoute('/_app/dashboard')({
   component: DashboardPage,
 })
 
 const monthYear = (date: Date) =>
-  date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-
-const stats = [
-  { label: 'Total API Calls', value: '1000' },
-  { label: 'Credits Used', value: '500' },
-  { label: 'Credit Balance', value: '500' },
-]
-
-const CHART_MAX = 500
-
-const usageData = [
-  { label: 'Meter Master Data', value: 140 },
-  { label: 'Consumption Data', value: 80 },
-  { label: 'Event & Alarm Data', value: 290 },
-  { label: 'Load Profile Data', value: 360 },
-  { label: 'Remote Token Man.', value: 140 },
-  { label: 'Remote Communication', value: 200 },
-  { label: 'Token Generation', value: 240 },
-]
-
-const yTicks = [500, 400, 300, 200, 100, 0]
-
-const successRate = 80
-
-const logs = [
-  { time: '6/23/2026, 4:53:21 PM', code: 400, response: 'Calls Exceeded' },
-  { time: '6/23/2026, 4:53:21 PM', code: 200, response: 'Token generated successful' },
-  { time: '6/23/2026, 4:53:21 PM', code: 200, response: 'Token generated successful' },
-]
+  date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
 function DashboardPage() {
+  const [month, setMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const { from, to } = useMemo(() => toMonthRange(month), [month]);
+  const {
+    data: summary,
+    isLoading,
+    isError,
+    error,
+  } = useDashboardSummary({ from, to });
+
+  const usageByService = summary?.usageByService ?? [];
+  const chartMax = Math.max(...usageByService.map((item) => item.calls), 1);
+  const yTicks = buildTicks(chartMax);
+  const axisMax = yTicks[0];
+
   return (
     <div className="dash">
       <header className="dash-head">
@@ -48,130 +43,199 @@ function DashboardPage() {
       </header>
 
       <div className="dash-tabs" role="tablist">
-        <button type="button" className="dash-tab is-active" role="tab" aria-selected="true">
+        <button
+          type="button"
+          className="dash-tab is-active"
+          role="tab"
+          aria-selected="true"
+        >
           Summary
         </button>
       </div>
 
       <DatePicker
-        initialDate={new Date(2026, 5, 1)}
+        initialDate={month}
         formatLabel={monthYear}
         triggerClassName="dash-month"
+        onChange={setMonth}
       />
 
-      <section className="dash-stats">
-        {stats.map((stat) => (
-          <article className="stat-card" key={stat.label}>
-            <div className="stat-text">
-              <p className="stat-label">{stat.label}</p>
-              <p className="stat-value">{stat.value}</p>
-            </div>
-            <span className="stat-icon" aria-hidden="true">
-              <ApiIcon />
-            </span>
-          </article>
-        ))}
-      </section>
-
-      <section className="dash-panel">
-        <h2 className="panel-title">Monthly Usage</h2>
-        <div className="chart">
-          <div className="chart-y">
-            {yTicks.map((tick) => (
-              <span key={tick}>{tick}</span>
-            ))}
-          </div>
-          <div className="chart-plot">
-            <div className="chart-grid" aria-hidden="true">
-              {yTicks.map((tick) => (
-                <span key={tick} />
-              ))}
-            </div>
-            <div className="chart-bars">
-              {usageData.map((item) => (
-                <div className="chart-col" key={item.label}>
-                  <div
-                    className="chart-bar"
-                    style={{ height: `${(item.value / CHART_MAX) * 100}%` }}
-                    title={`${item.label}: ${item.value}`}
-                  />
-                  <span className="chart-col-label">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+      {isLoading ? (
+        <div className="dash-panel">
+          <p className="meter-empty-text">Loading dashboard…</p>
         </div>
-      </section>
+      ) : isError ? (
+        <div className="dash-panel">
+          <p className="modal-field-error" role="alert">
+            {getApiErrorMessage(error)}
+          </p>
+        </div>
+      ) : summary ? (
+        <>
+          <section className="dash-stats">
+            {[
+              {
+                label: "Total API Calls",
+                value: summary.totalApiCalls.toLocaleString(),
+              },
+              {
+                label: "Credits Used",
+                value: summary.creditsUsed.toLocaleString(),
+              },
+              {
+                label: "Credit Balance",
+                value: summary.creditBalance.toLocaleString(),
+              },
+            ].map((stat) => (
+              <article className="stat-card" key={stat.label}>
+                <div className="stat-text">
+                  <p className="stat-label">{stat.label}</p>
+                  <p className="stat-value">{stat.value}</p>
+                </div>
+                <span className="stat-icon" aria-hidden="true">
+                  <ApiIcon />
+                </span>
+              </article>
+            ))}
+          </section>
 
-      <section className="dash-grid">
-        <article className="dash-panel">
-          <div className="panel-head">
-            <h2 className="panel-title">Performance Metrics</h2>
-            <div className="legend">
-              <span className="legend-item">
-                Success Rate <i className="legend-dot is-success" />
-              </span>
-              <span className="legend-item">
-                Error Rate <i className="legend-dot is-error" />
-              </span>
-            </div>
-          </div>
-          <div className="gauge">
-            <div
-              className="donut"
-              style={{
-                background: `conic-gradient(var(--app-green) 0 ${successRate}%, #d64545 ${successRate}% 100%)`,
-              }}
-              role="img"
-              aria-label={`Success rate ${successRate}%, error rate ${100 - successRate}%`}
-            >
-              <div className="donut-hole" />
-            </div>
-          </div>
-        </article>
+          <section className="dash-panel">
+            <h2 className="panel-title">Monthly Usage</h2>
+            {usageByService.length === 0 ? (
+              <p className="chart-empty">No usage recorded for this period.</p>
+            ) : (
+              <div className="chart">
+                <div className="chart-y">
+                  {yTicks.map((tick) => (
+                    <span key={tick}>{tick}</span>
+                  ))}
+                </div>
+                <div className="chart-plot">
+                  <div className="chart-grid" aria-hidden="true">
+                    {yTicks.map((tick) => (
+                      <span key={tick} />
+                    ))}
+                  </div>
+                  <div className="chart-bars">
+                    {usageByService.map((item) => (
+                      <div className="chart-col" key={item.apiId}>
+                        <div
+                          className="chart-bar"
+                          style={{
+                            height: `${(item.calls / axisMax) * 100}%`,
+                          }}
+                          title={`${item.name}: ${item.calls}`}
+                        />
+                        <span className="chart-col-label">{item.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
 
-        <article className="dash-panel">
-          <div className="panel-head">
-            <h2 className="panel-title">Logs</h2>
-            <button type="button" className="panel-link">
-              See All
-            </button>
-          </div>
-          <table className="logs-table">
-            <thead>
-              <tr>
-                <th>Request Time</th>
-                <th>Code</th>
-                <th>Response</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((log, index) => (
-                <tr key={index}>
-                  <td>{log.time}</td>
-                  <td>
-                    <span
-                      className={`code-badge${log.code >= 400 ? ' is-error' : ' is-ok'}`}
-                    >
-                      {log.code}
-                    </span>
-                  </td>
-                  <td className="logs-response">{log.response}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </article>
-      </section>
+          <section className="dash-grid">
+            <article className="dash-panel">
+              <div className="panel-head">
+                <h2 className="panel-title">Performance Metrics</h2>
+                <div className="legend">
+                  <span className="legend-item">
+                    Success Rate <i className="legend-dot is-success" />
+                  </span>
+                  <span className="legend-item">
+                    Error Rate <i className="legend-dot is-error" />
+                  </span>
+                </div>
+              </div>
+              <div className="gauge">
+                <div
+                  className="donut"
+                  style={{
+                    background: `conic-gradient(var(--app-green) 0 ${summary.successRate}%, #d64545 ${summary.successRate}% 100%)`,
+                  }}
+                  role="img"
+                  aria-label={`Success rate ${summary.successRate}%, error rate ${(100 - summary.successRate).toFixed(2)}%`}
+                >
+                  <div className="donut-hole" />
+                </div>
+              </div>
+            </article>
+
+            <article className="dash-panel">
+              <div className="panel-head">
+                <h2 className="panel-title">Logs</h2>
+                <button type="button" className="panel-link">
+                  See All
+                </button>
+              </div>
+              {summary.recentLogs.length === 0 ? (
+                <p className="logs-empty">No requests in this period.</p>
+              ) : (
+                <table className="logs-table">
+                  <thead>
+                    <tr>
+                      <th>Request Time</th>
+                      <th>Code</th>
+                      <th>Response</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summary.recentLogs.map((log) => (
+                      <tr key={log.id}>
+                        <td>{formatLogTime(log.requestTime)}</td>
+                        <td>
+                          <span
+                            className={`code-badge${log.code >= 400 ? " is-error" : " is-ok"}`}
+                          >
+                            {log.code}
+                          </span>
+                        </td>
+                        {log.response === null ? (
+                          <td>No Response </td>
+                        ) : (
+                          <td className="logs-response">{log.response}</td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </article>
+          </section>
+        </>
+      ) : null}
     </div>
-  )
+  );
+}
+
+function formatLogTime(iso: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    dateStyle: "short",
+    timeStyle: "medium",
+  });
+}
+
+function buildTicks(max: number) {
+  const step = Math.max(Math.ceil(max / 5 / 10) * 10, 10);
+  return [5, 4, 3, 2, 1, 0].map((n) => step * n);
 }
 
 function ApiIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <rect x="2" y="7" width="20" height="10" rx="2" />
       <path d="M7 12h.01M12 12h.01M17 12h.01" />
     </svg>
-  )
+  );
 }
