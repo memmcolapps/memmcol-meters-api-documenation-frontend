@@ -40,6 +40,12 @@ type ObisFormValues = Required<CreateObisCodeInput>
 type ObisFormField = keyof ObisFormValues
 type ObisUploadField = keyof UploadObisCodesInput
 type ObisStatusField = 'status' | 'reason'
+type ObisRealtimeInitial = {
+  scaler?: string
+  unit?: string
+  multiplyBy?: string
+  actionType?: string
+}
 
 function MeterViewPage() {
   const { meterId } = Route.useParams()
@@ -232,7 +238,10 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
   const [page, setPage] = useState(1)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [deprecating, setDeprecating] = useState<ObisCode | null>(null)
-  const [editing, setEditing] = useState<ObisCode | null>(null)
+  const [editing, setEditing] = useState<{
+    code: ObisCode
+    mode: 'realtime' | 'profile'
+  } | null>(null)
   const [viewing, setViewing] = useState<{
     code: ObisCode
     mode: 'realtime' | 'profile'
@@ -271,11 +280,11 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
     setAddMode(mode)
   }
 
-  const openEditModal = (code: ObisCode) => {
+  const openEditModal = (code: ObisCode, mode: 'realtime' | 'profile') => {
     updateObisCode.reset()
     setFieldErrors({})
     setOpenMenu(null)
-    setEditing(code)
+    setEditing({ code, mode })
   }
 
   const openUploadModal = () => {
@@ -351,9 +360,10 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
 
     try {
       const obisCode = await updateObisCode.mutateAsync({
-        obisCodeId: editing.id,
+        obisCodeId: editing.code.id,
         action: values.action,
         code: values.code,
+        ...(values.description ? { description: values.description } : {}),
       })
       setEditing(null)
       showToast({
@@ -540,7 +550,8 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
                             setOpenMenu(null)
                             setViewing({ code, mode: 'profile' })
                           }}
-                          onEdit={() => openEditModal(code)}
+                          onEditRealtime={() => openEditModal(code, 'realtime')}
+                          onEditProfile={() => openEditModal(code, 'profile')}
                           onDeprecate={() => {
                             setOpenMenu(null)
                             changeObisCodeStatus.reset()
@@ -590,6 +601,7 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
           title="Add Real-time OBIS Code"
           submitLabel="Add OBIS"
           submittingLabel="Adding…"
+          showRealtimeDetails
           isSubmitting={createObisCode.isPending}
           fieldErrors={fieldErrors}
           onFieldChange={(field) => {
@@ -632,31 +644,64 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
       ) : null}
 
       {editing ? (
-        <ObisFormModal
-          title="Edit OBIS Code"
-          submitLabel="Save Changes"
-          submittingLabel="Saving…"
-          initial={{
-            action: editing.action,
-            code: editing.code,
-            description: editing.description,
-          }}
-          showDescription={false}
-          isSubmitting={updateObisCode.isPending}
-          fieldErrors={fieldErrors}
-          onFieldChange={(field) => {
-            setFieldErrors((current) => {
-              if (!current[field]) return current
-              const next = { ...current }
-              delete next[field]
-              return next
-            })
-          }}
-          onClose={() => {
-            if (!updateObisCode.isPending) setEditing(null)
-          }}
-          onSubmit={editCode}
-        />
+        editing.mode === 'realtime' ? (
+          <ObisFormModal
+            title="Edit Real-time OBIS Code"
+            submitLabel="Save Changes"
+            submittingLabel="Saving…"
+            showRealtimeDetails
+            initial={{
+              action: editing.code.action,
+              code: editing.code.code,
+              description: editing.code.description,
+              scaler: editing.code.scaler,
+              unit: editing.code.unit,
+              multiplyBy: editing.code.multiplyBy,
+              actionType: editing.code.actionType,
+            }}
+            isSubmitting={updateObisCode.isPending}
+            fieldErrors={fieldErrors}
+            onFieldChange={(field) => {
+              setFieldErrors((current) => {
+                if (!current[field]) return current
+                const next = { ...current }
+                delete next[field]
+                return next
+              })
+            }}
+            onClose={() => {
+              if (!updateObisCode.isPending) setEditing(null)
+            }}
+            onSubmit={editCode}
+          />
+        ) : (
+          <ObisFormModal
+            title="Edit Profile OBIS Code"
+            submitLabel="Save Changes"
+            submittingLabel="Saving…"
+            labelPrefix="Profile "
+            initial={{
+              action: editing.code.action,
+              code: editing.code.code,
+              description: editing.code.description,
+            }}
+            integratedActions={availableActions}
+            isSubmitting={updateObisCode.isPending}
+            fieldErrors={fieldErrors}
+            onFieldChange={(field) => {
+              setFieldErrors((current) => {
+                if (!current[field]) return current
+                const next = { ...current }
+                delete next[field]
+                return next
+              })
+            }}
+            onClose={() => {
+              if (!updateObisCode.isPending) setEditing(null)
+            }}
+            onSubmit={editCode}
+          />
+        )
       ) : null}
 
       {uploadOpen ? (
@@ -964,7 +1009,8 @@ function ObisRowActions({
   onClose,
   onViewRealtime,
   onViewProfile,
-  onEdit,
+  onEditRealtime,
+  onEditProfile,
   onDeprecate,
   onActivate,
 }: {
@@ -975,19 +1021,26 @@ function ObisRowActions({
   onClose: () => void
   onViewRealtime: () => void
   onViewProfile: () => void
-  onEdit: () => void
+  onEditRealtime: () => void
+  onEditProfile: () => void
   onDeprecate: () => void
   onActivate: () => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const viewRef = useRef<HTMLDivElement>(null)
+  const editRef = useRef<HTMLDivElement>(null)
   const [viewOpen, setViewOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   useDismiss(ref, onClose, isOpen)
   useDismiss(viewRef, () => setViewOpen(false), viewOpen)
+  useDismiss(editRef, () => setEditOpen(false), editOpen)
   const { anchorRef, menuStyle } = useAnchoredMenu(isOpen, 100)
 
   useEffect(() => {
-    if (!isOpen) setViewOpen(false)
+    if (!isOpen) {
+      setViewOpen(false)
+      setEditOpen(false)
+    }
   }, [isOpen])
 
   return (
@@ -1035,15 +1088,40 @@ function ObisRowActions({
               </div>
             ) : null}
           </div>
-          <button
-            type="button"
-            className="row-menu-item"
-            role="menuitem"
-            onClick={onEdit}
-            disabled={isPending}
-          >
-            <PencilIcon /> Edit
-          </button>
+          <div className="row-menu-group" ref={editRef}>
+            <button
+              type="button"
+              className="row-menu-item"
+              role="menuitem"
+              aria-expanded={editOpen}
+              onClick={() => setEditOpen((current) => !current)}
+              disabled={isPending}
+            >
+              <PencilIcon /> Edit OBIS Code <ChevronRightIcon />
+            </button>
+            {editOpen ? (
+              <div className="row-menu row-menu-sub" role="menu">
+                <button
+                  type="button"
+                  className="row-menu-item"
+                  role="menuitem"
+                  onClick={onEditRealtime}
+                  disabled={isPending}
+                >
+                  <ClockCheckIcon /> Edit Real-time OBIS Code
+                </button>
+                <button
+                  type="button"
+                  className="row-menu-item"
+                  role="menuitem"
+                  onClick={onEditProfile}
+                  disabled={isPending}
+                >
+                  <ClockRewindIcon /> Edit Profile OBIS Code
+                </button>
+              </div>
+            ) : null}
+          </div>
           {status === 'ACTIVE' ? (
             <button
               type="button"
@@ -1320,12 +1398,13 @@ function ObisFormModal({
   onSubmit,
   labelPrefix = '',
   showDescription = true,
+  showRealtimeDetails = false,
   integratedActions,
 }: {
   title: string
   submitLabel: string
   submittingLabel: string
-  initial?: ObisFormValues
+  initial?: ObisFormValues & ObisRealtimeInitial
   isSubmitting: boolean
   fieldErrors: Partial<Record<ObisFormField, string>>
   onFieldChange: (field: ObisFormField) => void
@@ -1333,11 +1412,16 @@ function ObisFormModal({
   onSubmit: (values: ObisFormValues) => void
   labelPrefix?: string
   showDescription?: boolean
+  showRealtimeDetails?: boolean
   integratedActions?: string[]
 }) {
   const [action, setAction] = useState(initial?.action ?? '')
   const [code, setCode] = useState(initial?.code ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
+  const [scaler, setScaler] = useState(initial?.scaler ?? '')
+  const [unit, setUnit] = useState(initial?.unit ?? '')
+  const [multiplyBy, setMultiplyBy] = useState(initial?.multiplyBy ?? '')
+  const [actionType, setActionType] = useState(initial?.actionType ?? '')
   const [selectedActions, setSelectedActions] = useState<string[]>(() => {
     if (!initial?.description) return []
     return initial.description
@@ -1417,6 +1501,52 @@ function ObisFormModal({
               <span className="modal-field-error" role="alert">{fieldErrors.code}</span>
             ) : null}
           </div>
+          {showRealtimeDetails ? (
+            <>
+              <div className="modal-grid">
+                <div className="modal-field">
+                  <label>Scaler</label>
+                  <input
+                    className="modal-input"
+                    placeholder="Enter scaler"
+                    value={scaler}
+                    onChange={(e) => setScaler(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="modal-field">
+                  <label>Unit</label>
+                  <input
+                    className="modal-input"
+                    placeholder="Enter unit"
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+              <div className="modal-field">
+                <label>Multiply By</label>
+                <input
+                  className="modal-input"
+                  placeholder="Enter multiply by"
+                  value={multiplyBy}
+                  onChange={(e) => setMultiplyBy(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="modal-field">
+                <label>Action Type</label>
+                <input
+                  className="modal-input"
+                  placeholder="Enter action type"
+                  value={actionType}
+                  onChange={(e) => setActionType(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+            </>
+          ) : null}
           {isIntegratedPicker ? (
             <div className="modal-field">
               <label>Integrated Real-time Actions</label>

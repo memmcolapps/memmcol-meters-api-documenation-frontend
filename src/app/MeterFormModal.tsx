@@ -313,12 +313,14 @@ function Field({
 function SecurityDialogFoot({
   isSubmitting,
   submittingLabel,
+  pendingLabel,
   canSubmit,
   onBack,
   onSubmit,
 }: {
   isSubmitting: boolean
   submittingLabel: string
+  pendingLabel: string
   canSubmit: boolean
   onBack: () => void
   onSubmit: () => void
@@ -334,7 +336,7 @@ function SecurityDialogFoot({
         disabled={!canSubmit || isSubmitting}
         onClick={onSubmit}
       >
-        {isSubmitting ? 'Integrating…' : submittingLabel}
+        {isSubmitting ? pendingLabel : submittingLabel}
       </button>
     </div>
   )
@@ -343,6 +345,7 @@ function SecurityDialogFoot({
 export function LlsSecurityDialog({
   isSubmitting = false,
   submittingLabel = 'Integrate',
+  pendingLabel = 'Integrating…',
   title = 'Integrate Meter',
   subtitle = 'LLS Information',
   initial,
@@ -354,6 +357,7 @@ export function LlsSecurityDialog({
 }: {
   isSubmitting?: boolean
   submittingLabel?: string
+  pendingLabel?: string
   title?: string
   subtitle?: string
   initial?: Partial<LlsSecurityValues>
@@ -447,6 +451,7 @@ export function LlsSecurityDialog({
           <SecurityDialogFoot
             isSubmitting={isSubmitting}
             submittingLabel={submittingLabel}
+            pendingLabel={pendingLabel}
             canSubmit={canSubmit}
             onBack={onBack}
             onSubmit={handleSubmit}
@@ -460,6 +465,7 @@ export function LlsSecurityDialog({
 export function HlsSecurityDialog({
   isSubmitting = false,
   submittingLabel = 'Integrate',
+  pendingLabel = 'Integrating…',
   title = 'Integrate Meter',
   subtitle = 'HLS Information',
   initial,
@@ -471,6 +477,7 @@ export function HlsSecurityDialog({
 }: {
   isSubmitting?: boolean
   submittingLabel?: string
+  pendingLabel?: string
   title?: string
   subtitle?: string
   initial?: Partial<HlsSecurityValues>
@@ -641,6 +648,7 @@ export function HlsSecurityDialog({
           <SecurityDialogFoot
             isSubmitting={isSubmitting}
             submittingLabel={submittingLabel}
+            pendingLabel={pendingLabel}
             canSubmit={canSubmit}
             onBack={onBack}
             onSubmit={handleSubmit}

@@ -625,6 +625,7 @@ function EditMeterIntegrationModal({
           title="Edit Meter"
           subtitle="LLS Information"
           submittingLabel="Save"
+          pendingLabel="Saving…"
           initial={meter.llsConfig ?? undefined}
           isSubmitting={updateMeter.isPending}
           fieldErrors={authFieldErrors}
@@ -655,6 +656,7 @@ function EditMeterIntegrationModal({
           title="Edit Meter"
           subtitle="HLS Information"
           submittingLabel="Save"
+          pendingLabel="Saving…"
           initial={meter.hlsConfig ?? undefined}
           isSubmitting={updateMeter.isPending}
           fieldErrors={authFieldErrors}
