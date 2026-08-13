@@ -1,4 +1,4 @@
-import { useDeferredValue, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { AsyncState } from '../../../../app/AsyncState'
 import { useAnchoredMenu } from '../../../../app/useAnchoredMenu'
@@ -726,7 +726,7 @@ function ViewObisCodeModal({ code, onClose }: { code: ObisCode; onClose: () => v
       <div className="modal view-modal" ref={modalRef}>
         <div className="modal-head">
           <div>
-            <h2 id="view-obis-code-title" className="modal-title">View OBIS Code</h2>
+            <h2 id="view-obis-code-title" className="modal-title">View Profile OBIS Code</h2>
           </div>
           <button
             type="button"
@@ -758,6 +758,13 @@ function ViewObisCodeModal({ code, onClose }: { code: ObisCode; onClose: () => v
             </div>
           </div>
 
+          <div className="view-grid">
+            <div className="view-cell view-cell-wide">
+              <span className="view-label">Description</span>
+              <span className="view-value">{code.description || '—'}</span>
+            </div>
+          </div>
+
           {code.integratedRealTimeCodes && code.integratedRealTimeCodes.length > 0 && (
             <div className="view-integrated">
               <span className="view-label">Integrated Real-time OBIS</span>
@@ -772,13 +779,6 @@ function ViewObisCodeModal({ code, onClose }: { code: ObisCode; onClose: () => v
               </div>
             </div>
           )}
-
-          <div className="view-grid">
-            <div className="view-cell view-cell-wide">
-              <span className="view-label">Description</span>
-              <span className="view-value">{code.description || '—'}</span>
-            </div>
-          </div>
 
           <div className="modal-foot">
             <button type="button" className="btn-outline" onClick={onClose}>Cancel</button>
@@ -803,7 +803,7 @@ function ViewRealtimeObisCodeModal({ code, onClose }: { code: ObisCode; onClose:
       <div className="modal view-modal" ref={modalRef}>
         <div className="modal-head">
           <div>
-            <h2 id="view-obis-code-title" className="modal-title">View OBIS Code</h2>
+            <h2 id="view-obis-code-title" className="modal-title">View Real-time OBIS Code</h2>
           </div>
           <button
             type="button"
@@ -985,6 +985,10 @@ function ObisRowActions({
   useDismiss(ref, onClose, isOpen)
   useDismiss(viewRef, () => setViewOpen(false), viewOpen)
   const { anchorRef, menuStyle } = useAnchoredMenu(isOpen, 100)
+
+  useEffect(() => {
+    if (!isOpen) setViewOpen(false)
+  }, [isOpen])
 
   return (
     <div className="row-actions" ref={ref}>
@@ -1346,7 +1350,7 @@ function ObisFormModal({
   const actionsRef = useRef<HTMLDivElement>(null)
   useDismiss(modalRef, onClose)
   useDismiss(actionsRef, () => setActionsOpen(false), actionsOpen)
-  const { anchorRef, menuStyle } = useAnchoredMenu(actionsOpen, 240)
+  const anchorRef = useRef<HTMLButtonElement>(null)
 
   const isIntegratedPicker = integratedActions !== undefined
   const canSubmit = action.trim() !== '' && code.trim() !== ''
@@ -1443,7 +1447,6 @@ function ObisFormModal({
                 {actionsOpen ? (
                   <div
                     className="row-menu integrated-actions-menu"
-                    style={menuStyle}
                     role="listbox"
                     aria-multiselectable="true"
                   >

@@ -2610,7 +2610,7 @@ h1 {
 
 .integrated-actions-trigger {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
   text-align: left;
@@ -2619,6 +2619,7 @@ h1 {
 
 .integrated-actions-trigger svg {
   flex-shrink: 0;
+  margin-top: 0.2rem;
   color: var(--app-muted);
 }
 
@@ -2627,6 +2628,7 @@ h1 {
 }
 
 .integrated-actions-placeholder {
+  flex: 1;
   color: var(--app-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2634,13 +2636,18 @@ h1 {
 }
 
 .integrated-actions-value {
+  flex: 1;
   color: var(--app-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .integrated-actions-menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: auto;
+  width: 100%;
   max-height: 14rem;
   overflow-y: auto;
 }
