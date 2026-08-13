@@ -384,22 +384,21 @@ async function createObisCode(
   return response.obisCode
 }
 
-// TODO: Restore when the hard-coded OBIS codes are removed.
-// async function listObisCodes(
-//   meterIntegrationId: string,
-//   params: ObisCodeListParams,
-// ) {
-//   const query = new URLSearchParams({
-//     page: String(params.page),
-//     limit: String(params.limit),
-//   })
-//   if (params.search) query.set('search', params.search)
-//   if (params.status) query.set('status', params.status)
+async function listObisCodes(
+  meterIntegrationId: string,
+  params: ObisCodeListParams,
+) {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    limit: String(params.limit),
+  })
+  if (params.search) query.set('search', params.search)
+  if (params.status) query.set('status', params.status)
 
-//   return apiRequest<ObisCodeListResponse>(
-//     `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/obis-codes?${query.toString()}`,
-//   )
-// }
+  return apiRequest<ObisCodeListResponse>(
+    `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/obis-codes?${query.toString()}`,
+  )
+}
 
 async function updateObisCode(
   meterIntegrationId: string,
@@ -565,162 +564,13 @@ export function useCreateObisCode(meterIntegrationId: string) {
   })
 }
 
-// TODO: Remove hard-coded OBIS codes used to test the OBIS table (View action).
-const mockObisCodes: ObisCode[] = [
-  {
-    id: 'obis_1',
-    meterIntegrationId: 'mtr_int_123',
-    action: 'Send Token',
-    code: '45;0.11.25.4.0.255;2;0',
-    description: 'OBIS command used to send prepaid token to meter.',
-    status: 'ACTIVE',
-    type: 'Real-time',
-    linkedRealTimeCode: 'Send Token',
-    scaler: '1',
-    unit: 'N/A',
-    multiplyBy: '1',
-    actionType: 'Command',
-    integratedRealTimeCodes: [
-      { action: 'Send Token', code: '45;09;983;099' },
-      { action: 'Get Meter Status', code: '46;09;983;100' },
-    ],
-    addedBy: { id: 'user_1', name: 'John Doe' },
-    createdAt: '2026-07-09T10:00:00Z',
-    updatedAt: '2026-07-09T10:00:00Z',
-  },
-  {
-    id: 'obis_2',
-    meterIntegrationId: 'mtr_int_123',
-    action: 'Get Meter Status',
-    code: '46;0.0.1.0.0.255;2;0',
-    description: 'Reads the current status of the meter.',
-    status: 'ACTIVE',
-    type: 'Real-time',
-    linkedRealTimeCode: 'Get Meter Status',
-    scaler: '0.001',
-    unit: 'kWh',
-    multiplyBy: '1000',
-    actionType: 'Read',
-    integratedRealTimeCodes: [
-      { action: 'Get Meter Status', code: '46;09;983;100' },
-    ],
-    addedBy: { id: 'user_1', name: 'John Doe' },
-    createdAt: '2026-07-08T09:30:00Z',
-    updatedAt: '2026-07-08T09:30:00Z',
-  },
-  {
-    id: 'obis_3',
-    meterIntegrationId: 'mtr_int_123',
-    action: 'Reconnect',
-    code: '47;0.0.96.3.10.255;2;0',
-    description: 'Re-establishes connection with the meter.',
-    status: 'ACTIVE',
-    type: 'Real-time',
-    linkedRealTimeCode: 'Reconnect',
-    scaler: '1',
-    unit: 'N/A',
-    multiplyBy: '1',
-    actionType: 'Command',
-    integratedRealTimeCodes: [
-      { action: 'Reconnect', code: '47;09;983;102' },
-    ],
-    addedBy: { id: 'user_2', name: 'Jane Smith' },
-    createdAt: '2026-07-07T14:15:00Z',
-    updatedAt: '2026-07-07T14:15:00Z',
-  },
-  {
-    id: 'obis_4',
-    meterIntegrationId: 'mtr_int_123',
-    action: 'Disconnect',
-    code: '48;0.0.96.3.9.255;2;0',
-    description: 'Sends a disconnect command to the meter.',
-    status: 'DEPRECATED',
-    type: 'Real-time',
-    linkedRealTimeCode: 'Disconnect',
-    scaler: '1',
-    unit: 'N/A',
-    multiplyBy: '1',
-    actionType: 'Command',
-    integratedRealTimeCodes: [
-      { action: 'Disconnect', code: '48;09;983;103' },
-      { action: 'Reconnect', code: '47;09;983;102' },
-    ],
-    addedBy: { id: 'user_2', name: 'Jane Smith' },
-    createdAt: '2026-07-06T08:00:00Z',
-    updatedAt: '2026-07-11T16:45:00Z',
-  },
-  {
-    id: 'obis_5',
-    meterIntegrationId: 'mtr_int_123',
-    action: 'Get Meter Profile',
-    code: '49;0.1.24.2.0.255;2;0',
-    description: 'Retrieves the meter consumption profile.',
-    status: 'ACTIVE',
-    type: 'Profile',
-    linkedRealTimeCode: 'Send Token, Get Meter Status, Alarm Status',
-    integratedRealTimeCodes: [
-      { action: 'Send Token', code: '45;09;983;099' },
-      { action: 'Get Meter Status', code: '46;09;983;100' },
-      { action: 'Alarm Status', code: '50;09;983;101' },
-      { action: 'Reconnect', code: '47;09;983;102' },
-      { action: 'Disconnect', code: '48;09;983;103' },
-      { action: 'Billing Report', code: '51;09;983;104' },
-    ],
-    addedBy: { id: 'user_3', name: 'Alex Morgan' },
-    createdAt: '2026-07-05T11:20:00Z',
-    updatedAt: '2026-07-05T11:20:00Z',
-  },
-  {
-    id: 'obis_6',
-    meterIntegrationId: 'mtr_int_123',
-    action: 'Alarm Status',
-    code: '50;0.1.1.4.0.255;2;0',
-    description: 'Checks the meter alarm status.',
-    status: 'DEPRECATED',
-    type: 'Real-time',
-    linkedRealTimeCode: 'Alarm Status',
-    scaler: '1',
-    unit: 'Status',
-    multiplyBy: '1',
-    actionType: 'Read',
-    integratedRealTimeCodes: [
-      { action: 'Alarm Status', code: '50;09;983;101' },
-    ],
-    addedBy: { id: 'user_1', name: 'John Doe' },
-    createdAt: '2026-07-04T10:10:00Z',
-    updatedAt: '2026-07-12T09:00:00Z',
-  },
-]
-
-function mockListObisCodes(params: ObisCodeListParams): ObisCodeListResponse {
-  const query = (params.search ?? '').toLowerCase()
-  const filtered = mockObisCodes.filter((code) => {
-    const matchesStatus = !params.status || code.status === params.status
-    const matchesSearch =
-      !query ||
-      code.action.toLowerCase().includes(query) ||
-      code.code.toLowerCase().includes(query)
-    return matchesStatus && matchesSearch
-  })
-  const start = (params.page - 1) * params.limit
-  return {
-    items: filtered.slice(start, start + params.limit),
-    pagination: {
-      page: params.page,
-      limit: params.limit,
-      total: filtered.length,
-      totalPages: Math.max(1, Math.ceil(filtered.length / params.limit)),
-    },
-  }
-}
-
 export function useObisCodes(
   meterIntegrationId: string,
   params: ObisCodeListParams,
 ) {
   return useQuery({
     queryKey: meterIntegrationKeys.obisCodeList(meterIntegrationId, params),
-    queryFn: () => mockListObisCodes(params),
+    queryFn: () => listObisCodes(meterIntegrationId, params),
     placeholderData: keepPreviousData,
   })
 }
