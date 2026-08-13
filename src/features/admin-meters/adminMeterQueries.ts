@@ -74,6 +74,10 @@ export type MeterIntegration = MeterIntegrationSummary & {
   class: string
   category: string
   description: string
+  serial?: string
+  multiplier?: string
+  hlsConfig?: HlsSecurityConfig | null
+  llsConfig?: LlsSecurityConfig | null
 }
 
 export type MeterIntegrationListParams = {
@@ -116,6 +120,10 @@ export type ObisCode = {
   statusReason?: string
   type?: string
   linkedRealTimeCode?: string
+  scaler?: string
+  unit?: string
+  multiplyBy?: string
+  actionType?: string
   integratedRealTimeCodes?: {
     action: string
     code: string
@@ -568,6 +576,10 @@ const mockObisCodes: ObisCode[] = [
     status: 'ACTIVE',
     type: 'Real-time',
     linkedRealTimeCode: 'Send Token',
+    scaler: '1',
+    unit: 'N/A',
+    multiplyBy: '1',
+    actionType: 'Command',
     integratedRealTimeCodes: [
       { action: 'Send Token', code: '45;09;983;099' },
       { action: 'Get Meter Status', code: '46;09;983;100' },
@@ -585,6 +597,10 @@ const mockObisCodes: ObisCode[] = [
     status: 'ACTIVE',
     type: 'Real-time',
     linkedRealTimeCode: 'Get Meter Status',
+    scaler: '0.001',
+    unit: 'kWh',
+    multiplyBy: '1000',
+    actionType: 'Read',
     integratedRealTimeCodes: [
       { action: 'Get Meter Status', code: '46;09;983;100' },
     ],
@@ -601,6 +617,10 @@ const mockObisCodes: ObisCode[] = [
     status: 'ACTIVE',
     type: 'Real-time',
     linkedRealTimeCode: 'Reconnect',
+    scaler: '1',
+    unit: 'N/A',
+    multiplyBy: '1',
+    actionType: 'Command',
     integratedRealTimeCodes: [
       { action: 'Reconnect', code: '47;09;983;102' },
     ],
@@ -617,6 +637,10 @@ const mockObisCodes: ObisCode[] = [
     status: 'DEPRECATED',
     type: 'Real-time',
     linkedRealTimeCode: 'Disconnect',
+    scaler: '1',
+    unit: 'N/A',
+    multiplyBy: '1',
+    actionType: 'Command',
     integratedRealTimeCodes: [
       { action: 'Disconnect', code: '48;09;983;103' },
       { action: 'Reconnect', code: '47;09;983;102' },
@@ -655,6 +679,10 @@ const mockObisCodes: ObisCode[] = [
     status: 'DEPRECATED',
     type: 'Real-time',
     linkedRealTimeCode: 'Alarm Status',
+    scaler: '1',
+    unit: 'Status',
+    multiplyBy: '1',
+    actionType: 'Read',
     integratedRealTimeCodes: [
       { action: 'Alarm Status', code: '50;09;983;101' },
     ],

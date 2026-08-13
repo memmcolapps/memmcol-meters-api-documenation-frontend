@@ -10,7 +10,7 @@ export type MeterFormValues = Pick<
   | 'model'
   | 'protocol'
   | 'authenticationType'
-> & { serialNumber: string; multiplier: string }
+> & { serialNumber: string; multiplier: string; description: string }
 
 export type MeterFormField = keyof MeterFormValues
 
@@ -41,6 +41,7 @@ export function MeterFormModal({
   initial,
   isSubmitting = false,
   showSerialNumber = false,
+  showDescription = false,
   fieldErrors = {},
   onFieldChange,
   onClose,
@@ -52,6 +53,7 @@ export function MeterFormModal({
   initial?: Partial<MeterFormValues>
   isSubmitting?: boolean
   showSerialNumber?: boolean
+  showDescription?: boolean
   fieldErrors?: Partial<Record<MeterFormField | 'class', string>>
   onFieldChange?: (field: MeterFormField) => void
   onClose: () => void
@@ -66,6 +68,7 @@ export function MeterFormModal({
     multiplier: initial?.multiplier ?? '',
     protocol: initial?.protocol ?? '',
     authenticationType: initial?.authenticationType ?? '',
+    description: initial?.description ?? '',
   })
   const modalRef = useRef<HTMLDivElement>(null)
   useDismiss(modalRef, onClose)
@@ -95,6 +98,7 @@ export function MeterFormModal({
       multiplier: form.multiplier.trim(),
       protocol: form.protocol.trim(),
       authenticationType: form.authenticationType.trim(),
+      description: form.description.trim(),
     })
   }
 
@@ -256,6 +260,20 @@ export function MeterFormModal({
             </Field>
           </div>
 
+          {showDescription ? (
+            <Field label="Description" error={fieldErrors.description} className="modal-field-wide">
+              <textarea
+                className="modal-input"
+                rows={3}
+                placeholder="Enter a description for this meter"
+                value={form.description}
+                onChange={(e) => set('description', e.target.value)}
+                aria-invalid={Boolean(fieldErrors.description)}
+                disabled={isSubmitting}
+              />
+            </Field>
+          ) : null}
+
           <div className="modal-foot">
             <button type="button" className="btn-neutral" onClick={onClose} disabled={isSubmitting}>
               Cancel
@@ -325,6 +343,9 @@ function SecurityDialogFoot({
 export function LlsSecurityDialog({
   isSubmitting = false,
   submittingLabel = 'Integrate',
+  title = 'Integrate Meter',
+  subtitle = 'LLS Information',
+  initial,
   fieldErrors = {},
   onFieldChange,
   onBack,
@@ -333,6 +354,9 @@ export function LlsSecurityDialog({
 }: {
   isSubmitting?: boolean
   submittingLabel?: string
+  title?: string
+  subtitle?: string
+  initial?: Partial<LlsSecurityValues>
   fieldErrors?: Partial<Record<LlsSecurityField, string>>
   onFieldChange?: (field: LlsSecurityField) => void
   onBack: () => void
@@ -340,9 +364,9 @@ export function LlsSecurityDialog({
   onSubmit: (values: LlsSecurityValues) => void
 }) {
   const [form, setForm] = useState<LlsSecurityValues>({
-    clientId: '',
-    destinationAddress: '',
-    password: '',
+    clientId: initial?.clientId ?? '',
+    destinationAddress: initial?.destinationAddress ?? '',
+    password: initial?.password ?? '',
   })
   const modalRef = useRef<HTMLDivElement>(null)
   useDismiss(modalRef, onClose)
@@ -373,9 +397,9 @@ export function LlsSecurityDialog({
         <div className="modal-head">
           <div>
             <h2 id="lls-security-title" className="modal-title">
-              Integrate Meter
+              {title}
             </h2>
-            <p className="modal-subtitle">LLS Information</p>
+            <p className="modal-subtitle">{subtitle}</p>
           </div>
           <button
             type="button"
@@ -436,6 +460,9 @@ export function LlsSecurityDialog({
 export function HlsSecurityDialog({
   isSubmitting = false,
   submittingLabel = 'Integrate',
+  title = 'Integrate Meter',
+  subtitle = 'HLS Information',
+  initial,
   fieldErrors = {},
   onFieldChange,
   onBack,
@@ -444,6 +471,9 @@ export function HlsSecurityDialog({
 }: {
   isSubmitting?: boolean
   submittingLabel?: string
+  title?: string
+  subtitle?: string
+  initial?: Partial<HlsSecurityValues>
   fieldErrors?: Partial<Record<HlsSecurityField, string>>
   onFieldChange?: (field: HlsSecurityField) => void
   onBack: () => void
@@ -451,13 +481,13 @@ export function HlsSecurityDialog({
   onSubmit: (values: HlsSecurityValues) => void
 }) {
   const [form, setForm] = useState<HlsSecurityValues>({
-    securityPolicy: '',
-    authMechanism: '',
-    encryptionKey: '',
-    masterKey: '',
-    globalBroadcastEncryptionKey: '',
-    clientId: '',
-    destinationAddress: '',
+    securityPolicy: initial?.securityPolicy ?? '',
+    authMechanism: initial?.authMechanism ?? '',
+    encryptionKey: initial?.encryptionKey ?? '',
+    masterKey: initial?.masterKey ?? '',
+    globalBroadcastEncryptionKey: initial?.globalBroadcastEncryptionKey ?? '',
+    clientId: initial?.clientId ?? '',
+    destinationAddress: initial?.destinationAddress ?? '',
   })
   const modalRef = useRef<HTMLDivElement>(null)
   useDismiss(modalRef, onClose)
@@ -496,9 +526,9 @@ export function HlsSecurityDialog({
         <div className="modal-head">
           <div>
             <h2 id="hls-security-title" className="modal-title">
-              Integrate Meter
+              {title}
             </h2>
-            <p className="modal-subtitle">HLS Information</p>
+            <p className="modal-subtitle">{subtitle}</p>
           </div>
           <button
             type="button"

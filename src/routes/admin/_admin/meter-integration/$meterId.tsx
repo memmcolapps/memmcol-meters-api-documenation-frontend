@@ -233,7 +233,10 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [deprecating, setDeprecating] = useState<ObisCode | null>(null)
   const [editing, setEditing] = useState<ObisCode | null>(null)
-  const [viewing, setViewing] = useState<ObisCode | null>(null)
+  const [viewing, setViewing] = useState<{
+    code: ObisCode
+    mode: 'realtime' | 'profile'
+  } | null>(null)
   const [addMenuOpen, setAddMenuOpen] = useState(false)
   const [addMode, setAddMode] = useState<'realtime' | 'profile' | null>(null)
   const [uploadOpen, setUploadOpen] = useState(false)
@@ -485,6 +488,7 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
                     <th>S/N</th>
                     <th>OBIS Action</th>
                     <th>OBIS Code</th>
+                    <th>Type</th>
                     <th>Description</th>
                     <th>Created Date</th>
                     <th>Status</th>
@@ -507,6 +511,7 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
                       </td>
                       <td>{code.action}</td>
                       <td>{code.code}</td>
+                      <td>{code.type || '—'}</td>
                       <td>{code.description}</td>
                       <td>{formatAddedDate(new Date(code.createdAt))}</td>
                       <td>
@@ -527,9 +532,13 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
                             setOpenMenu((current) => current === code.id ? null : code.id)
                           }
                           onClose={() => setOpenMenu(null)}
-                          onView={() => {
+                          onViewRealtime={() => {
                             setOpenMenu(null)
-                            setViewing(code)
+                            setViewing({ code, mode: 'realtime' })
+                          }}
+                          onViewProfile={() => {
+                            setOpenMenu(null)
+                            setViewing({ code, mode: 'profile' })
                           }}
                           onEdit={() => openEditModal(code)}
                           onDeprecate={() => {
@@ -581,7 +590,6 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
           title="Add Real-time OBIS Code"
           submitLabel="Add OBIS"
           submittingLabel="Adding…"
-          showDescription={false}
           isSubmitting={createObisCode.isPending}
           fieldErrors={fieldErrors}
           onFieldChange={(field) => {
@@ -694,7 +702,11 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
       ) : null}
 
       {viewing ? (
-        <ViewObisCodeModal code={viewing} onClose={() => setViewing(null)} />
+        viewing.mode === 'realtime' ? (
+          <ViewRealtimeObisCodeModal code={viewing.code} onClose={() => setViewing(null)} />
+        ) : (
+          <ViewObisCodeModal code={viewing.code} onClose={() => setViewing(null)} />
+        )
       ) : null}
     </section>
   )
@@ -760,6 +772,84 @@ function ViewObisCodeModal({ code, onClose }: { code: ObisCode; onClose: () => v
               </div>
             </div>
           )}
+
+          <div className="view-grid">
+            <div className="view-cell view-cell-wide">
+              <span className="view-label">Description</span>
+              <span className="view-value">{code.description || '—'}</span>
+            </div>
+          </div>
+
+          <div className="modal-foot">
+            <button type="button" className="btn-outline" onClick={onClose}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ViewRealtimeObisCodeModal({ code, onClose }: { code: ObisCode; onClose: () => void }) {
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDismiss(modalRef, onClose)
+
+  return (
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="view-obis-code-title"
+    >
+      <div className="modal view-modal" ref={modalRef}>
+        <div className="modal-head">
+          <div>
+            <h2 id="view-obis-code-title" className="modal-title">View OBIS Code</h2>
+          </div>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Close"
+            onClick={onClose}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div className="modal-body">
+          <div className="view-grid">
+            <div className="view-cell">
+              <span className="view-label">OBIS Action</span>
+              <span className="view-value">{code.action}</span>
+            </div>
+            <div className="view-cell">
+              <span className="view-label">OBIS Code</span>
+              <span className="view-value"><code>{code.code}</code></span>
+            </div>
+            <div className="view-cell">
+              <span className="view-label">Scaler</span>
+              <span className="view-value">{code.scaler || '—'}</span>
+            </div>
+            <div className="view-cell">
+              <span className="view-label">Unit</span>
+              <span className="view-value">{code.unit || '—'}</span>
+            </div>
+            <div className="view-cell">
+              <span className="view-label">Multiply By</span>
+              <span className="view-value">{code.multiplyBy || '—'}</span>
+            </div>
+            <div className="view-cell">
+              <span className="view-label">Action Type</span>
+              <span className="view-value">{code.actionType || '—'}</span>
+            </div>
+            <div className="view-cell">
+              <span className="view-label">OBIS Type</span>
+              <span className="view-value">{code.type || '—'}</span>
+            </div>
+            <div className="view-cell">
+              <span className="view-label">Description</span>
+              <span className="view-value">{code.description || '—'}</span>
+            </div>
+          </div>
 
           <div className="modal-foot">
             <button type="button" className="btn-outline" onClick={onClose}>Cancel</button>
@@ -872,7 +962,8 @@ function ObisRowActions({
   isPending,
   onToggle,
   onClose,
-  onView,
+  onViewRealtime,
+  onViewProfile,
   onEdit,
   onDeprecate,
   onActivate,
@@ -882,13 +973,17 @@ function ObisRowActions({
   isPending: boolean
   onToggle: () => void
   onClose: () => void
-  onView: () => void
+  onViewRealtime: () => void
+  onViewProfile: () => void
   onEdit: () => void
   onDeprecate: () => void
   onActivate: () => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const viewRef = useRef<HTMLDivElement>(null)
+  const [viewOpen, setViewOpen] = useState(false)
   useDismiss(ref, onClose, isOpen)
+  useDismiss(viewRef, () => setViewOpen(false), viewOpen)
   const { anchorRef, menuStyle } = useAnchoredMenu(isOpen, 100)
 
   return (
@@ -905,14 +1000,37 @@ function ObisRowActions({
       </button>
       {isOpen ? (
         <div className="row-menu" style={menuStyle} role="menu">
-          <button
-            type="button"
-            className="row-menu-item"
-            role="menuitem"
-            onClick={onView}
-          >
-            <EyeIcon /> View OBIS Code
-          </button>
+          <div className="row-menu-group" ref={viewRef}>
+            <button
+              type="button"
+              className="row-menu-item"
+              role="menuitem"
+              aria-expanded={viewOpen}
+              onClick={() => setViewOpen((current) => !current)}
+            >
+              <EyeIcon /> View OBIS Code <ChevronRightIcon />
+            </button>
+            {viewOpen ? (
+              <div className="row-menu row-menu-sub" role="menu">
+                <button
+                  type="button"
+                  className="row-menu-item"
+                  role="menuitem"
+                  onClick={onViewRealtime}
+                >
+                  <ClockCheckIcon /> Real-time OBIS Code
+                </button>
+                <button
+                  type="button"
+                  className="row-menu-item"
+                  role="menuitem"
+                  onClick={onViewProfile}
+                >
+                  <ClockRewindIcon /> Profile OBIS Code
+                </button>
+              </div>
+            ) : null}
+          </div>
           <button
             type="button"
             className="row-menu-item"
@@ -1298,8 +1416,6 @@ function ObisFormModal({
           {isIntegratedPicker ? (
             <div className="modal-field">
               <label>Integrated Real-time Actions</label>
-              
-              +
               <div className="integrated-actions" ref={actionsRef}>
                 <button
                   type="button"
@@ -1365,7 +1481,8 @@ function ObisFormModal({
                 <span className="modal-field-error" role="alert">{fieldErrors.description}</span>
               ) : null}
             </div>
-          ) : showDescription ? (
+          ) : null}
+          {showDescription ? (
             <div className="modal-field">
               <label>{labelPrefix}Description</label>
               <textarea
@@ -1397,9 +1514,7 @@ function ObisFormModal({
               onClick={() => canSubmit && onSubmit({
                 action: action.trim(),
                 code: code.trim(),
-                description: isIntegratedPicker
-                  ? ''
-                  : description.trim(),
+                description: description.trim(),
               })}
             >
               {isSubmitting ? submittingLabel : submitLabel}
@@ -1543,6 +1658,14 @@ function ChevronDownIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m9 18 6-6-6-6" />
     </svg>
   )
 }
