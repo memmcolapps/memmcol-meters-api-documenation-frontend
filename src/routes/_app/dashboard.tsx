@@ -7,9 +7,9 @@ import {
   useDashboardSummary,
 } from "../../features/customer-dashboard/customerDashboardQueries";
 
-export const Route = createFileRoute('/_app/dashboard')({
+export const Route = createFileRoute("/_app/dashboard")({
   component: DashboardPage,
-})
+});
 
 const monthYear = (date: Date) =>
   date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
@@ -31,6 +31,27 @@ function DashboardPage() {
   const chartMax = Math.max(...usageByService.map((item) => item.calls), 1);
   const yTicks = buildTicks(chartMax);
   const axisMax = yTicks[0];
+  const [hoveredSegment, setHoveredSegment] = useState<
+    "success" | "error" | null
+  >(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  const successRate = summary?.successRate ?? 0;
+  const errorRate = 100 - successRate;
+  const successDash = (successRate / 100) * circumference;
+  const errorDash = (errorRate / 100) * circumference;
+
+  const handleMouseMove = (e: React.MouseEvent<SVGCircleElement>) => {
+    const wrapRect = e.currentTarget
+      .closest(".donut-wrap")!
+      .getBoundingClientRect();
+    setTooltipPos({
+      x: e.clientX - wrapRect.left,
+      y: e.clientY - wrapRect.top,
+    });
+  };
 
   return (
     <div className="dash">
@@ -148,16 +169,60 @@ function DashboardPage() {
                   </span>
                 </div>
               </div>
+
               <div className="gauge">
-                <div
-                  className="donut"
-                  style={{
-                    background: `conic-gradient(var(--app-green) 0 ${summary.successRate}%, #d64545 ${summary.successRate}% 100%)`,
-                  }}
-                  role="img"
-                  aria-label={`Success rate ${summary.successRate}%, error rate ${(100 - summary.successRate).toFixed(2)}%`}
-                >
-                  <div className="donut-hole" />
+                <div className="donut-wrap">
+                  <svg
+                    viewBox="0 0 120 120"
+                    width="220"
+                    height="220"
+                    role="img"
+                    aria-label={`Success rate ${successRate}%, error rate ${errorRate.toFixed(2)}%`}
+                  >
+                    {/* Success arc */}
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r={radius}
+                      fill="none"
+                      stroke="var(--app-green)"
+                      strokeWidth="22"
+                      strokeDasharray={`${successDash} ${circumference - successDash}`}
+                      strokeDashoffset="0"
+                      transform="rotate(-90 60 60)"
+                      onMouseEnter={() => setHoveredSegment("success")}
+                      onMouseMove={handleMouseMove}
+                      onMouseLeave={() => setHoveredSegment(null)}
+                      style={{ cursor: "pointer", transition: "opacity 0.15s" }}
+                    />
+                    {/* Error arc */}
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r={radius}
+                      fill="none"
+                      stroke="#d64545"
+                      strokeWidth="22"
+                      strokeDasharray={`${errorDash} ${circumference - errorDash}`}
+                      strokeDashoffset={-successDash}
+                      transform="rotate(-90 60 60)"
+                      onMouseEnter={() => setHoveredSegment("error")}
+                      onMouseMove={handleMouseMove}
+                      onMouseLeave={() => setHoveredSegment(null)}
+                      style={{ cursor: "pointer", transition: "opacity 0.15s" }}
+                    />
+                  </svg>
+
+                  {hoveredSegment && (
+                    <div
+                      className={`donut-tooltip ${hoveredSegment === "success" ? "is-success" : "is-error"}`}
+                      style={{ left: tooltipPos.x, top: tooltipPos.y }}
+                    >
+                      {hoveredSegment === "success"
+                        ? `Success: ${successRate}%`
+                        : `Error: ${errorRate.toFixed(2)}%`}
+                    </div>
+                  )}
                 </div>
               </div>
             </article>
