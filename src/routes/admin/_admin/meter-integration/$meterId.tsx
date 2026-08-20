@@ -302,6 +302,10 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
         action: values.action,
         code: values.code,
         ...(values.description ? { description: values.description } : {}),
+        ...(values.scaler ? { scaler: values.scaler } : {}),
+        ...(values.unit ? { unit: values.unit } : {}),
+        ...(values.multiplyBy ? { multiplyBy: values.multiplyBy } : {}),
+        ...(values.actionType ? { actionType: values.actionType } : {}),
       })
       setAddMode(null)
       showToast({
@@ -364,6 +368,10 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
         action: values.action,
         code: values.code,
         ...(values.description ? { description: values.description } : {}),
+        ...(values.scaler ? { scaler: values.scaler } : {}),
+        ...(values.unit ? { unit: values.unit } : {}),
+        ...(values.multiplyBy ? { multiplyBy: values.multiplyBy } : {}),
+        ...(values.actionType ? { actionType: values.actionType } : {}),
       })
       setEditing(null)
       showToast({
@@ -521,7 +529,7 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
                       </td>
                       <td>{code.action}</td>
                       <td>{code.code}</td>
-                      <td>{code.type || '—'}</td>
+                      <td>{code.obisType || '—'}</td>
                       <td>{code.description}</td>
                       <td>{formatAddedDate(new Date(code.createdAt))}</td>
                       <td>
@@ -643,65 +651,65 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
         />
       ) : null}
 
-      {editing ? (
-        editing.mode === 'realtime' ? (
-          <ObisFormModal
-            title="Edit Real-time OBIS Code"
-            submitLabel="Save Changes"
-            submittingLabel="Saving…"
-            showRealtimeDetails
-            initial={{
-              action: editing.code.action,
-              code: editing.code.code,
-              description: editing.code.description,
-              scaler: editing.code.scaler,
-              unit: editing.code.unit,
-              multiplyBy: editing.code.multiplyBy,
-              actionType: editing.code.actionType,
-            }}
-            isSubmitting={updateObisCode.isPending}
-            fieldErrors={fieldErrors}
-            onFieldChange={(field) => {
-              setFieldErrors((current) => {
-                if (!current[field]) return current
-                const next = { ...current }
-                delete next[field]
-                return next
-              })
-            }}
-            onClose={() => {
-              if (!updateObisCode.isPending) setEditing(null)
-            }}
-            onSubmit={editCode}
-          />
-        ) : (
-          <ObisFormModal
-            title="Edit Profile OBIS Code"
-            submitLabel="Save Changes"
-            submittingLabel="Saving…"
-            labelPrefix="Profile "
-            initial={{
-              action: editing.code.action,
-              code: editing.code.code,
-              description: editing.code.description,
-            }}
-            integratedActions={availableActions}
-            isSubmitting={updateObisCode.isPending}
-            fieldErrors={fieldErrors}
-            onFieldChange={(field) => {
-              setFieldErrors((current) => {
-                if (!current[field]) return current
-                const next = { ...current }
-                delete next[field]
-                return next
-              })
-            }}
-            onClose={() => {
-              if (!updateObisCode.isPending) setEditing(null)
-            }}
-            onSubmit={editCode}
-          />
-        )
+      {editing?.mode === 'realtime' && editing ? (
+        <ObisFormModal
+          title="Edit Real-time OBIS Code"
+          submitLabel="Save Changes"
+          submittingLabel="Saving…"
+          showRealtimeDetails
+          initial={{
+            action: editing.code.action,
+            code: editing.code.code,
+            description: editing.code.description,
+            scaler: editing.code.scaler ?? '',
+            unit: editing.code.unit ?? '',
+            multiplyBy: editing.code.multiplyBy ?? '',
+            actionType: editing.code.actionType ?? '',
+          }}
+          isSubmitting={updateObisCode.isPending}
+          fieldErrors={fieldErrors}
+          onFieldChange={(field) => {
+            setFieldErrors((current) => {
+              if (!current[field]) return current
+              const next = { ...current }
+              delete next[field]
+              return next
+            })
+          }}
+          onClose={() => {
+            if (!updateObisCode.isPending) setEditing(null)
+          }}
+          onSubmit={editCode}
+        />
+      ) : null}
+
+      {editing?.mode === 'profile' ? (
+        <ObisFormModal
+          title="Edit Profile OBIS Code"
+          submitLabel="Save Changes"
+          submittingLabel="Saving…"
+          labelPrefix="Profile "
+          initial={{
+            action: editing.code.action,
+            code: editing.code.code,
+            description: editing.code.description,
+          }}
+          integratedActions={availableActions}
+          isSubmitting={updateObisCode.isPending}
+          fieldErrors={fieldErrors}
+          onFieldChange={(field) => {
+            setFieldErrors((current) => {
+              if (!current[field]) return current
+              const next = { ...current }
+              delete next[field]
+              return next
+            })
+          }}
+          onClose={() => {
+            if (!updateObisCode.isPending) setEditing(null)
+          }}
+          onSubmit={editCode}
+        />
       ) : null}
 
       {uploadOpen ? (
@@ -795,11 +803,11 @@ function ViewObisCodeModal({ code, onClose }: { code: ObisCode; onClose: () => v
             </div>
             <div className="view-cell">
               <span className="view-label">OBIS Type</span>
-              <span className="view-value">{code.type || '—'}</span>
+              <span className="view-value">{code.obisType || '—'}</span>
             </div>
             <div className="view-cell">
               <span className="view-label">Linked Real-Time Code</span>
-              <span className="view-value">{code.linkedRealTimeCode || '—'}</span>
+              <span className="view-value">{code.linkedRealTimeCodes?.map((c) => c.action).join(', ') || '—'}</span>
             </div>
           </div>
 
@@ -888,7 +896,7 @@ function ViewRealtimeObisCodeModal({ code, onClose }: { code: ObisCode; onClose:
             </div>
             <div className="view-cell">
               <span className="view-label">OBIS Type</span>
-              <span className="view-value">{code.type || '—'}</span>
+              <span className="view-value">{code.obisType || '—'}</span>
             </div>
             <div className="view-cell">
               <span className="view-label">Description</span>
@@ -1404,7 +1412,7 @@ function ObisFormModal({
   title: string
   submitLabel: string
   submittingLabel: string
-  initial?: ObisFormValues & ObisRealtimeInitial
+  initial?: Pick<ObisFormValues, 'action' | 'code' | 'description'> & ObisRealtimeInitial
   isSubmitting: boolean
   fieldErrors: Partial<Record<ObisFormField, string>>
   onFieldChange: (field: ObisFormField) => void
@@ -1648,6 +1656,10 @@ function ObisFormModal({
                 action: action.trim(),
                 code: code.trim(),
                 description: description.trim(),
+                scaler: scaler.trim(),
+                unit: unit.trim(),
+                multiplyBy: multiplyBy.trim(),
+                actionType: actionType.trim(),
               })}
             >
               {isSubmitting ? submittingLabel : submitLabel}
