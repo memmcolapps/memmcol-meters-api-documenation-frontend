@@ -102,6 +102,10 @@ export type CreateObisCodeInput = {
   action: string
   code: string
   description?: string
+  scaler?: string
+  unit?: string
+  multiplyBy?: string
+  actionType?: string
 }
 
 export type UpdateObisCodeInput = CreateObisCodeInput & {
@@ -118,8 +122,12 @@ export type ObisCode = {
   description: string
   status: ObisCodeStatus
   statusReason?: string
-  type?: string
-  linkedRealTimeCode?: string
+  obisType?: string
+  linkedRealTimeCodes?: {
+    action: string
+    code: string
+  }[] | null
+  linkedRealTimeCodeCount?: number
   scaler?: string
   unit?: string
   multiplyBy?: string
@@ -414,6 +422,10 @@ async function updateObisCode(
         ...(input.description !== undefined
           ? { description: input.description }
           : {}),
+        ...(input.scaler !== undefined ? { scaler: input.scaler } : {}),
+        ...(input.unit !== undefined ? { unit: input.unit } : {}),
+        ...(input.multiplyBy !== undefined ? { multiplyBy: input.multiplyBy } : {}),
+        ...(input.actionType !== undefined ? { actionType: input.actionType } : {}),
       },
     },
   )
