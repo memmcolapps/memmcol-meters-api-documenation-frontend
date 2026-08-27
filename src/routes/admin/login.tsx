@@ -1,74 +1,74 @@
-import { useState, type FormEvent } from 'react'
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { Logo } from '../../app/Logo'
-import { useToast } from '../../app/toastContext'
-import { getAuthError } from '../../features/auth/errors'
+import { useState, type FormEvent } from "react";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Logo } from "../../app/Logo";
+import { useToast } from "../../app/toastContext";
+import { getAuthError } from "../../features/auth/errors";
 import {
   useAdminLogin,
   type AdminLoginInput,
-} from '../../features/auth/adminLogin'
+} from "../../features/auth/adminLogin";
 import {
   getSchemaFieldErrors,
   loginSchema,
   summarizeFieldErrors,
-} from '../../features/auth/schemas'
+} from "../../features/auth/schemas";
 
-export const Route = createFileRoute('/admin/login')({
+export const Route = createFileRoute("/admin/login")({
   component: AdminLoginPage,
-})
+});
 
 function AdminLoginPage() {
-  const [showPassword, setShowPassword] = useState(false)
+  const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof AdminLoginInput, string>>
-  >({})
-  const login = useAdminLogin()
-  const navigate = useNavigate()
-  const { showToast } = useToast()
+  >({});
+  const login = useAdminLogin();
+  const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const clearFieldError = (field: keyof AdminLoginInput) => {
     setFieldErrors((current) => {
-      if (!current[field]) return current
-      const next = { ...current }
-      delete next[field]
-      return next
-    })
-  }
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setFieldErrors({})
+    event.preventDefault();
+    setFieldErrors({});
 
-    const data = new FormData(event.currentTarget)
+    const data = new FormData(event.currentTarget);
     const result = loginSchema.safeParse({
-      email: String(data.get('email') ?? ''),
-      password: String(data.get('password') ?? ''),
-    })
+      email: String(data.get("email") ?? ""),
+      password: String(data.get("password") ?? ""),
+    });
 
     if (!result.success) {
-      const errors = getSchemaFieldErrors<keyof AdminLoginInput>(result.error)
-      setFieldErrors(errors)
+      const errors = getSchemaFieldErrors<keyof AdminLoginInput>(result.error);
+      setFieldErrors(errors);
       showToast({
-        title: 'Review the highlighted fields',
+        title: "Review the highlighted fields",
         message: summarizeFieldErrors(errors),
-        variant: 'error',
-      })
-      return
+        variant: "error",
+      });
+      return;
     }
 
     try {
-      await login.mutateAsync(result.data)
-      await navigate({ to: '/admin/dashboard' })
+      await login.mutateAsync(result.data);
+      await navigate({ to: "/admin/dashboard" });
     } catch (error) {
-      const authError = getAuthError(error)
-      setFieldErrors(authError.fields)
+      const authError = getAuthError(error);
+      setFieldErrors(authError.fields);
       showToast({
         title: authError.message,
         message: summarizeFieldErrors(authError.fields),
-        variant: 'error',
-      })
+        variant: "error",
+      });
     }
-  }
+  };
 
   return (
     <div className="auth-wrap admin">
@@ -93,27 +93,29 @@ function AdminLoginPage() {
               placeholder="Enter your email"
               required
               aria-invalid={Boolean(fieldErrors.email)}
-              onChange={() => clearFieldError('email')}
+              onChange={() => clearFieldError("email")}
             />
           </div>
 
           <div className="auth-field">
             <label htmlFor="password">Password</label>
-            <div className={`auth-input-group${fieldErrors.password ? ' is-invalid' : ''}`}>
+            <div
+              className={`auth-input-group${fieldErrors.password ? " is-invalid" : ""}`}
+            >
               <input
                 id="password"
-                type={showPassword ? 'text' : 'password'}
+                type={showPassword ? "text" : "password"}
                 name="password"
                 autoComplete="current-password"
                 placeholder="Enter your password"
                 required
                 aria-invalid={Boolean(fieldErrors.password)}
-                onChange={() => clearFieldError('password')}
+                onChange={() => clearFieldError("password")}
               />
               <button
                 type="button"
                 className="auth-toggle"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? "Hide password" : "Show password"}
                 aria-pressed={showPassword}
                 onClick={() => setShowPassword((value) => !value)}
               >
@@ -126,13 +128,17 @@ function AdminLoginPage() {
             Forgot Password?
           </Link>
 
-          <button type="submit" className="auth-submit auth-cta" disabled={login.isPending}>
-            {login.isPending ? 'Signing in…' : 'Sign In'}
+          <button
+            type="submit"
+            className="auth-submit auth-cta"
+            disabled={login.isPending}
+          >
+            {login.isPending ? "Signing in…" : "Sign In"}
           </button>
         </form>
       </section>
     </div>
-  )
+  );
 }
 
 function EyeOffIcon() {
@@ -153,7 +159,7 @@ function EyeOffIcon() {
       <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
       <line x1="2" y1="2" x2="22" y2="22" />
     </svg>
-  )
+  );
 }
 
 function EyeIcon() {
@@ -172,5 +178,5 @@ function EyeIcon() {
       <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
       <circle cx="12" cy="12" r="3" />
     </svg>
-  )
+  );
 }
