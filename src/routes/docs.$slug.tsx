@@ -8,7 +8,7 @@ import {
 } from "../features/public-apis/publicApiQueries";
 import { usePublicMeterIntegrations } from "../features/public-meter-integrations/publicMeterIntegrationQueries";
 import { ApiError } from "../lib/api/client";
-import { formatDateTime, formatStatusLabel } from "../lib/format";
+import { formatDateTime, formatJson, formatStatusLabel } from "../lib/format";
 
 export const Route = createFileRoute("/docs/$slug")({
   component: DocPage,
@@ -266,7 +266,7 @@ function SampleBlock({ title, value }: { title: string; value: string }) {
     <section className="doc-section">
       <h2 className="doc-section-heading">{title}</h2>
       <pre className="api-reference-code">
-        <code>{value}</code>
+        <code>{formatJson(value)}</code>
       </pre>
     </section>
   );

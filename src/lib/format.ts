@@ -60,3 +60,22 @@ export function formatStatusLabel(value: unknown, fallback = 'Unknown') {
 export function toList<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : []
 }
+
+/**
+ * A JSON string re-indented for display, so sample payloads and responses read
+ * as code rather than as one long line.
+ *
+ * Admins paste these by hand, so the text is not guaranteed to parse. Invalid
+ * JSON is handed back untouched instead of being swallowed — they still need to
+ * see and correct what they typed.
+ */
+export function formatJson(value: unknown) {
+  if (typeof value !== 'string') return ''
+  const text = value.trim()
+  if (!text) return ''
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2)
+  } catch {
+    return text
+  }
+}

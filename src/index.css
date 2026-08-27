@@ -3989,6 +3989,23 @@ h1 {
   font-family: var(--font-mono);
   font-size: 0.95rem;
   line-height: 1.6;
+  white-space: pre;
+  tab-size: 2;
+}
+
+/* Read-only JSON samples on the API management screens. */
+.api-code-block {
+  margin: 0;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid #d7e1da;
+  border-radius: 10px;
+  background: #13231d;
+  color: #ecf6f0;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
 }
 
 .api-view-docs-field {

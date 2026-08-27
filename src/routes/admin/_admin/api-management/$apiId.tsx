@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AsyncState } from "../../../../app/AsyncState";
 import { useToast } from "../../../../app/toastContext";
+import { PLACEHOLDER, formatJson } from "../../../../lib/format";
 import {
   getApiPublicationError,
   getApiUpdateError,
@@ -256,41 +257,23 @@ function ApiView({ api }: { api: AdminApi }) {
           ) : null}
         </div>
 
-        <div className="modal-field">
-          <label>Sample Payload</label>
-          <textarea
-            className="modal-input api-view-code"
-            rows={5}
-            value={shown.samplePayload}
-            readOnly={!editing}
-            disabled={updateApi.isPending}
-            aria-invalid={editing && Boolean(fieldErrors.samplePayload)}
-            onChange={(e) => set("samplePayload", e.target.value)}
-          />
-          {editing && fieldErrors.samplePayload ? (
-            <span className="modal-field-error" role="alert">
-              {fieldErrors.samplePayload}
-            </span>
-          ) : null}
-        </div>
+        <JsonField
+          label="Sample Payload"
+          value={shown.samplePayload}
+          editing={editing}
+          disabled={updateApi.isPending}
+          error={editing ? fieldErrors.samplePayload : undefined}
+          onChange={(value) => set("samplePayload", value)}
+        />
 
-        <div className="modal-field">
-          <label>Sample Response</label>
-          <textarea
-            className="modal-input api-view-code"
-            rows={5}
-            value={shown.sampleRequest}
-            readOnly={!editing}
-            disabled={updateApi.isPending}
-            aria-invalid={editing && Boolean(fieldErrors.sampleRequest)}
-            onChange={(e) => set("sampleRequest", e.target.value)}
-          />
-          {editing && fieldErrors.sampleRequest ? (
-            <span className="modal-field-error" role="alert">
-              {fieldErrors.sampleRequest}
-            </span>
-          ) : null}
-        </div>
+        <JsonField
+          label="Sample Response"
+          value={shown.sampleRequest}
+          editing={editing}
+          disabled={updateApi.isPending}
+          error={editing ? fieldErrors.sampleRequest : undefined}
+          onChange={(value) => set("sampleRequest", value)}
+        />
 
         <div className="modal-field api-view-docs-field">
           <label>Documentation</label>
@@ -324,6 +307,52 @@ function ApiView({ api }: { api: AdminApi }) {
           ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Sample payload and response are JSON, so they are shown as an indented code
+ * block when reading and re-indented on blur when editing.
+ */
+function JsonField({
+  label,
+  value,
+  editing,
+  disabled,
+  error,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  editing: boolean;
+  disabled: boolean;
+  error?: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="modal-field">
+      <label>{label}</label>
+      {editing ? (
+        <textarea
+          className="modal-input api-view-code"
+          rows={8}
+          value={value}
+          disabled={disabled}
+          aria-invalid={Boolean(error)}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={(e) => onChange(formatJson(e.target.value))}
+        />
+      ) : (
+        <pre className="api-code-block">
+          <code>{formatJson(value) || PLACEHOLDER}</code>
+        </pre>
+      )}
+      {error ? (
+        <span className="modal-field-error" role="alert">
+          {error}
+        </span>
+      ) : null}
     </div>
   );
 }

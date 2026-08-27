@@ -4,6 +4,7 @@ import { useDismiss } from "../../../../app/useDismiss";
 import { useAnchoredMenu } from "../../../../app/useAnchoredMenu";
 import { ConfirmModal } from "../../../../app/ConfirmModal";
 import { useToast } from "../../../../app/toastContext";
+import { formatJson } from "../../../../lib/format";
 import {
   getApiPublicationError,
   getApiStatusError,
@@ -599,8 +600,8 @@ function ApiFormModal({
     name: initial?.name ?? "",
     route: initial?.route ?? "",
     cost: initial?.cost ?? "",
-    samplePayload: initial?.samplePayload ?? "",
-    sampleRequest: initial?.sampleRequest ?? "",
+    samplePayload: formatJson(initial?.samplePayload),
+    sampleRequest: formatJson(initial?.sampleRequest),
     documentation: initial?.documentation ?? "",
   });
   const modalRef = useRef<HTMLDivElement>(null);
@@ -722,12 +723,13 @@ function ApiFormModal({
               <label>Sample Payload</label>
               <textarea
                 className="modal-input api-view-code"
-                rows={5}
+                rows={8}
                 placeholder={'{\n  "productId": "PROD-101"\n}'}
                 value={form.samplePayload}
                 disabled={isSubmitting}
                 aria-invalid={Boolean(fieldErrors.samplePayload)}
                 onChange={(e) => set("samplePayload", e.target.value)}
+                onBlur={(e) => set("samplePayload", formatJson(e.target.value))}
               />
               {fieldErrors.samplePayload ? (
                 <span className="modal-field-error" role="alert">
@@ -739,12 +741,13 @@ function ApiFormModal({
               <label>Sample Response</label>
               <textarea
                 className="modal-input api-view-code"
-                rows={5}
+                rows={8}
                 placeholder={'{\n  "productId": "PROD-101"\n}'}
                 value={form.sampleRequest}
                 disabled={isSubmitting}
                 aria-invalid={Boolean(fieldErrors.sampleRequest)}
                 onChange={(e) => set("sampleRequest", e.target.value)}
+                onBlur={(e) => set("sampleRequest", formatJson(e.target.value))}
               />
               {fieldErrors.sampleRequest ? (
                 <span className="modal-field-error" role="alert">
