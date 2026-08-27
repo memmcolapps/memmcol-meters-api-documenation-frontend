@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
-import { AsyncState } from '../../../../app/AsyncState'
-import { useToast } from '../../../../app/toastContext'
+import { useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { AsyncState } from "../../../../app/AsyncState";
+import { useToast } from "../../../../app/toastContext";
 import {
   getApiPublicationError,
   getApiUpdateError,
@@ -10,23 +10,23 @@ import {
   useUpdateApiService,
   type AdminApi,
   type AdminApiPublication,
-} from '../../../../features/admin-apis'
+} from "../../../../features/admin-apis";
 
 type ApiEditableField =
-  | 'name'
-  | 'route'
-  | 'cost'
-  | 'samplePayload'
-  | 'sampleRequest'
-  | 'documentation'
+  | "name"
+  | "route"
+  | "cost"
+  | "samplePayload"
+  | "sampleRequest"
+  | "documentation";
 
-export const Route = createFileRoute('/admin/_admin/api-management/$apiId')({
+export const Route = createFileRoute("/admin/_admin/api-management/$apiId")({
   component: ApiViewPage,
-})
+});
 
 function ApiViewPage() {
-  const { apiId } = Route.useParams()
-  const apiQuery = useAdminApi(apiId)
+  const { apiId } = Route.useParams();
+  const apiQuery = useAdminApi(apiId);
 
   return (
     <AsyncState
@@ -36,10 +36,10 @@ function ApiViewPage() {
     >
       {apiQuery.data ? <ApiView api={apiQuery.data} /> : null}
     </AsyncState>
-  )
+  );
 }
 
-type ApiDraft = Record<ApiEditableField, string>
+type ApiDraft = Record<ApiEditableField, string>;
 
 function createApiDraft(api: AdminApi): ApiDraft {
   return {
@@ -49,44 +49,44 @@ function createApiDraft(api: AdminApi): ApiDraft {
     samplePayload: api.samplePayload,
     sampleRequest: api.sampleRequest,
     documentation: api.documentation,
-  }
+  };
 }
 
 function ApiView({ api }: { api: AdminApi }) {
-  const { showToast } = useToast()
-  const changePublication = useChangeApiPublication()
-  const updateApi = useUpdateApiService()
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState<ApiDraft>(() => createApiDraft(api))
+  const { showToast } = useToast();
+  const changePublication = useChangeApiPublication();
+  const updateApi = useUpdateApiService();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<ApiDraft>(() => createApiDraft(api));
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<ApiEditableField, string>>
-  >({})
+  >({});
 
   const set = (key: ApiEditableField, value: string) => {
-    setDraft((current) => ({ ...current, [key]: value }))
+    setDraft((current) => ({ ...current, [key]: value }));
     setFieldErrors((current) => {
-      if (!current[key]) return current
-      const next = { ...current }
-      delete next[key]
-      return next
-    })
-  }
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
 
   const toggleEdit = async () => {
     if (!editing) {
-      setDraft(createApiDraft(api))
-      setFieldErrors({})
-      setEditing(true)
-      return
+      setDraft(createApiDraft(api));
+      setFieldErrors({});
+      setEditing(true);
+      return;
     }
 
-    const cost = Number(draft.cost)
+    const cost = Number(draft.cost);
     if (!Number.isFinite(cost)) {
-      setFieldErrors({ cost: 'Cost must be a valid number.' })
-      return
+      setFieldErrors({ cost: "Cost must be a valid number." });
+      return;
     }
 
-    setFieldErrors({})
+    setFieldErrors({});
     try {
       const updatedApi = await updateApi.mutateAsync({
         apiId: api.id,
@@ -96,57 +96,68 @@ function ApiView({ api }: { api: AdminApi }) {
         samplePayload: draft.samplePayload,
         sampleRequest: draft.sampleRequest,
         documentation: draft.documentation,
-      })
-      setEditing(false)
+      });
+      setEditing(false);
       showToast({
-        title: 'API updated',
+        title: "API updated",
         message: `${updatedApi.name} was updated successfully.`,
-        variant: 'success',
-      })
+        variant: "success",
+      });
     } catch (error) {
-      const apiError = getApiUpdateError(error)
-      const fields = apiError.fields as Partial<Record<ApiEditableField, string>>
-      setFieldErrors(fields)
+      const apiError = getApiUpdateError(error);
+      const fields = apiError.fields as Partial<
+        Record<ApiEditableField, string>
+      >;
+      setFieldErrors(fields);
       showToast({
         title: apiError.message,
-        message: [
-          [...new Set(Object.values(fields))].join(' '),
-          apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
-        ].filter(Boolean).join(' · ') || undefined,
-        variant: 'error',
-      })
+        message:
+          [
+            [...new Set(Object.values(fields))].join(" "),
+            apiError.requestId ? `Request ID: ${apiError.requestId}` : "",
+          ]
+            .filter(Boolean)
+            .join(" · ") || undefined,
+        variant: "error",
+      });
     }
-  }
+  };
 
   const togglePublication = async () => {
     const publication: AdminApiPublication =
-      api.publication === 'PUBLISHED' ? 'UNPUBLISHED' : 'PUBLISHED'
+      api.publication === "PUBLISHED" ? "UNPUBLISHED" : "PUBLISHED";
 
     try {
       await changePublication.mutateAsync({
         apiId: api.id,
         publication,
-      })
+      });
       showToast({
-        title: publication === 'PUBLISHED' ? 'API published' : 'API unpublished',
+        title:
+          publication === "PUBLISHED" ? "API published" : "API unpublished",
         message: `${api.name} is now ${publication.toLowerCase()}.`,
-        variant: 'success',
-      })
+        variant: "success",
+      });
     } catch (error) {
-      const apiError = getApiPublicationError(error)
-      const fieldMessage = [...new Set(Object.values(apiError.fields))].join(' ')
+      const apiError = getApiPublicationError(error);
+      const fieldMessage = [...new Set(Object.values(apiError.fields))].join(
+        " ",
+      );
       showToast({
         title: apiError.message,
-        message: [
-          fieldMessage,
-          apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
-        ].filter(Boolean).join(' · ') || undefined,
-        variant: 'error',
-      })
+        message:
+          [
+            fieldMessage,
+            apiError.requestId ? `Request ID: ${apiError.requestId}` : "",
+          ]
+            .filter(Boolean)
+            .join(" · ") || undefined,
+        variant: "error",
+      });
     }
-  }
+  };
 
-  const shown = editing ? draft : createApiDraft(api)
+  const shown = editing ? draft : createApiDraft(api);
 
   return (
     <div className="dash">
@@ -160,7 +171,12 @@ function ApiView({ api }: { api: AdminApi }) {
       </header>
 
       <div className="dash-tabs" role="tablist">
-        <button type="button" className="dash-tab is-active" role="tab" aria-selected="true">
+        <button
+          type="button"
+          className="dash-tab is-active"
+          role="tab"
+          aria-selected="true"
+        >
           APIs
         </button>
       </div>
@@ -168,11 +184,11 @@ function ApiView({ api }: { api: AdminApi }) {
       <div className="api-view-actions">
         <button
           type="button"
-          className={editing ? 'btn-primary' : 'btn-neutral'}
+          className={editing ? "btn-primary" : "btn-neutral"}
           disabled={updateApi.isPending}
           onClick={() => void toggleEdit()}
         >
-          {updateApi.isPending ? 'Please wait…' : editing ? 'Save' : 'Edit'}
+          {updateApi.isPending ? "Please wait…" : editing ? "Save" : "Edit"}
         </button>
         <button
           type="button"
@@ -181,8 +197,10 @@ function ApiView({ api }: { api: AdminApi }) {
           onClick={() => void togglePublication()}
         >
           {changePublication.isPending
-            ? 'Please wait…'
-            : api.publication === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
+            ? "Please wait…"
+            : api.publication === "PUBLISHED"
+              ? "Unpublish"
+              : "Publish"}
         </button>
       </div>
 
@@ -195,10 +213,12 @@ function ApiView({ api }: { api: AdminApi }) {
             readOnly={!editing}
             disabled={updateApi.isPending}
             aria-invalid={editing && Boolean(fieldErrors.name)}
-            onChange={(e) => set('name', e.target.value)}
+            onChange={(e) => set("name", e.target.value)}
           />
           {editing && fieldErrors.name ? (
-            <span className="modal-field-error" role="alert">{fieldErrors.name}</span>
+            <span className="modal-field-error" role="alert">
+              {fieldErrors.name}
+            </span>
           ) : null}
         </div>
 
@@ -210,10 +230,12 @@ function ApiView({ api }: { api: AdminApi }) {
             readOnly={!editing}
             disabled={updateApi.isPending}
             aria-invalid={editing && Boolean(fieldErrors.route)}
-            onChange={(e) => set('route', e.target.value)}
+            onChange={(e) => set("route", e.target.value)}
           />
           {editing && fieldErrors.route ? (
-            <span className="modal-field-error" role="alert">{fieldErrors.route}</span>
+            <span className="modal-field-error" role="alert">
+              {fieldErrors.route}
+            </span>
           ) : null}
         </div>
 
@@ -225,10 +247,12 @@ function ApiView({ api }: { api: AdminApi }) {
             readOnly={!editing}
             disabled={updateApi.isPending}
             aria-invalid={editing && Boolean(fieldErrors.cost)}
-            onChange={(e) => set('cost', e.target.value)}
+            onChange={(e) => set("cost", e.target.value)}
           />
           {editing && fieldErrors.cost ? (
-            <span className="modal-field-error" role="alert">{fieldErrors.cost}</span>
+            <span className="modal-field-error" role="alert">
+              {fieldErrors.cost}
+            </span>
           ) : null}
         </div>
 
@@ -241,7 +265,7 @@ function ApiView({ api }: { api: AdminApi }) {
             readOnly={!editing}
             disabled={updateApi.isPending}
             aria-invalid={editing && Boolean(fieldErrors.samplePayload)}
-            onChange={(e) => set('samplePayload', e.target.value)}
+            onChange={(e) => set("samplePayload", e.target.value)}
           />
           {editing && fieldErrors.samplePayload ? (
             <span className="modal-field-error" role="alert">
@@ -251,7 +275,7 @@ function ApiView({ api }: { api: AdminApi }) {
         </div>
 
         <div className="modal-field">
-          <label>Sample Request</label>
+          <label>Sample Response</label>
           <textarea
             className="modal-input api-view-code"
             rows={5}
@@ -259,7 +283,7 @@ function ApiView({ api }: { api: AdminApi }) {
             readOnly={!editing}
             disabled={updateApi.isPending}
             aria-invalid={editing && Boolean(fieldErrors.sampleRequest)}
-            onChange={(e) => set('sampleRequest', e.target.value)}
+            onChange={(e) => set("sampleRequest", e.target.value)}
           />
           {editing && fieldErrors.sampleRequest ? (
             <span className="modal-field-error" role="alert">
@@ -277,13 +301,13 @@ function ApiView({ api }: { api: AdminApi }) {
               value={draft.documentation}
               disabled={updateApi.isPending}
               aria-invalid={Boolean(fieldErrors.documentation)}
-              onChange={(e) => set('documentation', e.target.value)}
+              onChange={(e) => set("documentation", e.target.value)}
             />
           ) : (
             <div className="api-view-docs">
-              {api.documentation.split('\n\n').map((block, blockIndex) => (
+              {api.documentation.split("\n\n").map((block, blockIndex) => (
                 <p key={blockIndex}>
-                  {block.split('\n').map((line, lineIndex, lines) => (
+                  {block.split("\n").map((line, lineIndex, lines) => (
                     <span key={lineIndex}>
                       {line}
                       {lineIndex < lines.length - 1 ? <br /> : null}
@@ -301,5 +325,5 @@ function ApiView({ api }: { api: AdminApi }) {
         </div>
       </div>
     </div>
-  )
+  );
 }

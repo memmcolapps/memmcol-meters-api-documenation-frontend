@@ -1,31 +1,34 @@
-import { useState } from 'react'
-import { Link, createFileRoute } from '@tanstack/react-router'
-import { AsyncState } from '../app/AsyncState'
-import { guides } from '../app/apis'
-import { usePublicApi, type PublicApi } from '../features/public-apis/publicApiQueries'
-import { usePublicMeterIntegrations } from '../features/public-meter-integrations/publicMeterIntegrationQueries'
-import { ApiError } from '../lib/api/client'
-import { formatDateTime, formatStatusLabel } from '../lib/format'
+import { useState } from "react";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { AsyncState } from "../app/AsyncState";
+import { guides } from "../app/apis";
+import {
+  usePublicApi,
+  type PublicApi,
+} from "../features/public-apis/publicApiQueries";
+import { usePublicMeterIntegrations } from "../features/public-meter-integrations/publicMeterIntegrationQueries";
+import { ApiError } from "../lib/api/client";
+import { formatDateTime, formatStatusLabel } from "../lib/format";
 
-export const Route = createFileRoute('/docs/$slug')({
+export const Route = createFileRoute("/docs/$slug")({
   component: DocPage,
-})
+});
 
 const humanize = (slug: string) =>
   slug
-    .split('-')
+    .split("-")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
+    .join(" ");
 
 function DocPage() {
-  const { slug } = Route.useParams()
-  const guide = guides.find((item) => item.slug === slug)
-  const apiQuery = usePublicApi(slug, !guide)
+  const { slug } = Route.useParams();
+  const guide = guides.find((item) => item.slug === slug);
+  const apiQuery = usePublicApi(slug, !guide);
 
-  if (guide?.slug === 'supported-meters') {
-    return <SupportedMetersGuide guide={guide} />
+  if (guide?.slug === "supported-meters") {
+    return <SupportedMetersGuide guide={guide} />;
   }
-  if (guide) return <GuidePage guide={guide} />
+  if (guide) return <GuidePage guide={guide} />;
 
   return (
     <div className="doc-detail">
@@ -34,25 +37,27 @@ function DocPage() {
       </Link>
       <AsyncState
         isPending={apiQuery.isPending}
-        error={apiQuery.error instanceof ApiError && apiQuery.error.status === 404
-          ? new Error('This API reference could not be found.')
-          : apiQuery.error}
+        error={
+          apiQuery.error instanceof ApiError && apiQuery.error.status === 404
+            ? new Error("This API reference could not be found.")
+            : apiQuery.error
+        }
         onRetry={() => void apiQuery.refetch()}
       >
         {apiQuery.data ? <ApiReference api={apiQuery.data} /> : null}
       </AsyncState>
     </div>
-  )
+  );
 }
 
 function SupportedMetersGuide({ guide }: { guide: (typeof guides)[number] }) {
-  const [page, setPage] = useState(1)
-  const metersQuery = usePublicMeterIntegrations({ page, limit: 100 })
-  const meters = metersQuery.data?.items ?? []
-  const pagination = metersQuery.data?.pagination
-  const currentPage = pagination?.page ?? page
-  const totalPages = pagination?.totalPages ?? 1
-  const [modelsSection, contactSection] = guide.sections ?? []
+  const [page, setPage] = useState(1);
+  const metersQuery = usePublicMeterIntegrations({ page, limit: 100 });
+  const meters = metersQuery.data?.items ?? [];
+  const pagination = metersQuery.data?.pagination;
+  const currentPage = pagination?.page ?? page;
+  const totalPages = pagination?.totalPages ?? 1;
+  const [modelsSection, contactSection] = guide.sections ?? [];
 
   return (
     <div className="doc-detail">
@@ -65,11 +70,11 @@ function SupportedMetersGuide({ guide }: { guide: (typeof guides)[number] }) {
       <div className="doc-detail-body">
         <section className="doc-section">
           <h2 className="doc-section-heading">
-            {modelsSection?.heading ?? 'Currently Supported Models'}
+            {modelsSection?.heading ?? "Currently Supported Models"}
           </h2>
           <p className="doc-section-body">
             {modelsSection?.body ??
-              'The meters below are fully integrated and ready to onboard.'}
+              "The meters below are fully integrated and ready to onboard."}
           </p>
 
           <AsyncState
@@ -79,7 +84,10 @@ function SupportedMetersGuide({ guide }: { guide: (typeof guides)[number] }) {
           >
             {meters.length ? (
               <>
-                <div className="doc-table-scroll" aria-busy={metersQuery.isFetching}>
+                <div
+                  className="doc-table-scroll"
+                  aria-busy={metersQuery.isFetching}
+                >
                   <table className="doc-section-table">
                     <thead>
                       <tr>
@@ -101,21 +109,29 @@ function SupportedMetersGuide({ guide }: { guide: (typeof guides)[number] }) {
                 </div>
 
                 {totalPages > 1 ? (
-                  <nav className="doc-pagination" aria-label="Supported meters pagination">
+                  <nav
+                    className="doc-pagination"
+                    aria-label="Supported meters pagination"
+                  >
                     <button
                       type="button"
                       disabled={currentPage <= 1 || metersQuery.isFetching}
-                      onClick={() => setPage((current) => Math.max(1, current - 1))}
+                      onClick={() =>
+                        setPage((current) => Math.max(1, current - 1))
+                      }
                     >
                       Previous
                     </button>
                     <span>
                       Page {currentPage} of {totalPages}
-                      {' · '}{pagination?.total ?? meters.length} total
+                      {" · "}
+                      {pagination?.total ?? meters.length} total
                     </span>
                     <button
                       type="button"
-                      disabled={currentPage >= totalPages || metersQuery.isFetching}
+                      disabled={
+                        currentPage >= totalPages || metersQuery.isFetching
+                      }
                       onClick={() => setPage((current) => current + 1)}
                     >
                       Next
@@ -139,11 +155,11 @@ function SupportedMetersGuide({ guide }: { guide: (typeof guides)[number] }) {
         ) : null}
       </div>
     </div>
-  )
+  );
 }
 
 function GuidePage({ guide }: { guide: (typeof guides)[number] }) {
-  const title = guide.name ?? humanize(guide.slug)
+  const title = guide.name ?? humanize(guide.slug);
 
   return (
     <div className="doc-detail">
@@ -177,7 +193,7 @@ function GuidePage({ guide }: { guide: (typeof guides)[number] }) {
                   </thead>
                   <tbody>
                     {section.table.rows.map((row) => (
-                      <tr key={row.join('|')}>
+                      <tr key={row.join("|")}>
                         {row.map((cell, i) => (
                           <td key={section.table!.columns[i] ?? i}>{cell}</td>
                         ))}
@@ -195,14 +211,14 @@ function GuidePage({ guide }: { guide: (typeof guides)[number] }) {
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function ApiReference({ api }: { api: PublicApi }) {
   const documentation = api.documentation
     .split(/\n\s*\n/)
     .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
+    .filter(Boolean);
 
   return (
     <>
@@ -211,7 +227,9 @@ function ApiReference({ api }: { api: PublicApi }) {
       <dl className="api-reference-meta">
         <div>
           <dt>Route</dt>
-          <dd><code>{api.route}</code></dd>
+          <dd>
+            <code>{api.route}</code>
+          </dd>
         </div>
         <div>
           <dt>Cost</dt>
@@ -236,18 +254,20 @@ function ApiReference({ api }: { api: PublicApi }) {
           ))}
         </section>
 
-        <SampleBlock title="Sample request" value={api.sampleRequest} />
-        <SampleBlock title="Sample response" value={api.samplePayload} />
+        <SampleBlock title="Sample Payload" value={api.samplePayload} />
+        <SampleBlock title="Sample Response" value={api.sampleRequest} />
       </div>
     </>
-  )
+  );
 }
 
 function SampleBlock({ title, value }: { title: string; value: string }) {
   return (
     <section className="doc-section">
       <h2 className="doc-section-heading">{title}</h2>
-      <pre className="api-reference-code"><code>{value}</code></pre>
+      <pre className="api-reference-code">
+        <code>{value}</code>
+      </pre>
     </section>
-  )
+  );
 }
