@@ -289,7 +289,7 @@ function ApiManagementPage() {
               setPage(1);
             }}
           >
-            <option value="">Published/Unpublished</option>
+            <option value="">All Publications</option>
             <option value="PUBLISHED">Published</option>
             <option value="UNPUBLISHED">Unpublished</option>
           </select>
