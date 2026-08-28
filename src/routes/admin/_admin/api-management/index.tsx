@@ -24,7 +24,7 @@ type ApiFormValues = {
   route: string;
   cost: string;
   samplePayload: string;
-  sampleRequest: string;
+  sampleResponse: string;
   documentation: string;
 };
 
@@ -164,7 +164,7 @@ function ApiManagementPage() {
       route: values.route,
       cost,
       samplePayload: values.samplePayload,
-      sampleRequest: values.sampleRequest,
+      sampleResponse: values.sampleResponse,
       documentation: values.documentation,
     };
 
@@ -401,7 +401,7 @@ function ApiManagementPage() {
                   route: formModal.api.route,
                   cost: String(formModal.api.cost),
                   samplePayload: formModal.api.samplePayload,
-                  sampleRequest: formModal.api.sampleRequest,
+                  sampleResponse: formModal.api.sampleResponse,
                   documentation: formModal.api.documentation,
                 }
               : undefined
@@ -601,7 +601,7 @@ function ApiFormModal({
     route: initial?.route ?? "",
     cost: initial?.cost ?? "",
     samplePayload: formatJson(initial?.samplePayload),
-    sampleRequest: formatJson(initial?.sampleRequest),
+    sampleResponse: formatJson(initial?.sampleResponse),
     documentation: initial?.documentation ?? "",
   });
   const modalRef = useRef<HTMLDivElement>(null);
@@ -743,15 +743,17 @@ function ApiFormModal({
                 className="modal-input api-view-code"
                 rows={8}
                 placeholder={'{\n  "productId": "PROD-101"\n}'}
-                value={form.sampleRequest}
+                value={form.sampleResponse}
                 disabled={isSubmitting}
-                aria-invalid={Boolean(fieldErrors.sampleRequest)}
-                onChange={(e) => set("sampleRequest", e.target.value)}
-                onBlur={(e) => set("sampleRequest", formatJson(e.target.value))}
+                aria-invalid={Boolean(fieldErrors.sampleResponse)}
+                onChange={(e) => set("sampleResponse", e.target.value)}
+                onBlur={(e) =>
+                  set("sampleResponse", formatJson(e.target.value))
+                }
               />
-              {fieldErrors.sampleRequest ? (
+              {fieldErrors.sampleResponse ? (
                 <span className="modal-field-error" role="alert">
-                  {fieldErrors.sampleRequest}
+                  {fieldErrors.sampleResponse}
                 </span>
               ) : null}
             </div>

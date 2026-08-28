@@ -18,7 +18,7 @@ type ApiEditableField =
   | "route"
   | "cost"
   | "samplePayload"
-  | "sampleRequest"
+  | "sampleResponse"
   | "documentation";
 
 export const Route = createFileRoute("/admin/_admin/api-management/$apiId")({
@@ -48,7 +48,7 @@ function createApiDraft(api: AdminApi): ApiDraft {
     route: api.route,
     cost: String(api.cost),
     samplePayload: api.samplePayload,
-    sampleRequest: api.sampleRequest,
+    sampleResponse: api.sampleResponse,
     documentation: api.documentation,
   };
 }
@@ -95,7 +95,7 @@ function ApiView({ api }: { api: AdminApi }) {
         route: draft.route,
         cost,
         samplePayload: draft.samplePayload,
-        sampleRequest: draft.sampleRequest,
+        sampleResponse: draft.sampleResponse,
         documentation: draft.documentation,
       });
       setEditing(false);
@@ -268,11 +268,11 @@ function ApiView({ api }: { api: AdminApi }) {
 
         <JsonField
           label="Sample Response"
-          value={shown.sampleRequest}
+          value={shown.sampleResponse}
           editing={editing}
           disabled={updateApi.isPending}
-          error={editing ? fieldErrors.sampleRequest : undefined}
-          onChange={(value) => set("sampleRequest", value)}
+          error={editing ? fieldErrors.sampleResponse : undefined}
+          onChange={(value) => set("sampleResponse", value)}
         />
 
         <div className="modal-field api-view-docs-field">

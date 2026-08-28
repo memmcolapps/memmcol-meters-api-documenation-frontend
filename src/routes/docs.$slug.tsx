@@ -255,7 +255,7 @@ function ApiReference({ api }: { api: PublicApi }) {
         </section>
 
         <SampleBlock title="Sample Payload" value={api.samplePayload} />
-        <SampleBlock title="Sample Response" value={api.sampleRequest} />
+        <SampleBlock title="Sample Response" value={api.sampleResponse} />
       </div>
     </>
   );

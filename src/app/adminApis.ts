@@ -8,7 +8,7 @@ export type AdminApi = {
   cost: string;
   snippetLang: string;
   samplePayload: string;
-  sampleRequest: string;
+  sampleResponse: string;
   documentation: string;
   addedBy: string;
   addedDate: string;
@@ -33,7 +33,7 @@ function makeApi(
     cost: "2",
     snippetLang: "TypeScript",
     samplePayload: sampleJson,
-    sampleRequest: sampleJson,
+    sampleResponse: sampleJson,
     documentation: sampleDocs,
     addedBy: "Wura",
     addedDate: "17-02-2026",
