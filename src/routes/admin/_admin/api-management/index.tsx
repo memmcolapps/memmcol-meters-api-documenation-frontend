@@ -17,6 +17,7 @@ import {
   type AdminApi,
   type AdminApiStatus,
   type CreateAdminApiInput,
+  type SortOrder,
 } from "../../../../features/admin-apis";
 
 type ApiFormValues = {
@@ -32,6 +33,13 @@ type FormModalState = { mode: "add" } | { mode: "edit"; api: AdminApi };
 type ApiStatusField = "status" | "reason";
 type ApiFormField = keyof ApiFormValues;
 
+// FILTER & SORT
+type StatusType = "ACTIVE" | "DEPRECATED";
+type PublicationType = "PUBLISHED" | "UNPUBLISHED";
+
+type SortByType = "name" | "cost" | "createdAt" | "updatedAt";
+type SortOrderType = "asc" | "desc";
+
 export const Route = createFileRoute("/admin/_admin/api-management/")({
   component: ApiManagementPage,
 });
@@ -41,8 +49,16 @@ function ApiManagementPage() {
   const { showToast } = useToast();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [status, setStatus] = useState<StatusType | never>();
+  const [publication, setPublication] = useState<PublicationType | never>();
+  const [sortBy, setSortBy] = useState<SortByType | never>();
+  const [sortOrder, setSortOrder] = useState<SortOrderType | never>();
   const { data, isLoading } = useAdminApis({
     search: search.trim() || undefined,
+    status: status || undefined,
+    publication: publication || undefined,
+    sortBy: sortBy || undefined,
+    sortOrder: sortOrder || undefined,
     page,
     limit: 20,
   });
@@ -251,12 +267,65 @@ function ApiManagementPage() {
             />
             <SearchIcon />
           </div>
-          <button type="button" className="filter-btn">
+          <select
+            className="filter-btn"
+            aria-label="Filter APIs by status"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value as StatusType | never);
+              setPage(1);
+            }}
+          >
+            <option value="">All statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="DEPRECATED">Deprecated</option>
+          </select>
+          <select
+            className="filter-btn"
+            aria-label="Filter APIs by publication"
+            value={publication}
+            onChange={(event) => {
+              setPublication(event.target.value as PublicationType | never);
+              setPage(1);
+            }}
+          >
+            <option value="">All Publications</option>
+            <option value="PUBLISHED">Published</option>
+            <option value="UNPUBLISHED">Unpublished</option>
+          </select>
+          <select
+            className="filter-btn"
+            aria-label="Sort APIs"
+            value={sortBy}
+            onChange={(event) => {
+              setSortBy(event.target.value as SortByType | never);
+              setPage(1);
+            }}
+          >
+            <option value="updatedAt">Last Updated</option>
+            <option value="createdAt">Date Created</option>
+            <option value="name">Name</option>
+            <option value="cost">Cost</option>
+          </select>
+          <select
+            className="filter-btn"
+            aria-label="Order APIs"
+            value={sortOrder}
+            onChange={(event) => {
+              setSortOrder(event.target.value as SortOrder | never);
+              setPage(1);
+            }}
+          >
+            <option value="">Order By</option>
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </select>
+          {/* <button type="button" className="filter-btn">
             Filter <ChevronRightIcon />
           </button>
           <button type="button" className="filter-btn">
             Sort <SortIcon />
-          </button>
+          </button> */}
         </div>
       </div>
 
@@ -934,24 +1003,6 @@ function SearchIcon() {
   );
 }
 
-function SortIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3" />
-    </svg>
-  );
-}
-
 function KebabIcon() {
   return (
     <svg
@@ -982,24 +1033,6 @@ function CloseIcon() {
       aria-hidden="true"
     >
       <path d="M18 6 6 18M6 6l12 12" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m9 18 6-6-6-6" />
     </svg>
   );
 }
