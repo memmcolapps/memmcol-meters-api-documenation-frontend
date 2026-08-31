@@ -175,6 +175,11 @@ function GuidePage({ guide }: { guide: (typeof guides)[number] }) {
             <section className="doc-section" key={section.heading}>
               <h2 className="doc-section-heading">{section.heading}</h2>
               <p className="doc-section-body">{section.body}</p>
+              {section.code ? (
+                <pre className="api-reference-code">
+                  <code>{section.code}</code>
+                </pre>
+              ) : null}
               {section.items?.length ? (
                 <ul className="doc-section-list">
                   {section.items.map((item) => (

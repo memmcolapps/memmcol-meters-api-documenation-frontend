@@ -1,18 +1,19 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { AsyncState } from '../app/AsyncState'
+import { guides } from '../app/apis'
 import { usePublicApis } from '../features/public-apis/publicApiQueries'
 
 export const Route = createFileRoute('/')({
   component: DocsHome,
 })
 
-const gettingStarted = [
-  { slug: 'supported-meters', label: 'Supported meters', hint: 'Check if your meter is supported.' },
-  { slug: 'meter-onboarding', label: 'Onboard your meter', hint: 'Set up remote communication.' },
-  { slug: 'authentication', label: 'Authentication', hint: 'How requests are authorized.' },
-  { slug: 'api-keys', label: 'API Keys', hint: 'Create and manage your keys.' },
-  { slug: 'first-request', label: 'Your first request', hint: 'Make a call in minutes.' },
-]
+// Single source of truth: the strip is derived from the guides that back the
+// /docs/<slug> pages, so a card can never point at a page with no content.
+const gettingStarted = guides.map((guide) => ({
+  slug: guide.slug,
+  label: guide.name,
+  hint: guide.hint ?? guide.blurb,
+}))
 
 function DocsHome() {
   const apisQuery = usePublicApis()

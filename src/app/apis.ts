@@ -6,6 +6,8 @@ export type DocTable = {
 export type DocSection = {
   heading: string
   body: string
+  /** Optional fenced code/example block rendered after the body paragraph. */
+  code?: string
   /** Optional bullet list rendered after the body paragraph. */
   items?: string[]
   /** Optional data table rendered after the body/list. */
@@ -18,6 +20,11 @@ export type ApiEntry = {
   name: string
   /** Short one-line description shown on the home grid + API page. */
   blurb: string
+  /**
+   * Short label shown on the getting-started strip card. Falls back to `blurb`
+   * when absent. Guides only — the API grid uses `blurb`.
+   */
+  hint?: string
   /**
    * Optional reference content. When present it renders on the API's page;
    * when absent the page shows a "coming soon" placeholder. Fill this in the
@@ -76,6 +83,7 @@ export const guides: ApiEntry[] = [
   {
     slug: 'supported-meters',
     name: 'Supported Meters',
+    hint: 'Check if your meter is supported.',
     blurb:
       'Meter models that are already integrated with the Momas platform and ready for remote communication.',
     sections: [
@@ -93,7 +101,8 @@ export const guides: ApiEntry[] = [
   },
   {
     slug: 'meter-onboarding',
-    name: 'How to Onboard Your Meter for Remote Communication',
+    name: 'Onboard Your Meter',
+    hint: 'Set up remote communication.',
     blurb:
       'A step-by-step guide to getting your meter connected to the Momas platform and ready for remote API access.',
     sections: [
@@ -162,6 +171,123 @@ export const guides: ApiEntry[] = [
           'Configure your meter with the provided settings.',
           'Subscribe to the remote communication service.',
           'Follow the API documentation and start communicating with your meter remotely.',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'authentication',
+    name: 'Authentication',
+    hint: 'How requests are authorized.',
+    blurb:
+      'Every request to the Momas Meters API is authenticated with an API key. This guide explains how keys work and how to create, rotate, and protect them.',
+    sections: [
+      {
+        heading: 'How authentication works',
+        body:
+          'The Momas Meters API authenticates every request with an API key. Send your key in the X-API-Key header. Requests without a valid key — or with a revoked or expired one — are rejected with 401 Unauthorized. The key identifies your organisation and applies your subscription and rate limits, so there is nothing else to sign or configure.',
+        code:
+          'X-API-Key: <YOUR_API_KEY>',
+      },
+      {
+        heading: 'Live and test environments',
+        body:
+          'Every key belongs to one of two environments. Use a test key while you build and a live key in production. The two are independent — a test key never touches production data, and rotating one has no effect on the other.',
+        table: {
+          columns: ['Environment', 'Use it for', 'Key visibility'],
+          rows: [
+            ['TEST', 'Development and trying calls from these docs', 'Returned in full and viewable any time — it carries no production access'],
+            ['LIVE', 'Real integrations and production traffic', 'Shown once when created, then stored masked — copy it immediately'],
+          ],
+        },
+      },
+      {
+        heading: 'Create an API key',
+        body:
+          'Generate keys from your dashboard. You do not need to call an API to get one.',
+        items: [
+          'Open the dashboard and go to Settings → API Keys.',
+          'Choose the environment (Test while building, Live for production).',
+          'Optionally set an expiry date so the key rotates on a schedule.',
+          'Copy the secret the moment it is shown — a live key is only revealed once.',
+        ],
+      },
+      {
+        heading: 'Rotate or revoke a key',
+        body:
+          'Keys can be replaced or switched off at any time from Settings → API Keys. Rotate on a schedule, and revoke immediately if a key is ever exposed.',
+        items: [
+          'Regenerate: issues a new secret and revokes the previous one in a single step — update your integration with the new value.',
+          'Revoke: switches a key off immediately. In-flight requests using it start failing with 401.',
+          'Expiry: a key past its expiry date stops working automatically, no action needed.',
+        ],
+      },
+      {
+        heading: 'Keep your keys safe',
+        body:
+          'An API key grants access to your organisation’s meters and data. Treat it like a password.',
+        items: [
+          'Never commit keys to source control or expose them in browser or mobile code — call the API from your server.',
+          'Use a test key in development and a live key only in production.',
+          'Store keys in environment variables or a secrets manager, not in plain files.',
+          'If a key leaks, revoke it and regenerate right away.',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'first-request',
+    name: 'Your First Request',
+    hint: 'Make a call in minutes.',
+    blurb:
+      'A short walkthrough: create a key, make one authenticated call, and read the response. From here you can explore any of the APIs.',
+    sections: [
+      {
+        heading: 'Before you begin',
+        body:
+          'You need three things to make your first call. If your meter is not onboarded yet, start with the Supported Meters and Onboarding guides.',
+        items: [
+          'An onboarded meter connected to the Momas platform.',
+          'A test API key — see the Authentication guide to create one.',
+          'The test base URL: https://sbctest.memmserve.com/powerhub/v1/api',
+        ],
+      },
+      {
+        heading: 'Step 1 — Set your API key',
+        body:
+          'Keep your key out of your command history and code by exporting it as an environment variable for the session.',
+        code:
+          'export MOMAS_API_KEY="<YOUR_TEST_API_KEY>"',
+      },
+      {
+        heading: 'Step 2 — Make an authenticated request',
+        body:
+          'Send the key in the X-API-Key header. Replace <ENDPOINT> with the route from the API you want to call — every API reference page lists its exact route (for example, the Consumption Data page).',
+        code:
+          'curl https://sbctest.memmserve.com/powerhub/v1/api/<ENDPOINT> \\\n  -H "X-API-Key: $MOMAS_API_KEY" \\\n  -H "Accept: application/json"',
+      },
+      {
+        heading: 'Step 3 — Read the response',
+        body:
+          'A successful call returns 200 with a JSON body. A 401 means the key is missing, revoked, or expired; a 404 means the endpoint or resource path is wrong. The exact response shape for each API is documented on its reference page under Sample Response.',
+        code:
+          '{\n  "status": "success",\n  "data": {\n    // fields specific to the endpoint you called\n  }\n}',
+      },
+      {
+        heading: 'Idempotency key (required on writes)',
+        body:
+          'Every write request — such as vending a token or sending a remote command — must include an Idempotency-Key header. Write requests sent without it are rejected. Set it to a unique value (a UUID works well) that you generate once per operation. If a network error makes you unsure whether a request went through, retry it with the same Idempotency-Key: the API returns the original result instead of running the operation twice, so a token is never vended twice. Use a fresh key for each new operation.',
+        code:
+          'curl https://sbctest.memmserve.com/powerhub/v1/api/<ENDPOINT> \\\n  -H "X-API-Key: $MOMAS_API_KEY" \\\n  -H "Idempotency-Key: 3f8c2b1a-7d4e-4a91-b0c2-9e5f1d6a8c30" \\\n  -H "Content-Type: application/json" \\\n  -d \'{ /* request body */ }\'',
+      },
+      {
+        heading: 'Next steps',
+        body:
+          'That is a complete authenticated request. From here, browse the APIs on the documentation home page to see every available endpoint, its route, cost, and sample payloads.',
+        items: [
+          'Explore the API references for request and response details.',
+          'Switch to a live key when you are ready for production traffic.',
+          'Review Authentication for rotating and protecting your keys.',
         ],
       },
     ],
