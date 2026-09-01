@@ -19,25 +19,33 @@ export type UsageRecentLog = {
 }
 
 export type UsageSummary = {
-  from: string
-  to: string
-  totalApiCalls: number
-  successfulApiCalls: number
-  failedApiCalls: number
-  successRate: number
-  creditsUsed: number
-  creditBalance: number
-  usageByService: UsageByService[]
-  recentLogs: UsageRecentLog[]
+    from: string
+    to: string
+    totalApiCalls: number
+    successfulApiCalls: number
+    failedApiCalls: number
+    successRate: number
+    creditsUsed: number
+    creditBalance: number
+    usageByService: UsageByService[]
+    recentLogs: UsageRecentLog[]
 }
 
 export type UsageSummaryResponse = {
   summary: UsageSummary
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
 }
 
 export type UsageSummaryParams = {
   from?: string
   to?: string
+  page?: number
+  limit?: number
 }
 
 export const usageSummaryKeys = {
@@ -49,6 +57,8 @@ function getUsageSummary(params: UsageSummaryParams) {
   const query = new URLSearchParams()
   if (params.from) query.set('from', params.from)
   if (params.to) query.set('to', params.to)
+  if (params.page) query.set('page', String(params.page))
+  if (params.limit) query.set('limit', String(params.limit))
   const qs = query.toString()
   return apiRequest<UsageSummaryResponse>(
     `/usage/summary${qs ? `?${qs}` : ''}`,

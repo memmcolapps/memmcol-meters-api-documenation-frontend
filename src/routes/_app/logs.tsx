@@ -19,9 +19,12 @@ function formatDateParam(date: Date) {
   return `${year}-${month}-${day}`
 }
 
+const RECENT_LOGS_PAGE_SIZE = 20
+
 function LogsPage() {
   const [from, setFrom] = useState<Date | null>(null)
   const [to, setTo] = useState<Date | null>(null)
+  const [page, setPage] = useState(1)
   const today = new Date()
   const exportLogs = useExportRequestLogs()
   const { showToast } = useToast()
@@ -29,6 +32,8 @@ function LogsPage() {
   const summaryQuery = useUsageSummary({
     from: from ? formatDateParam(from) : undefined,
     to: to ? formatDateParam(to) : undefined,
+    page,
+    limit: RECENT_LOGS_PAGE_SIZE,
   })
   const summary = summaryQuery.data?.summary
   const services = toList<NonNullable<typeof summary>['usageByService'][number]>(
@@ -37,6 +42,9 @@ function LogsPage() {
   const recentLogs = toList<NonNullable<typeof summary>['recentLogs'][number]>(
     summary?.recentLogs,
   )
+
+  const pagination = summaryQuery.data?.pagination
+
   const stats = [
     { label: 'Total API Calls', value: formatNumber(summary?.totalApiCalls) },
     { label: 'Successful API Calls', value: formatNumber(summary?.successfulApiCalls) },
@@ -86,11 +94,17 @@ function LogsPage() {
         <div className="dash-filters">
           <DatePicker
             placeholder="From date"
-            onChange={setFrom}
+            onChange={(date) => {
+              setFrom(date)
+              setPage(1)
+            }}
           />
           <DatePicker
             placeholder="To date"
-            onChange={setTo}
+            onChange={(date) => {
+              setTo(date)
+              setPage(1)
+            }}
           />
         </div>
         <button
@@ -190,6 +204,37 @@ function LogsPage() {
                   ))}
                 </tbody>
               </table>
+              {/*PAGINATION FOR RECENT LOGS*/}
+              <nav className="pagination" aria-label="Recent logs pagination">
+                <button
+                  type="button"
+                  className="page-nav"
+                  disabled={
+                    (pagination?.page ?? page) <= 1 ||
+                    summaryQuery.isFetching
+                  }
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                >
+                  Previous
+                </button>
+                <span className="page-gap">
+                  Page {pagination?.page ?? page} of {pagination?.totalPages ?? 1}
+                  {' · '}
+                  {pagination?.total} total
+                </span>
+                <button
+                  type="button"
+                  className="page-nav"
+                  disabled={
+                    (pagination?.page ?? page) >=
+                      (pagination?.totalPages ?? 1) ||
+                    summaryQuery.isFetching
+                  }
+                  onClick={() => setPage((current) => current + 1)}
+                >
+                  Next
+                </button>
+              </nav>
             </div>
           ) : (
             <div className="meter-empty">
