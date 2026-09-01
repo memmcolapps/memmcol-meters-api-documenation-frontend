@@ -20,6 +20,7 @@ export type AdminApi = {
   samplePayload: string;
   sampleResponse: string;
   documentation: string;
+  documentationPosition: string;
   status: AdminApiStatus;
   publication: AdminApiPublication;
   addedBy: AdminApiAddedBy;
@@ -34,6 +35,7 @@ export type CreateAdminApiInput = {
   samplePayload: string;
   sampleResponse: string;
   documentation: string;
+  documentationPosition: string;
 };
 
 export type UpdateAdminApiInput = Partial<CreateAdminApiInput> & {
@@ -312,6 +314,9 @@ export function useUpdateApiService() {
           : {}),
         ...(input.documentation !== undefined
           ? { documentation: input.documentation }
+          : {}),
+        ...(input.documentationPosition !== undefined
+          ? { documentationPosition: input.documentationPosition }
           : {}),
       };
       queryClient.setQueryData<AdminApi>(
