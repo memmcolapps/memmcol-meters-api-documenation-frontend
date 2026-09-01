@@ -27,6 +27,7 @@ type ApiFormValues = {
   samplePayload: string;
   sampleResponse: string;
   documentation: string;
+  documentationPosition: string;
 };
 
 type FormModalState = { mode: "add" } | { mode: "edit"; api: AdminApi };
@@ -64,6 +65,13 @@ function ApiManagementPage() {
   });
   const items = data?.items ?? [];
   const pagination = data?.pagination;
+  const positionQuery = useAdminApis({
+    status: "ACTIVE",
+    limit: 100,
+  });
+  const activeCount =
+    positionQuery.data?.items.filter((api) => api.status === "ACTIVE").length ??
+    0;
   const createApi = useCreateAdminApi();
   const updateApi = useUpdateApiService();
   const changePublication = useChangeApiPublication();
@@ -182,6 +190,7 @@ function ApiManagementPage() {
       samplePayload: values.samplePayload,
       sampleResponse: values.sampleResponse,
       documentation: values.documentation,
+      documentationPosition: values.documentationPosition,
     };
 
     setFormFieldErrors({});
@@ -463,6 +472,9 @@ function ApiManagementPage() {
         <ApiFormModal
           title={formModal.mode === "add" ? "Add API" : "Edit API"}
           submitLabel={formModal.mode === "add" ? "Add API" : "Save Changes"}
+          positionCount={
+            (activeCount || 1) + (formModal.mode === "add" ? 1 : 0)
+          }
           initial={
             formModal.mode === "edit"
               ? {
@@ -472,6 +484,7 @@ function ApiManagementPage() {
                   samplePayload: formModal.api.samplePayload,
                   sampleResponse: formModal.api.sampleResponse,
                   documentation: formModal.api.documentation,
+                  documentationPosition: formModal.api.documentationPosition,
                 }
               : undefined
           }
@@ -654,6 +667,7 @@ function ApiFormModal({
   onFieldChange,
   onClose,
   onSubmit,
+  positionCount,
 }: {
   title: string;
   submitLabel: string;
@@ -663,6 +677,7 @@ function ApiFormModal({
   onFieldChange: (field: ApiFormField) => void;
   onClose: () => void;
   onSubmit: (values: ApiFormValues) => void;
+  positionCount: number;
 }) {
   const [step, setStep] = useState<1 | 2>(1);
   const [form, setForm] = useState<ApiFormValues>({
@@ -672,17 +687,30 @@ function ApiFormModal({
     samplePayload: formatJson(initial?.samplePayload),
     sampleResponse: formatJson(initial?.sampleResponse),
     documentation: initial?.documentation ?? "",
+    documentationPosition: initial?.documentationPosition ?? "1",
   });
   const modalRef = useRef<HTMLDivElement>(null);
   useDismiss(modalRef, () => {
     if (!isSubmitting) onClose();
   });
 
+  const positionTouched = useRef(Boolean(initial));
+
   useEffect(() => {
     if (fieldErrors.name || fieldErrors.route || fieldErrors.cost) setStep(1);
   }, [fieldErrors]);
 
+  useEffect(() => {
+    if (!positionTouched.current) {
+      setForm((current) => ({
+        ...current,
+        documentationPosition: String(positionCount),
+      }));
+    }
+  }, [positionCount]);
+
   const set = (key: ApiFormField, value: string) => {
+    if (key === "documentationPosition") positionTouched.current = true;
     setForm((current) => ({ ...current, [key]: value }));
     onFieldChange(key);
   };
@@ -840,6 +868,41 @@ function ApiFormModal({
               {fieldErrors.documentation ? (
                 <span className="modal-field-error" role="alert">
                   {fieldErrors.documentation}
+                </span>
+              ) : null}
+            </div>
+            <div className="modal-field">
+              <label>Documentation Position</label>
+              <select
+                className="modal-input"
+                value={form.documentationPosition}
+                disabled={isSubmitting}
+                aria-invalid={Boolean(fieldErrors.documentationPosition)}
+                aria-describedby={
+                  fieldErrors.documentationPosition
+                    ? "api-documentation-position-error"
+                    : undefined
+                }
+                onChange={(e) => set("documentationPosition", e.target.value)}
+              >
+                {Array.from({ length: positionCount }, (_, index) => {
+                  const position = index + 1;
+                  const label =
+                    position === positionCount ? `${position} (Last)` : position;
+                  return (
+                    <option key={position} value={String(position)}>
+                      {label}
+                    </option>
+                  );
+                })}
+              </select>
+              {fieldErrors.documentationPosition ? (
+                <span
+                  id="api-documentation-position-error"
+                  className="modal-field-error"
+                  role="alert"
+                >
+                  {fieldErrors.documentationPosition}
                 </span>
               ) : null}
             </div>

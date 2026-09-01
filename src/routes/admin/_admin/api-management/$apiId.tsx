@@ -7,6 +7,7 @@ import {
   getApiPublicationError,
   getApiUpdateError,
   useAdminApi,
+  useAdminApis,
   useChangeApiPublication,
   useUpdateApiService,
   type AdminApi,
@@ -19,7 +20,8 @@ type ApiEditableField =
   | "cost"
   | "samplePayload"
   | "sampleResponse"
-  | "documentation";
+  | "documentation"
+  | "documentationPosition";
 
 export const Route = createFileRoute("/admin/_admin/api-management/$apiId")({
   component: ApiViewPage,
@@ -28,6 +30,17 @@ export const Route = createFileRoute("/admin/_admin/api-management/$apiId")({
 function ApiViewPage() {
   const { apiId } = Route.useParams();
   const apiQuery = useAdminApi(apiId);
+  const listQuery = useAdminApis({
+    status: "ACTIVE",
+    limit: 100,
+  });
+  const activeCount = listQuery.data?.items.filter(
+    (api) => api.status === "ACTIVE",
+  ).length;
+  const positionCount = Math.max(
+    activeCount ?? 1,
+    Number(apiQuery.data?.documentationPosition) || 1,
+  );
 
   return (
     <AsyncState
@@ -35,7 +48,9 @@ function ApiViewPage() {
       error={apiQuery.error}
       onRetry={() => void apiQuery.refetch()}
     >
-      {apiQuery.data ? <ApiView api={apiQuery.data} /> : null}
+      {apiQuery.data ? (
+        <ApiView api={apiQuery.data} positionCount={positionCount} />
+      ) : null}
     </AsyncState>
   );
 }
@@ -50,10 +65,17 @@ function createApiDraft(api: AdminApi): ApiDraft {
     samplePayload: api.samplePayload,
     sampleResponse: api.sampleResponse,
     documentation: api.documentation,
+    documentationPosition: api.documentationPosition,
   };
 }
 
-function ApiView({ api }: { api: AdminApi }) {
+function ApiView({
+  api,
+  positionCount,
+}: {
+  api: AdminApi;
+  positionCount: number;
+}) {
   const { showToast } = useToast();
   const changePublication = useChangeApiPublication();
   const updateApi = useUpdateApiService();
@@ -97,6 +119,7 @@ function ApiView({ api }: { api: AdminApi }) {
         samplePayload: draft.samplePayload,
         sampleResponse: draft.sampleResponse,
         documentation: draft.documentation,
+        documentationPosition: draft.documentationPosition,
       });
       setEditing(false);
       showToast({
@@ -303,6 +326,41 @@ function ApiView({ api }: { api: AdminApi }) {
           {editing && fieldErrors.documentation ? (
             <span className="modal-field-error" role="alert">
               {fieldErrors.documentation}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="modal-field">
+          <label>Documentation Position</label>
+          {editing ? (
+            <select
+              className="modal-input"
+              value={draft.documentationPosition}
+              disabled={updateApi.isPending}
+              aria-invalid={Boolean(fieldErrors.documentationPosition)}
+              onChange={(e) => set("documentationPosition", e.target.value)}
+            >
+              {Array.from({ length: positionCount }, (_, index) => {
+                const position = index + 1;
+                const label =
+                  position === positionCount
+                    ? `${position} (Last)`
+                    : position;
+                return (
+                  <option key={position} value={String(position)}>
+                    {label}
+                  </option>
+                );
+              })}
+            </select>
+          ) : (
+            <div className="api-position">
+              {api.documentationPosition}
+            </div>
+          )}
+          {editing && fieldErrors.documentationPosition ? (
+            <span className="modal-field-error" role="alert">
+              {fieldErrors.documentationPosition}
             </span>
           ) : null}
         </div>
