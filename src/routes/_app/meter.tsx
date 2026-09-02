@@ -11,6 +11,7 @@ import {
 import {
   getCreateMeterError,
   useCreateMeter,
+  useEditMeter,
   useExportMeters,
   useMeterDetails,
   useMeters,
@@ -19,6 +20,7 @@ import {
   type CreateMeterInput,
   type Meter,
   type MeterStatus,
+  type MeterKeyChange,
 } from '../../features/meters/meterQueries'
 
 export const Route = createFileRoute('/_app/meter')({
@@ -56,8 +58,22 @@ type MeterFormField =
   | 'oldTariffIndex'
   | 'newTariffIndex'
 
+type EditMeterFormField =
+  | 'meterNumber'
+| 'simNumber'
+| 'meterTypeId'
+| 'oldSgc'
+| 'newSgc'
+| 'oldKrn'
+| 'newKrn'
+| 'oldTariffIndex'
+  | 'newTariffIndex'
+  | 'manufacturer'
+| 'model'
+
 type MeterFormValues = Record<MeterFormField, string>
 type MeterFormErrors = Partial<Record<MeterFormField, string>>
+type EditMeterFormErrors = Partial<Record<EditMeterFormField, string>>
 
 const meterFormFieldAliases: Record<string, MeterFormField> = {
   meterNumber: 'meterNumber',
@@ -133,6 +149,7 @@ function MeterPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<Meter | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Meter | null>(null)
   const [detailMeterId, setDetailMeterId] = useState<string | null>(null)
   const deferredSearch = useDeferredValue(search.trim())
@@ -315,6 +332,9 @@ function MeterPage() {
                       <RowActions
                         isOpen={openMenu === meter.id}
                         status={meter.status}
+                        onEditMeter={
+                          () => setEditingMeterId(meter.id)
+                        }
                         onToggle={() =>
                           setOpenMenu((prev) => (prev === meter.id ? null : meter.id))
                         }
@@ -385,6 +405,14 @@ function MeterPage() {
         <MeterDetailsDialog
           meterId={detailMeterId}
           onClose={() => setDetailMeterId(null)}
+        />
+      ) : null}
+
+
+      {editTarget ? (
+        <EditMeterModal
+          meter={editTarget}
+          onClose={() => setEditTarget(null)}
         />
       ) : null}
     </div>
@@ -871,6 +899,121 @@ function SortDropdown({
   )
 }
 
+// EDIT METER MODAL
+  function EditMeterModal({
+    meter,
+    onClose,
+  }: {
+    meter: Meter
+    onClose: () => void
+  }) {
+    const meterQuery = ""
+    const editMeterMutation = useEditMeter()
+    const { showToast } = useToast()
+    const [fieldErrors, setFieldErrors] = useState<
+      Partial<Record<MeterFormField | 'class', string>>
+      >({})
+
+    // const [values, setValues] = useState<Partial<EditMeterFormValues>>({
+    //   manufacturer: meter.manufacturer,
+    //   meterNumber: meter.meterNumber,
+    //   model: meter.model,
+    //   oldKrn: meter.oldKrn,
+    //   newKrn: meter.newKrn,
+    //   oldSgc: meter.oldSgc,
+    //   newSgc: meter.newSgc,
+    //   oldTariffIndex: meter.oldTariffIndex,
+    //   newTariffIndex: meter.newTariffIndex,
+    //   simNumber: meter.simNumber,
+    //   // meterTypeId: MISSING
+    // })
+
+    const [form, setForm] = useState<Partial<Record<EditMeterFormField, string>>>({})
+
+    const handleBasicSubmit = (data: MeterFormValues) => {
+
+    }
+
+    const editMeter = async (
+      basic: MeterFormValues,
+    ) => {
+      if (!meter) return
+      try {
+        const keyChange: MeterKeyChange = {
+          newKrn: form.newKrn ?? meter.newKrn,
+          oldKrn: form.oldKrn ?? meter.oldKrn,
+          newSgc: form.newSgc ?? meter.newSgc,
+          oldSgc: form.oldSgc ?? meter.oldSgc,
+          newTariffIndex: form.newTariffIndex ?? meter.newTariffIndex,
+          oldTariffIndex: form.oldTariffIndex ?? meter.oldTariffIndex
+        }
+        const edit = editMeterMutation.mutate({
+          id: meter.id,
+          input: {
+            ...form,
+            keyChange: keyChange
+          },
+        })
+
+        onClose()
+        showToast({
+          title: 'Meter integration updated',
+          message: `${meter.manufacturer} ${meter.model} was updated.`,
+          variant: 'success',
+        })
+      } catch (error) {
+        const apiError = getMeterIntegrationError(error)
+        const { class: meterClassError, ...serverFields } = apiError.fields
+        const normalizedFields = {
+          ...serverFields,
+          ...(meterClassError ? { meterClass: meterClassError } : {}),
+        }
+
+        // setFieldErrors(apiError.status === 409 &&
+        //   Object.keys(normalizedFields).length === 0
+        //   ? {
+        //       manufacturer: 'This manufacturer and model combination already exists.',
+        //       model: 'This manufacturer and model combination already exists.',
+        //     }
+        //   : normalizedFields)
+        // showToast({
+        //   title: apiError.status === 409
+        //     ? 'Meter integration already exists'
+        //     : apiError.message,
+        //   message: apiError.requestId ? `Request ID: ${apiError.requestId}` : undefined,
+        //   variant: 'error',
+        })
+      }
+    }
+
+    if (!meter) {
+      return (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal">
+            <div className="modal-head">
+              <h2 className="modal-title">Edit Meter</h2>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Close"
+                onClick={onClose}
+              >
+                ×
+              </button>
+            </div>
+            <AsyncState
+              isPending={meterQuery.isPending}
+              error={meterQuery.error}
+              onRetry={() => void meterQuery.refetch()}
+            >
+              {null}
+            </AsyncState>
+          </div>
+        </div>
+      )
+    }
+}
+
 function DeleteMeterModal({
   meter,
   onClose,
@@ -972,6 +1115,7 @@ function RowActions({
   onToggle,
   onClose,
   onViewDetails,
+  onEditMeter,
   onToggleStatus,
   onDelete,
 }: {
@@ -981,6 +1125,7 @@ function RowActions({
   onClose: () => void
   onViewDetails: () => void
   onToggleStatus: () => void
+  onEditMeter: () => void
   onDelete: () => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -1003,6 +1148,9 @@ function RowActions({
         <div className="row-menu" style={menuStyle} role="menu">
           <button type="button" className="row-menu-item" role="menuitem" onClick={onViewDetails}>
             View details
+          </button>
+          <button type="button" className="row-menu-item" role="menuitem" onClick={onEditMeter}>
+            Edit Meter
           </button>
           <button
             type="button"
