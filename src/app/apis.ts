@@ -81,35 +81,106 @@ export const apis: ApiEntry[] = [
  */
 export const guides: ApiEntry[] = [
   {
-    slug: 'supported-meters',
-    name: 'Supported Meters',
-    hint: 'Check if your meter is supported.',
+    slug: 'add-meters',
+    name: 'Add Your Meters',
+    hint: 'Register meters on the platform.',
     blurb:
-      'Meter models that are already integrated with the Momas platform and ready for remote communication.',
+      'How to add your meters to the Momas platform from your dashboard, which details each meter needs, and when SIM number and meter model are required.',
+    sections: [
+      {
+        heading: 'Before you start',
+        body:
+          'Meters are added from your dashboard, not through the API. Sign in first — every meter you add is registered to the organisation you are signed in to. Have the following ready for each meter.',
+        items: [
+          'The meter number.',
+          'The key change values: old and new SGC, KRN, and tariff index.',
+          'Only if the meter is for HES use: the SIM card number and the meter model.',
+        ],
+      },
+      {
+        heading: 'Step 1 — Open the Meters page',
+        body:
+          'Go to Meters in the dashboard. The page lists every meter registered to your organisation, and lets you search by meter or SIM number, filter by status, and export the list as CSV.',
+      },
+      {
+        heading: 'Step 2 — Open the add meter form',
+        body:
+          'Click Add Meters. The "Add new meter" form opens with the basic information fields.',
+      },
+      {
+        heading: 'Step 3 — Fill in the meter details',
+        body:
+          'The meter number and the key change values are required for every meter. SIM card number and meter model are optional — they are only needed when the meter is intended for HES use, as explained in the next section.',
+        table: {
+          columns: ['Field', 'Required', 'Notes'],
+          rows: [
+            ['Meter Number', 'Yes', 'Digits only. Must be unique — a meter number already registered on the platform is rejected.'],
+            ['Sim Card Number', 'Only for HES use', 'Digits only, and unique. The SIM the meter uses to reach the platform.'],
+            ['Meter Model', 'Only for HES use', 'Picked from the models already integrated with the platform, listed as model — manufacturer.'],
+            ['Old SGC / New SGC', 'Yes', 'Whole numbers. Supply Group Code before and after the key change.'],
+            ['Old KRN / New KRN', 'Yes', 'Whole numbers. Key Revision Number before and after the key change.'],
+            ['Old / New Tariff Index', 'Yes', 'Whole numbers. Tariff index before and after the key change.'],
+          ],
+        },
+      },
+      {
+        heading: 'When SIM number and meter model are required',
+        body:
+          'Both fields are optional. They are only required when the meter is intended for HES use — that is, when you want to read from it and send commands to it remotely over HES/AMI. Leave them blank and the meter is still registered and usable for vending, but it cannot be reached remotely. HES also only works with meter models we have already integrated, so check whether yours is allowed for HES use before you add it.',
+        items: [
+          'Open Supported Meter Models for HES and look for your manufacturer and model.',
+          'If your model is listed as supported, add the meter with its SIM card number and model selected.',
+          'If it is not listed, follow Onboard Your Meter Models for HES to have it integrated first — you can add the meter now without those two fields and fill them in later.',
+        ],
+      },
+      {
+        heading: 'Step 4 — Save the meter',
+        body:
+          'Click Add Meter. The meter is created and appears in the meter list. If the meter number or SIM card number already exists on the platform, the form flags the duplicate and nothing is created — check the value and try again.',
+      },
+      {
+        heading: 'After a meter is added',
+        body:
+          'From the meter list you can manage each meter as your setup changes.',
+        items: [
+          'View details to see the full record, including manufacturer, model, class, and key change values.',
+          'Edit a meter to correct its details or to add the SIM number and model once the model is supported for HES.',
+          'Activate or deactivate a meter to control whether it is in service.',
+          'Delete a meter you no longer need, or export the list as CSV.',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'supported-meters',
+    name: 'Supported Meter Models for HES',
+    hint: 'Check if your meter model is supported for HES.',
+    blurb:
+      'Meter models that are already integrated with the Momas platform and allowed for HES use — remote reading and remote communication.',
     sections: [
       {
         heading: 'Currently Supported Models',
         body:
-          'The meters below are fully integrated and can be onboarded right away — no integration request needed.',
+          'The meter models below are fully integrated and allowed for HES use — you can add a meter of one of these models with its SIM card number and model, and use it for remote communication right away. No integration request needed.',
       },
       {
-        heading: "Don't See Your Meter?",
+        heading: "Don't See Your Meter Model?",
         body:
-          'If your meter model is not listed, contact our support team with your meter manufacturer, model, type, and smart meter parameters. See the meter onboarding guide for the full list of details to include.',
+          'If your meter model is not listed, it is not yet allowed for HES use. You can still add the meter to the platform without a SIM number and model, but to use it remotely, contact our support team with your meter manufacturer, model, type, and smart meter parameters. See Onboard Your Meter Models for HES for the full list of details to include.',
       },
     ],
   },
   {
     slug: 'meter-onboarding',
-    name: 'Onboard Your Meter',
-    hint: 'Set up remote communication.',
+    name: 'Onboard Your Meter Models for HES',
+    hint: 'Get your meter model integrated for HES.',
     blurb:
-      'A step-by-step guide to getting your meter connected to the Momas platform and ready for remote API access.',
+      'A step-by-step guide to getting a meter model integrated for HES use, so meters of that model can be reached remotely through the API.',
     sections: [
       {
         heading: 'Step 1: Check Meter Compatibility',
         body:
-          'Review the Supported Meters page to confirm whether your meter model is already supported. If it is supported, proceed to Step 5. If it is not supported, continue to Step 2.',
+          'Review Supported Meter Models for HES to confirm whether your meter model is already allowed for HES use. If it is supported, proceed to Step 5. If it is not supported, continue to Step 2.',
       },
       {
         heading: 'Step 2: Contact Our Team',
@@ -164,7 +235,7 @@ export const guides: ApiEntry[] = [
         heading: 'Quick Overview',
         body: 'The onboarding process at a glance:',
         items: [
-          'Check if your meter is already supported.',
+          'Check if your meter model is already supported for HES.',
           'If unsupported, send us your meter specifications and smart meter parameters.',
           'We integrate and validate your meter.',
           'We provide the IP address and port for configuration.',
@@ -245,7 +316,7 @@ export const guides: ApiEntry[] = [
       {
         heading: 'Before you begin',
         body:
-          'You need three things to make your first call. If your meter is not onboarded yet, start with the Supported Meters and Onboarding guides.',
+          'You need three things to make your first call. If your meter is not on the platform yet, start with the Add Your Meters guide, and with the HES guides if you need remote communication.',
         items: [
           'An onboarded meter connected to the Momas platform.',
           'A test API key — see the Authentication guide to create one.',
