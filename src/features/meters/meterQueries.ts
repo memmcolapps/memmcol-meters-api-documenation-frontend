@@ -13,6 +13,7 @@ export type Meter = {
   meterNumber: string
   simNumber: string
   manufacturer: string
+  meterTypeId: string
   model: string
   meterClass: string
   status: MeterStatus
