@@ -35,16 +35,20 @@ export type EditMeterPayload = {
 }
 
 export type EditMeterResponse = {
-  id: string,
-  meterNumber: string,
-  simNumber: string,
-  manufacturer: string,
-  model: string,
-  meterClass: string,
-  status: MeterStatus,
-  keyChange: MeterKeyChange,
-  createdAt: string,
-  updatedAt: string
+  meter: {
+    id: string
+    meterNumber: string
+    simNumber: string
+    manufacturer: string
+    meterTypeId: string
+    model: string
+    meterClass: string
+    meterCategory: string
+    status: MeterStatus
+    keyChange: MeterKeyChange
+    createdAt: string
+    updatedAt: string
+  }
 }
 
 export type MeterPagination = {
@@ -275,7 +279,7 @@ export function useEditMeter() {
   return useMutation({
     mutationFn: ({id, input}: {id: string, input: EditMeterPayload}) => editMeter(id, input),
     onSuccess: (response) => {
-      queryClient.setQueryData(meterKeys.detail(response.id), response)
+      queryClient.setQueryData(meterKeys.detail(response.meter.id), response.meter)
       queryClient.invalidateQueries({queryKey: meterKeys.lists()})
     }
   })

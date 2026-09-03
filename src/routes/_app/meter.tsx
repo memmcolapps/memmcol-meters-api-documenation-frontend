@@ -321,7 +321,6 @@ function MeterPage() {
                         onEditMeter={
                           () => {
                             setEditTarget(meter)
-                            console.log({ meter })
                             setOpenMenu(null)
                           }
                         }
@@ -904,8 +903,6 @@ function EditMeterModal({
   const modalRef = useRef<HTMLDivElement>(null)
   const isSubmitting = editMeterMutation.isPending
 
-  const meterWithTypeId = meter as Meter & { meterTypeId?: string }
-
   const [form, setForm] = useState<MeterFormValues>({
     meterNumber: meter.meterNumber ?? '',
     simNumber: meter.simNumber ?? '',
@@ -968,10 +965,9 @@ function EditMeterModal({
           },
         },
       })
-
       showToast({
         title: 'Meter updated',
-        message: `${updatedMeter.meterNumber} was updated successfully.`,
+        message: `${updatedMeter.meter.meterNumber} was updated successfully.`,
         variant: 'success',
       })
 
