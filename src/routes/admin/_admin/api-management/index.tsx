@@ -15,6 +15,7 @@ import {
   useCreateAdminApi,
   useUpdateApiService,
   type AdminApi,
+  type AdminApiCategory,
   type AdminApiStatus,
   type CreateAdminApiInput,
   type SortOrder,
@@ -24,6 +25,7 @@ type ApiFormValues = {
   name: string;
   route: string;
   cost: string;
+  category: AdminApiCategory;
   samplePayload: string;
   sampleResponse: string;
   documentation: string;
@@ -187,6 +189,7 @@ function ApiManagementPage() {
       name: values.name,
       route: values.route,
       cost,
+      category: values.category,
       samplePayload: values.samplePayload,
       sampleResponse: values.sampleResponse,
       documentation: values.documentation,
@@ -348,6 +351,7 @@ function ApiManagementPage() {
               <th>S/N</th>
               <th>API Name</th>
               <th>Route URL</th>
+              <th>Category</th>
               <th>Added By</th>
               <th>Added Date</th>
               <th>Status</th>
@@ -359,7 +363,7 @@ function ApiManagementPage() {
             {isLoading ? (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={10}
                   style={{ textAlign: "center", padding: "2rem" }}
                 >
                   Loading APIs...
@@ -368,7 +372,7 @@ function ApiManagementPage() {
             ) : items.length === 0 ? (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={10}
                   style={{ textAlign: "center", padding: "2rem" }}
                 >
                   No APIs found.
@@ -386,6 +390,11 @@ function ApiManagementPage() {
                   <td>{String(index + 1).padStart(2, "0")}</td>
                   <td>{api.name}</td>
                   <td className="cell-truncate">{api.route}</td>
+                  <td>
+                    <span className="code-badge">
+                      {api.category === "HES_AMI" ? "HES/AMI" : "Vending"}
+                    </span>
+                  </td>
                   <td>{api.addedBy.name}</td>
                   <td>{new Date(api.createdAt).toLocaleDateString()}</td>
                   <td>
@@ -481,6 +490,7 @@ function ApiManagementPage() {
                   name: formModal.api.name,
                   route: formModal.api.route,
                   cost: String(formModal.api.cost),
+                  category: formModal.api.category,
                   samplePayload: formModal.api.samplePayload,
                   sampleResponse: formModal.api.sampleResponse,
                   documentation: formModal.api.documentation,
@@ -684,6 +694,7 @@ function ApiFormModal({
     name: initial?.name ?? "",
     route: initial?.route ?? "",
     cost: initial?.cost ?? "",
+    category: initial?.category ?? "VENDING",
     samplePayload: formatJson(initial?.samplePayload),
     sampleResponse: formatJson(initial?.sampleResponse),
     documentation: initial?.documentation ?? "",
@@ -793,6 +804,20 @@ function ApiFormModal({
                   {fieldErrors.cost}
                 </span>
               ) : null}
+            </div>
+            <div className="modal-field">
+              <label>Category</label>
+              <select
+                className="modal-input"
+                value={form.category}
+                disabled={isSubmitting}
+                onChange={(e) =>
+                  set("category", e.target.value as AdminApiCategory)
+                }
+              >
+                <option value="VENDING">Vending</option>
+                <option value="HES_AMI">HES/AMI</option>
+              </select>
             </div>
 
             <div className="modal-foot">

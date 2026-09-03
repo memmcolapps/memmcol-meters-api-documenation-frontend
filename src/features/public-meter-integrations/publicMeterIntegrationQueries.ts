@@ -8,7 +8,7 @@ export type PublicMeterIntegration = {
   class: string
   category: string
   protocol: string
-  status: 'SUPPORTED'
+  hesStatus: string
   updatedAt: string
 }
 

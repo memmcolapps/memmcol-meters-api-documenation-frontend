@@ -11,6 +11,7 @@ import {
   useChangeApiPublication,
   useUpdateApiService,
   type AdminApi,
+  type AdminApiCategory,
   type AdminApiPublication,
 } from "../../../../features/admin-apis";
 
@@ -18,6 +19,7 @@ type ApiEditableField =
   | "name"
   | "route"
   | "cost"
+  | "category"
   | "samplePayload"
   | "sampleResponse"
   | "documentation"
@@ -62,6 +64,7 @@ function createApiDraft(api: AdminApi): ApiDraft {
     name: api.name,
     route: api.route,
     cost: String(api.cost),
+    category: api.category,
     samplePayload: api.samplePayload,
     sampleResponse: api.sampleResponse,
     documentation: api.documentation,
@@ -116,6 +119,7 @@ function ApiView({
         name: draft.name,
         route: draft.route,
         cost,
+        category: draft.category as AdminApiCategory,
         samplePayload: draft.samplePayload,
         sampleResponse: draft.sampleResponse,
         documentation: draft.documentation,
@@ -261,6 +265,27 @@ function ApiView({
               {fieldErrors.route}
             </span>
           ) : null}
+        </div>
+
+        <div className="modal-field">
+          <label>Category</label>
+          {editing ? (
+            <select
+              className="modal-input"
+              value={draft.category}
+              disabled={updateApi.isPending}
+              onChange={(e) =>
+                set("category", e.target.value as AdminApiCategory)
+              }
+            >
+              <option value="VENDING">Vending</option>
+              <option value="HES_AMI">HES/AMI</option>
+            </select>
+          ) : (
+            <div className="api-position">
+              {api.category === "HES_AMI" ? "HES/AMI" : "Vending"}
+            </div>
+          )}
         </div>
 
         <div className="modal-field">

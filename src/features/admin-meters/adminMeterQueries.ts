@@ -32,9 +32,10 @@ export type CreateMeterIntegrationInput = {
   authenticationType: string
   serial?: string
   multiplier: string
+  description?: string
+  hesStatus?: string
   hlsConfig?: HlsSecurityConfig | null
   llsConfig?: LlsSecurityConfig | null
-  description?: string
 }
 
 export type UpdateMeterIntegrationInput = CreateMeterIntegrationInput & {
@@ -74,6 +75,7 @@ export type MeterIntegration = MeterIntegrationSummary & {
   class: string
   category: string
   description: string
+  hesStatus: string
   serial?: string
   multiplier?: string
   hlsConfig?: HlsSecurityConfig | null

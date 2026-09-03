@@ -93,7 +93,7 @@ function SupportedMetersGuide({ guide }: { guide: (typeof guides)[number] }) {
                       <tr>
                         <th>Manufacturer</th>
                         <th>Model</th>
-                        <th>Status</th>
+                        <th>HES Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -101,7 +101,7 @@ function SupportedMetersGuide({ guide }: { guide: (typeof guides)[number] }) {
                         <tr key={meter.id}>
                           <td>{meter.manufacturer}</td>
                           <td>{meter.model}</td>
-                          <td>{formatStatusLabel(meter.status)}</td>
+                          <td>{formatStatusLabel(meter.hesStatus)}</td>
                         </tr>
                       ))}
                     </tbody>

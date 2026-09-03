@@ -6,6 +6,7 @@ export type PublicApiListItem = {
   name: string;
   route: string;
   summary: string;
+  category?: string;
   updatedAt: string;
 };
 

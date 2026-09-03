@@ -10,7 +10,7 @@ export type MeterFormValues = Pick<
   | 'model'
   | 'protocol'
   | 'authenticationType'
-> & { serialNumber: string; multiplier: string; description: string }
+> & { serialNumber: string; multiplier: string; description: string; hesStatus: string }
 
 export type MeterFormField = keyof MeterFormValues
 
@@ -69,6 +69,7 @@ export function MeterFormModal({
     protocol: initial?.protocol ?? '',
     authenticationType: initial?.authenticationType ?? '',
     description: initial?.description ?? '',
+    hesStatus: initial?.hesStatus ?? 'NOT SUPPORTED',
   })
   const modalRef = useRef<HTMLDivElement>(null)
   useDismiss(modalRef, onClose)
@@ -99,6 +100,7 @@ export function MeterFormModal({
       protocol: form.protocol.trim(),
       authenticationType: form.authenticationType.trim(),
       description: form.description.trim(),
+      hesStatus: form.hesStatus,
     })
   }
 
@@ -273,6 +275,18 @@ export function MeterFormModal({
               />
             </Field>
           ) : null}
+
+          <Field label="HES Status" className="modal-field-wide">
+            <select
+              className="modal-select"
+              value={form.hesStatus}
+              onChange={(e) => set('hesStatus', e.target.value)}
+              disabled={isSubmitting}
+            >
+              <option value="NOT SUPPORTED">Not Supported</option>
+              <option value="SUPPORTED">Supported</option>
+            </select>
+          </Field>
 
           <div className="modal-foot">
             <button type="button" className="btn-neutral" onClick={onClose} disabled={isSubmitting}>

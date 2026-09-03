@@ -103,6 +103,8 @@ function MeterIntegrationPage() {
         authenticationType: basic.authenticationType,
         serial: basic.serialNumber,
         multiplier: basic.multiplier,
+        description: basic.description || undefined,
+        hesStatus: basic.hesStatus,
         hlsConfig: configs.hlsConfig,
         llsConfig: configs.llsConfig,
       })
@@ -359,6 +361,7 @@ function MeterIntegrationPage() {
           initial={basicValues ?? undefined}
           isSubmitting={createMeter.isPending}
           showSerialNumber
+          showDescription
           fieldErrors={createFieldErrors}
           onFieldChange={(field) => {
             setCreateFieldErrors((current) => {
@@ -515,9 +518,10 @@ function EditMeterIntegrationModal({
         authenticationType: basic.authenticationType,
         serial: basic.serialNumber || undefined,
         multiplier: basic.multiplier,
+        description: basic.description || undefined,
+        hesStatus: basic.hesStatus,
         hlsConfig: configs.hlsConfig,
         llsConfig: configs.llsConfig,
-        description: basic.description || undefined,
       })
       onClose()
       showToast({
@@ -587,6 +591,7 @@ function EditMeterIntegrationModal({
     protocol: meter.protocol,
     authenticationType: meter.authenticationType,
     description: meter.description,
+    hesStatus: meter.hesStatus,
   }
 
   const closeAll = () => {
