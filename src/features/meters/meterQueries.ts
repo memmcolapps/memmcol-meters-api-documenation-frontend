@@ -13,6 +13,7 @@ export type Meter = {
   meterNumber: string
   simNumber: string
   manufacturer: string
+  meterTypeId: string
   model: string
   meterClass: string
   status: MeterStatus
@@ -24,6 +25,30 @@ export type Meter = {
   newTariffIndex?: string
   createdAt: string
   updatedAt: string
+}
+
+export type EditMeterPayload = {
+  meterNumber: string,
+  simNumber: string,
+  meterTypeId: string,
+  keyChange: MeterKeyChange,
+}
+
+export type EditMeterResponse = {
+  meter: {
+    id: string
+    meterNumber: string
+    simNumber: string
+    manufacturer: string
+    meterTypeId: string
+    model: string
+    meterClass: string
+    meterCategory: string
+    status: MeterStatus
+    keyChange: MeterKeyChange
+    createdAt: string
+    updatedAt: string
+  }
 }
 
 export type MeterPagination = {
@@ -156,6 +181,16 @@ async function updateMeterStatus(id: string, input: UpdateMeterStatusInput) {
   )
 }
 
+async function editMeter(id: string, input: EditMeterPayload) {
+  return apiRequest<EditMeterResponse>(
+    `/meters/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      json: input,
+    }
+  )
+}
+
 export const meterKeys = {
   all: ['meters'] as const,
   lists: () => ['meters', 'list'] as const,
@@ -235,6 +270,18 @@ export function useUpdateMeterStatus() {
       )
       queryClient.invalidateQueries({ queryKey: meterKeys.lists() })
     },
+  })
+}
+
+export function useEditMeter() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({id, input}: {id: string, input: EditMeterPayload}) => editMeter(id, input),
+    onSuccess: (response) => {
+      queryClient.setQueryData(meterKeys.detail(response.meter.id), response.meter)
+      queryClient.invalidateQueries({queryKey: meterKeys.lists()})
+    }
   })
 }
 
