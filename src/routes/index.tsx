@@ -18,6 +18,13 @@ const gettingStarted = guides.map((guide) => ({
 function DocsHome() {
   const apisQuery = usePublicApis()
 
+  const apis = apisQuery.data ?? []
+  const grouped = apis.reduce<Record<string, typeof apis>>((acc, api) => {
+    const category = api.category?.trim() || 'OTHER'
+    ;(acc[category] ||= []).push(api)
+    return acc
+  }, {})
+
   return (
     <div className="docs-home">
       <section className="docs-intro">
@@ -66,24 +73,35 @@ function DocsHome() {
           error={apisQuery.error}
           onRetry={() => void apisQuery.refetch()}
         >
-          {apisQuery.data?.length ? (
-            <div className="api-grid" aria-busy={apisQuery.isFetching}>
-              {apisQuery.data.map((api) => (
-                <Link
-                  key={api.id}
-                  to="/docs/$slug"
-                  params={{ slug: api.id }}
-                  className="api-card"
-                >
-                  <span className="api-card-icon" aria-hidden="true">
-                    <ApiIcon />
-                  </span>
-                  <span className="api-card-title">{api.name}</span>
-                  <span className="api-card-blurb">{api.summary}</span>
-                  <span className="api-card-link">Read docs →</span>
-                </Link>
-              ))}
-            </div>
+          {apis.length ? (
+            Object.entries(grouped).map(([category, categoryApis]) => (
+              <div className="api-category" key={category}>
+                <h3 className="api-category-title">
+                  {category === 'HES_AMI'
+                    ? 'HES/AMI'
+                    : category === 'VENDING'
+                      ? 'Vending'
+                      : category}
+                </h3>
+                <div className="api-grid" aria-busy={apisQuery.isFetching}>
+                  {categoryApis.map((api) => (
+                    <Link
+                      key={api.id}
+                      to="/docs/$slug"
+                      params={{ slug: api.id }}
+                      className="api-card"
+                    >
+                      <span className="api-card-icon" aria-hidden="true">
+                        <ApiIcon />
+                      </span>
+                      <span className="api-card-title">{api.name}</span>
+                      <span className="api-card-blurb">{api.summary}</span>
+                      <span className="api-card-link">Read docs →</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))
           ) : (
             <div className="doc-detail-placeholder">
               <p>No APIs are published yet.</p>

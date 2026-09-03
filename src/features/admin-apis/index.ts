@@ -17,6 +17,7 @@ export type {
   AdminApi,
   AdminApiStatus,
   AdminApiPublication,
+  AdminApiCategory,
   AdminApiSortBy,
   SortOrder,
   AdminApiAddedBy,

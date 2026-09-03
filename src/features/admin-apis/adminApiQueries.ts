@@ -4,6 +4,7 @@ import { publicApiKeys } from "../public-apis/publicApiQueries";
 
 export type AdminApiStatus = "ACTIVE" | "DEPRECATED";
 export type AdminApiPublication = "PUBLISHED" | "UNPUBLISHED";
+export type AdminApiCategory = "HES_AMI" | "VENDING";
 export type AdminApiSortBy = "name" | "cost" | "createdAt" | "updatedAt";
 export type SortOrder = "asc" | "desc";
 
@@ -17,6 +18,7 @@ export type AdminApi = {
   name: string;
   route: string;
   cost: number;
+  category: AdminApiCategory;
   samplePayload: string;
   sampleResponse: string;
   documentation: string;
@@ -32,6 +34,7 @@ export type CreateAdminApiInput = {
   name: string;
   route: string;
   cost: number;
+  category: AdminApiCategory;
   samplePayload: string;
   sampleResponse: string;
   documentation: string;
@@ -306,6 +309,7 @@ export function useUpdateApiService() {
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.route !== undefined ? { route: input.route } : {}),
         ...(input.cost !== undefined ? { cost: input.cost } : {}),
+        ...(input.category !== undefined ? { category: input.category } : {}),
         ...(input.samplePayload !== undefined
           ? { samplePayload: input.samplePayload }
           : {}),

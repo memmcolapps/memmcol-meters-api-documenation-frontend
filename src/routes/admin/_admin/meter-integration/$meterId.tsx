@@ -89,6 +89,8 @@ function MeterView({ meter }: { meter: MeterIntegration }) {
         protocol: data.protocol,
         multiplier: data.multiplier,
         authenticationType: data.authenticationType,
+        description: data.description || undefined,
+        hesStatus: data.hesStatus,
       })
       setEditOpen(false)
       showToast({
@@ -180,8 +182,11 @@ function MeterView({ meter }: { meter: MeterIntegration }) {
             model: meter.model,
             protocol: meter.protocol,
             authenticationType: meter.authenticationType,
+            description: meter.description ?? '',
+            hesStatus: meter.hesStatus,
           }}
           isSubmitting={updateMeter.isPending}
+          showDescription
           fieldErrors={fieldErrors}
           onFieldChange={(field) => {
             setFieldErrors((current) => {
