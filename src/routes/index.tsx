@@ -24,6 +24,9 @@ function DocsHome() {
     ;(acc[category] ||= []).push(api)
     return acc
   }, {})
+  for (const category of Object.keys(grouped)) {
+    grouped[category].sort((a, b) => (a.documentationPosition ?? Infinity) - (b.documentationPosition ?? Infinity))
+  }
 
   return (
     <div className="docs-home">

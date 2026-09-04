@@ -75,6 +75,13 @@ function ApiManagementPage() {
     positionQuery.data?.items.filter((api) => api.status === "ACTIVE").length ??
     0;
   const createApi = useCreateAdminApi();
+  const getPositionCount = (category: AdminApiCategory) => {
+    const baseCount = activeCount || 1;
+    if (category === "HES_AMI") {
+      return baseCount;
+    }
+    return baseCount + 1;
+  };
   const updateApi = useUpdateApiService();
   const changePublication = useChangeApiPublication();
   const changeStatus = useChangeApiStatus();
@@ -482,7 +489,11 @@ function ApiManagementPage() {
           title={formModal.mode === "add" ? "Add API" : "Edit API"}
           submitLabel={formModal.mode === "add" ? "Add API" : "Save Changes"}
           positionCount={
-            (activeCount || 1) + (formModal.mode === "add" ? 1 : 0)
+            getPositionCount(
+              formModal.mode === "edit"
+                ? formModal.api.category
+                : "VENDING"
+            )
           }
           initial={
             formModal.mode === "edit"
