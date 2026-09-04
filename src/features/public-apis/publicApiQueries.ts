@@ -7,6 +7,7 @@ export type PublicApiListItem = {
   route: string;
   summary: string;
   category?: string;
+  documentationPosition?: number;
   updatedAt: string;
 };
 
