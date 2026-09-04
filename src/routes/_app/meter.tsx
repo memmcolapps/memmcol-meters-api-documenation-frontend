@@ -1072,7 +1072,7 @@ function EditMeterModal({
               onChange={(e) => set('meterTypeId', e.target.value)}
             >
               <option value="" disabled>
-                {meterTypesQuery.isPending ? 'Loading meter types…' : 'Select Meter Manufacturer'}
+                {meterTypesQuery.isPending ? 'Loading meter types…' : 'Select Meter Type'}
               </option>
 
               {meterTypes.map((meterType) => (
