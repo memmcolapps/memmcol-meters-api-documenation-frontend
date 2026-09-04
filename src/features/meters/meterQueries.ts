@@ -11,7 +11,7 @@ export type MeterStatus = 'ACTIVE' | 'DEACTIVATED'
 export type Meter = {
   id: string
   meterNumber: string
-  simNumber: string
+  simNumber?: string | null
   manufacturer: string
   meterTypeId: string
   model: string
@@ -29,8 +29,8 @@ export type Meter = {
 
 export type EditMeterPayload = {
   meterNumber: string,
-  simNumber: string,
-  meterTypeId: string,
+  simNumber?: string,
+  meterTypeId?: string,
   keyChange: MeterKeyChange,
 }
 
@@ -89,8 +89,8 @@ export type MeterKeyChange = {
 
 export type CreateMeterInput = {
   meterNumber: string
-  simNumber: string
-  meterTypeId: string
+  simNumber?: string
+  meterTypeId?: string
   keyChange: MeterKeyChange
 }
 
