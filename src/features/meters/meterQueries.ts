@@ -9,6 +9,7 @@ import { ApiError, apiDownload, apiRequest } from '../../lib/api/client'
 export type MeterStatus = 'ACTIVE' | 'DEACTIVATED'
 
 export type Meter = {
+  keyChange: any
   id: string
   meterNumber: string
   simNumber: string
