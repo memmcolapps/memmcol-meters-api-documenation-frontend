@@ -907,12 +907,12 @@ function EditMeterModal({
     meterNumber: meter.meterNumber ?? '',
     simNumber: meter.simNumber ?? '',
     meterTypeId: meter.meterTypeId ?? '',
-    oldSgc: '',
-    newSgc: '',
-    oldKrn: '',
-    newKrn: '',
-    oldTariffIndex: '',
-    newTariffIndex: '',
+    oldSgc: meter.keyChange?.oldSgc != null ? String(meter.keyChange.oldSgc) : '',
+    newSgc: meter.keyChange?.newSgc != null ? String(meter.keyChange.newSgc) : '',
+    oldKrn: meter.keyChange?.oldKrn != null ? String(meter.keyChange.oldKrn) : '',
+    newKrn: meter.keyChange?.newKrn != null ? String(meter.keyChange.newKrn) : '',
+    oldTariffIndex: meter.keyChange?.oldTariffIndex != null ? String(meter.keyChange.oldTariffIndex) : '',
+    newTariffIndex: meter.keyChange?.newTariffIndex != null ? String(meter.keyChange.newTariffIndex) : '',
   })
 
   const [fieldErrors, setFieldErrors] = useState<MeterFormErrors>({})
