@@ -105,13 +105,19 @@ function validateMeterForm(form: MeterFormValues) {
     errors.meterNumber = 'Meter number must contain digits only.'
   }
 
-  if (!form.simNumber.trim()) {
-    errors.simNumber = 'SIM number is required.'
-  } else if (!/^\d+$/.test(form.simNumber.trim())) {
-    errors.simNumber = 'SIM number must contain digits only.'
+  // if (!form.simNumber.trim()) {
+  //   errors.simNumber = 'SIM number is required.'
+  // } else if (!/^\d+$/.test(form.simNumber.trim())) {
+  //   errors.simNumber = 'SIM number must contain digits only.'
+  // }
+  //
+  if (form.simNumber) {
+    if (!/^\d+$/.test(form.simNumber.trim())) {
+      errors.simNumber = 'SIM number must contain digits only.'
+    }
   }
 
-  if (!form.meterTypeId) errors.meterTypeId = 'Select a meter type.'
+  // if (!form.meterTypeId) errors.meterTypeId = 'Select a meter type.'
 
   keyChangeFields.forEach(({ field, label }) => {
     const value = form[field].trim()
@@ -459,10 +465,13 @@ function AddMeterModal({
       return
     }
 
+    const simNumber = form.simNumber.trim()
+    const meterTypeId = form.meterTypeId.trim()
+
     const input: CreateMeterInput = {
       meterNumber: form.meterNumber.trim(),
-      simNumber: form.simNumber.trim(),
-      meterTypeId: form.meterTypeId,
+      ...(simNumber ? { simNumber } : {}),
+      ...(meterTypeId ? { meterTypeId }: {}),
       keyChange: {
         oldSgc: Number(form.oldSgc),
         newSgc: Number(form.newSgc),
@@ -475,6 +484,7 @@ function AddMeterModal({
 
     try {
       const meter = await createMeter.mutateAsync(input)
+      console.log(meter)
       showToast({
         title: 'Meter created',
         message: `${meter.meterNumber} was added successfully.`,
@@ -539,7 +549,7 @@ function AddMeterModal({
                 onChange={(e) => set('meterNumber', e.target.value)}
               />
             </Field>
-            <Field label="Sim Card Number" required error={fieldErrors.simNumber}>
+            <Field label="Sim Card Number" error={fieldErrors.simNumber}>
               <input
                 className="modal-input"
                 placeholder="E.g. 89006809734095874"
@@ -553,7 +563,7 @@ function AddMeterModal({
             </Field>
           </div>
 
-          <Field label="Meter Type" required error={fieldErrors.meterTypeId}>
+          <Field label="Meter Type" error={fieldErrors.meterTypeId}>
             <select
               className="modal-select"
               value={form.meterTypeId}
@@ -818,7 +828,7 @@ function DetailItem({
   value,
 }: {
   label: string
-  value: string | number
+  value: string | number | undefined | null
 }) {
   return (
     <div style={itemStyle}>
@@ -949,12 +959,15 @@ function EditMeterModal({
     }
 
     try {
+
+      const simNumber = form.simNumber.trim()
+      const meterTypeId = form.meterTypeId
       const updatedMeter = await editMeterMutation.mutateAsync({
         id: meter.id,
         input: {
           meterNumber: form.meterNumber.trim(),
-          simNumber: form.simNumber.trim(),
-          meterTypeId: form.meterTypeId,
+          ...(simNumber ? { simNumber } : {}),
+          ...(meterTypeId ? { meterTypeId } : {}),
           keyChange: {
             oldSgc: Number(form.oldSgc),
             newSgc: Number(form.newSgc),
@@ -1036,7 +1049,7 @@ function EditMeterModal({
               />
             </Field>
 
-            <Field label="Sim Card Number" required error={fieldErrors.simNumber}>
+            <Field label="Sim Card Number" error={fieldErrors.simNumber}>
               <input
                 className="modal-input"
                 placeholder="E.g. 89006809734095874"
@@ -1050,7 +1063,7 @@ function EditMeterModal({
             </Field>
           </div>
 
-          <Field label="Meter Manufacturer" required error={fieldErrors.meterTypeId}>
+          <Field label="Meter Type" error={fieldErrors.meterTypeId}>
             <select
               className="modal-select"
               value={form.meterTypeId}
@@ -1064,7 +1077,7 @@ function EditMeterModal({
 
               {meterTypes.map((meterType) => (
                 <option key={meterType.id} value={meterType.id}>
-                  {meterType.manufacturer}
+                  { meterType.model} {meterType.manufacturer} {meterType.category}
                 </option>
               ))}
             </select>
@@ -1085,24 +1098,6 @@ function EditMeterModal({
 
 
           <div className="modal-grid">
-            <Field label="Meter Class">
-              <input
-                className="modal-input"
-                value={meter.meterClass}
-                disabled
-                readOnly
-              />
-            </Field>
-
-            <Field label="Model">
-              <input
-                className="modal-input"
-                value={meter.model}
-                disabled
-                readOnly
-              />
-            </Field>
-
             <Field label="Old SGC" required error={fieldErrors.oldSgc}>
               <input
                 className="modal-input"
@@ -1174,20 +1169,6 @@ function EditMeterModal({
                 onChange={(e) => set('newTariffIndex', e.target.value)}
               />
             </Field>
-          </div>
-
-          <div className="modal-grid">
-
-
-            {/*<Field label="Status">
-              <input
-                className="modal-input"
-                value={formatMeterEnum(meter.status)}
-                disabled
-                readOnly
-              />
-            </Field>*/}
-
           </div>
 
           <div className="modal-foot">
