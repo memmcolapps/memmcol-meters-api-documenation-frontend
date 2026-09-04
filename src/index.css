@@ -3821,6 +3821,24 @@ h1 {
   box-shadow: 0 8px 20px -10px rgba(15, 30, 24, 0.5);
 }
 
+/*ADDED DONUT STYLING*/
+.donut--svg {
+  width: 180px;
+  height: 180px;
+  display: block;
+}
+
+.donut-segment {
+  cursor: pointer;
+  transition: opacity 0.2s ease, stroke-width 0.2s ease;
+}
+
+.donut-segment:hover {
+  opacity: 0.85;
+  stroke-width: 26;
+}
+
+
 .uptime-chart {
   display: block;
   width: 100%;
