@@ -487,7 +487,7 @@ function AddMeterModal({
       console.log(meter)
       showToast({
         title: 'Meter created',
-        message: `${meter.meterNumber} was added successfully.`,
+        message: `${meter.meterNumber ?? form.meterNumber} was added successfully.`,
         variant: 'success',
       })
       onClose()
