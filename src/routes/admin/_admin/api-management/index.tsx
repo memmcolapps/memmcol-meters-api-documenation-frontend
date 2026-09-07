@@ -76,13 +76,9 @@ function ApiManagementPage() {
   );
   const createApi = useCreateAdminApi();
   const getPositionCount = (category: AdminApiCategory) => {
-    const categoryCount = activeApis.filter(
-      (api) => api.category === category,
-    ).length;
-    if (category === "HES_AMI") {
-      return categoryCount || 1;
-    }
-    return categoryCount + 1 || 1;
+    return (
+      activeApis.filter((api) => api.category === category).length + 1
+    );
   };
   const updateApi = useUpdateApiService();
   const changePublication = useChangeApiPublication();
