@@ -71,16 +71,14 @@ function ApiManagementPage() {
     status: "ACTIVE",
     limit: 100,
   });
-  const activeCount =
-    positionQuery.data?.items.filter((api) => api.status === "ACTIVE").length ??
-    0;
+  const activeApis = (positionQuery.data?.items ?? []).filter(
+    (api) => api.status === "ACTIVE",
+  );
   const createApi = useCreateAdminApi();
   const getPositionCount = (category: AdminApiCategory) => {
-    const baseCount = activeCount || 1;
-    if (category === "HES_AMI") {
-      return baseCount;
-    }
-    return baseCount + 1;
+    return (
+      activeApis.filter((api) => api.category === category).length + 1
+    );
   };
   const updateApi = useUpdateApiService();
   const changePublication = useChangeApiPublication();
@@ -488,13 +486,7 @@ function ApiManagementPage() {
         <ApiFormModal
           title={formModal.mode === "add" ? "Add API" : "Edit API"}
           submitLabel={formModal.mode === "add" ? "Add API" : "Save Changes"}
-          positionCount={
-            getPositionCount(
-              formModal.mode === "edit"
-                ? formModal.api.category
-                : "VENDING"
-            )
-          }
+          getPositionCount={getPositionCount}
           initial={
             formModal.mode === "edit"
               ? {
@@ -688,7 +680,7 @@ function ApiFormModal({
   onFieldChange,
   onClose,
   onSubmit,
-  positionCount,
+  getPositionCount,
 }: {
   title: string;
   submitLabel: string;
@@ -698,7 +690,7 @@ function ApiFormModal({
   onFieldChange: (field: ApiFormField) => void;
   onClose: () => void;
   onSubmit: (values: ApiFormValues) => void;
-  positionCount: number;
+  getPositionCount: (category: AdminApiCategory) => number;
 }) {
   const [step, setStep] = useState<1 | 2>(1);
   const [form, setForm] = useState<ApiFormValues>({
@@ -717,19 +709,29 @@ function ApiFormModal({
   });
 
   const positionTouched = useRef(Boolean(initial));
+  const positionCount = getPositionCount(form.category);
 
   useEffect(() => {
     if (fieldErrors.name || fieldErrors.route || fieldErrors.cost) setStep(1);
   }, [fieldErrors]);
 
   useEffect(() => {
+    const maxPos = getPositionCount(form.category);
     if (!positionTouched.current) {
       setForm((current) => ({
         ...current,
-        documentationPosition: String(positionCount),
+        documentationPosition: String(maxPos),
       }));
+    } else {
+      setForm((current) => {
+        const currentPos = parseInt(current.documentationPosition, 10);
+        if (!Number.isNaN(currentPos) && currentPos > maxPos) {
+          return { ...current, documentationPosition: String(maxPos) };
+        }
+        return current;
+      });
     }
-  }, [positionCount]);
+  }, [form.category, getPositionCount]);
 
   const set = (key: ApiFormField, value: string) => {
     if (key === "documentationPosition") positionTouched.current = true;
