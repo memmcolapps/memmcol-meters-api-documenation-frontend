@@ -389,9 +389,6 @@ function DonutChart({
           style={{ backgroundColor: hoveredSegment.color }}
         >
           <strong>{hoveredSegment.name}: </strong>
-          {/*<span>
-            {formatNumber(hoveredSegment.calls)} calls
-          </span>*/}
           <span> {hoveredSegment.percentage}%</span>
         </div>
       ) : null}
