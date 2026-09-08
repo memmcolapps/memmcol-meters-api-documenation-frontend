@@ -1,0 +1,19 @@
+# Backend each deploy context proxies to. vite.config.ts reads API_PROXY_TARGET
+# at build time to generate _redirects, so this is the only place the host is
+# named. Build settings (command, publish dir) stay in the Netlify UI.
+
+# main
+[context.production.environment]
+  API_PROXY_TARGET = "https://memmcolapps.memmserve.com"
+
+# staging — branch contexts win over the branch-deploy default below.
+[context.staging.environment]
+  API_PROXY_TARGET = "https://sbctest.memmserve.com"
+
+# Pull request previews: never point these at production.
+[context.deploy-preview.environment]
+  API_PROXY_TARGET = "https://sbctest.memmserve.com"
+
+# Any other branch deploy.
+[context.branch-deploy.environment]
+  API_PROXY_TARGET = "https://sbctest.memmserve.com"
