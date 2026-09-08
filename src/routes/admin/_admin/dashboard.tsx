@@ -159,13 +159,13 @@ function DashboardSummary({
       </section>
 
       <section className="dash-grid">
-        <article className="dash-panel">
+        <article className="dash-panel dash-panel-performance">
           <div className="panel-head">
             <h2 className="panel-title">Performance by API</h2>
           </div>
           {apiSegments.length ? (
             <>
-              <div className="gauge">
+              <div className="gauge gauge-performace-api">
                 <DonutChart segments={apiSegments} />
               </div>
 
