@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Link,
   Outlet,
@@ -7,45 +7,45 @@ import {
   redirect,
   useNavigate,
   useRouterState,
-} from '@tanstack/react-router'
-import { navItems } from '../app/nav'
-import { Logo } from '../app/Logo'
-import { useDismiss } from '../app/useDismiss'
-import { ApiError } from '../lib/api/client'
-import { clearSession } from '../lib/api/session'
-import { queryClient as appQueryClient } from '../lib/queryClient'
+} from "@tanstack/react-router";
+import { navItems } from "../app/nav";
+import { Logo } from "../app/Logo";
+import { useDismiss } from "../app/useDismiss";
+import { ApiError } from "../lib/api/client";
+import { clearSession } from "../lib/api/session";
+import { queryClient as appQueryClient } from "../lib/queryClient";
 import {
   currentProfileQueryOptions,
   profileKeys,
   useCurrentProfile,
-} from '../features/profile/profileQueries'
+} from "../features/profile/profileQueries";
 
-export const Route = createFileRoute('/_app')({
+export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
     try {
-      await appQueryClient.fetchQuery(currentProfileQueryOptions())
+      await appQueryClient.fetchQuery(currentProfileQueryOptions());
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        appQueryClient.removeQueries({ queryKey: profileKeys.all })
-        throw redirect({ to: '/login' })
+        appQueryClient.removeQueries({ queryKey: profileKeys.all });
+        throw redirect({ to: "/login" });
       }
-      throw error
+      throw error;
     }
   },
   component: AppLayout,
-})
+});
 
 function AppLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const closeSidebar = () => setSidebarOpen(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const closeSidebar = () => setSidebarOpen(false);
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
-  })
+  });
 
   return (
     <div className="app">
       <aside
-        className={`app-sidebar${sidebarOpen ? ' is-open' : ''}`}
+        className={`app-sidebar${sidebarOpen ? " is-open" : ""}`}
         aria-label="Sidebar navigation"
       >
         <Link to="/dashboard" className="app-brand" onClick={closeSidebar}>
@@ -66,7 +66,7 @@ function AppLayout() {
                 key={item.to}
                 to={item.to}
                 className="app-nav-link"
-                activeProps={{ className: 'is-active' }}
+                activeProps={{ className: "is-active" }}
                 onClick={closeSidebar}
               >
                 <span className="app-nav-icon">{item.icon}</span>
@@ -100,7 +100,11 @@ function AppLayout() {
           </button>
 
           <div className="app-header-actions">
-            <button type="button" className="app-icon-btn" aria-label="Notifications">
+            <button
+              type="button"
+              className="app-icon-btn"
+              aria-label="Notifications"
+            >
               <BellIcon />
             </button>
             <AccountMenu />
@@ -114,20 +118,20 @@ function AppLayout() {
         <footer className="app-footer">© 2026, Powered by MEMMCOL</footer>
       </div>
     </div>
-  )
+  );
 }
 
 function AccountMenu() {
-  const [open, setOpen] = useState(false)
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const ref = useRef<HTMLDivElement>(null)
-  useDismiss(ref, () => setOpen(false), open)
-  const profileQuery = useCurrentProfile()
-  const profile = profileQuery.data
+  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const ref = useRef<HTMLDivElement>(null);
+  useDismiss(ref, () => setOpen(false), open);
+  const profileQuery = useCurrentProfile();
+  const profile = profileQuery.data;
   const fullName = profile
     ? `${profile.firstName} ${profile.lastName}`.trim()
-    : null
+    : null;
 
   return (
     <div className="account" ref={ref}>
@@ -165,9 +169,9 @@ function AccountMenu() {
               className="account-item is-logout"
               role="menuitem"
               onClick={async () => {
-                clearSession()
-                await navigate({ to: '/login' })
-                queryClient.clear()
+                clearSession();
+                await navigate({ to: "/login" });
+                queryClient.clear();
               }}
             >
               <LogoutIcon /> Logout
@@ -176,7 +180,7 @@ function AccountMenu() {
         </div>
       ) : null}
     </div>
-  )
+  );
 }
 
 function NavGroup({
@@ -184,25 +188,37 @@ function NavGroup({
   pathname,
   onNavigate,
 }: {
-  item: (typeof navItems)[number]
-  pathname: string
-  onNavigate: () => void
+  item: (typeof navItems)[number];
+  pathname: string;
+  onNavigate: () => void;
 }) {
-  const isWithin = pathname.startsWith(item.to)
-  const [open, setOpen] = useState(isWithin)
+  const isWithin = pathname.startsWith(item.to);
+  const [open, setOpen] = useState(isWithin);
 
   return (
     <div className="app-nav-group">
       <button
         type="button"
-        className={`app-nav-link app-nav-toggle${isWithin ? ' is-within' : ''}`}
+        className={`app-nav-link app-nav-toggle${isWithin ? " is-within" : ""}`}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
         <span className="app-nav-icon">{item.icon}</span>
         <span className="app-nav-label">{item.label}</span>
-        <span className={`app-nav-caret${open ? ' is-open' : ''}`} aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <span
+          className={`app-nav-caret${open ? " is-open" : ""}`}
+          aria-hidden="true"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="m9 18 6-6-6-6" />
           </svg>
         </span>
@@ -215,7 +231,7 @@ function NavGroup({
               key={child.to}
               to={child.to}
               className="app-subnav-link"
-              activeProps={{ className: 'is-active' }}
+              activeProps={{ className: "is-active" }}
               onClick={onNavigate}
             >
               {child.label}
@@ -224,49 +240,99 @@ function NavGroup({
         </div>
       ) : null}
     </div>
-  )
+  );
 }
 
 function BellIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
       <path d="M13.73 21a2 2 0 0 1-3.46 0" />
     </svg>
-  )
+  );
 }
 
 function ChevronIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="m6 9 6 6 6-6" />
     </svg>
-  )
+  );
 }
 
 function UserIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <circle cx="12" cy="8" r="4" />
       <path d="M4 21a8 8 0 0 1 16 0" />
     </svg>
-  )
+  );
 }
 
 function UpgradeIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="M17.5 19a4.5 4.5 0 0 0 .5-9 6 6 0 0 0-11.6-1.5A4 4 0 0 0 6.5 19" />
       <path d="M12 16v-6m0 0-2.5 2.5M12 10l2.5 2.5" />
     </svg>
-  )
+  );
 }
 
 function LogoutIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
       <path d="M16 17l5-5-5-5M21 12H9" />
     </svg>
-  )
+  );
 }
