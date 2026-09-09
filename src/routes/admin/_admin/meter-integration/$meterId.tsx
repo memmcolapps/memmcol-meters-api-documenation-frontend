@@ -20,11 +20,13 @@ import {
   useCreateObisCode,
   useMeterIntegration,
   useObisCodes,
+  useRealTimeActions,
   useUpdateMeterIntegration,
   useUpdateObisCode,
   useUploadObisCodes,
   type CreateObisCodeInput,
   type MeterIntegration,
+  type MeterAction,
   type ObisCode,
   type ObisCodeStatus,
   type ObisUpload,
@@ -264,6 +266,10 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
     Partial<Record<ObisStatusField, string>>
   >({})
   const [uploadResult, setUploadResult] = useState<ObisUpload | null>(null)
+
+  const { meterId } = Route.useParams()
+  const availableActions = useRealTimeActions(meterId).data
+
   const deferredSearch = useDeferredValue(search.trim())
   const codesQuery = useObisCodes(meterIntegrationId, {
     search: deferredSearch || undefined,
@@ -273,9 +279,6 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
   })
   const codes = codesQuery.data?.items ?? []
   const pagination = codesQuery.data?.pagination
-  const availableActions = [
-    ...new Set(codes.map((code) => code.action).filter(Boolean)),
-  ]
 
   const openAddModal = (mode: 'realtime' | 'profile') => {
     createObisCode.reset()
@@ -1426,7 +1429,7 @@ function ObisFormModal({
   labelPrefix?: string
   showDescription?: boolean
   showRealtimeDetails?: boolean
-  integratedActions?: string[]
+  integratedActions?: MeterAction[] | []
 }) {
   const [action, setAction] = useState(initial?.action ?? '')
   const [code, setCode] = useState(initial?.code ?? '')
@@ -1595,15 +1598,15 @@ function ObisFormModal({
                   >
                     {integratedActions.length ? (
                       integratedActions.map((value) => {
-                        const isSelected = selectedActions.includes(value)
+                        const isSelected = selectedActions.includes(value.action)
                         return (
                           <button
                             type="button"
                             className="row-menu-item"
                             role="option"
                             aria-selected={isSelected}
-                            key={value}
-                            onClick={() => toggleAction(value)}
+                            key={value.id}
+                            onClick={() => toggleAction(value.action)}
                           >
                             <span
                               className={`integrated-actions-check${isSelected ? ' is-checked' : ''}`}
@@ -1611,7 +1614,7 @@ function ObisFormModal({
                             >
                               {isSelected ? <CheckIcon /> : null}
                             </span>
-                            {value}
+                            {value.action}
                           </button>
                         )
                       })

@@ -194,6 +194,14 @@ export type UploadObisCodesInput = {
   mode: ObisUploadMode
 }
 
+export type MeterAction = {
+  action: string,
+  code: string,
+  description: string,
+  id: string,
+  obisType: string
+}
+
 type MeterIntegrationResponse = {
   meterIntegration: MeterIntegration
 }
@@ -256,6 +264,7 @@ type MeterIntegrationErrorPayload = {
     requestId?: string
   }
 }
+
 
 async function createMeterIntegration(input: CreateMeterIntegrationInput) {
   const response = await apiRequest<MeterIntegrationResponse>(
@@ -476,6 +485,7 @@ export const meterIntegrationKeys = {
   list: (params: MeterIntegrationListParams) =>
     ['admin-meter-integrations', 'list', params] as const,
   detail: (id: string) => ['admin-meter-integrations', 'detail', id] as const,
+  realTimeActions: (id: string) => [...meterIntegrationKeys.detail(id), 'real-time-actions'] as const,
   obisCodes: (id: string) => ['admin-meter-integrations', 'detail', id, 'obis-codes'] as const,
   obisCodeList: (id: string, params: ObisCodeListParams) =>
     [...meterIntegrationKeys.obisCodes(id), params] as const,
@@ -708,4 +718,15 @@ export function getObisUploadError(error: unknown) {
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,
   }
+}
+
+async function getRealTimeActions(meterId: string) {
+  return await apiRequest<MeterAction[]>(`/admin/meter-integrations/real-time/obis/${encodeURIComponent(meterId)}`)
+}
+
+export function useRealTimeActions(meterId: string) {
+  return useQuery({
+    queryKey: meterIntegrationKeys.realTimeActions(meterId),
+    queryFn: () => getRealTimeActions(meterId)
+  })
 }
