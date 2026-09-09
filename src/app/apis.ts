@@ -173,7 +173,7 @@ export const guides: ApiEntry[] = [
     name: "Supported Meter Models for HES",
     hint: "Check if your meter model is supported for HES.",
     blurb:
-      "Meter models that are already integrated with the Momas platform and allowed for HES use — remote reading and remote communication.",
+      "Meter models that are already integrated with the Memmcol platform and allowed for HES use — remote reading and remote communication.",
     sections: [
       {
         heading: "Currently Supported Models",
@@ -259,11 +259,11 @@ export const guides: ApiEntry[] = [
     name: "Authentication",
     hint: "How requests are authorized.",
     blurb:
-      "Every request to the Momas Meters API is authenticated with an API key. This guide explains how keys work and how to create, rotate, and protect them.",
+      "Every request to the Memmcol Meters API is authenticated with an API key. This guide explains how keys work and how to create, rotate, and protect them.",
     sections: [
       {
         heading: "How authentication works",
-        body: "The Momas Meters API authenticates every request with an API key. Send your key in the X-API-Key header. Requests without a valid key — or with a revoked or expired one — are rejected with 401 Unauthorized. The key identifies your organisation and applies your subscription and rate limits, so there is nothing else to sign or configure.",
+        body: "The Memmcol Meters API authenticates every request with an API key. Send your key in the X-API-Key header. Requests without a valid key — or with a revoked or expired one — are rejected with 401 Unauthorized. The key identifies your organisation and applies your subscription and rate limits, so there is nothing else to sign or configure.",
         code: "X-API-Key: <YOUR_API_KEY>",
       },
       {
@@ -327,7 +327,7 @@ export const guides: ApiEntry[] = [
         heading: "Before you begin",
         body: "You need three things to make your first call. If your meter is not on the platform yet, start with the Add Your Meters guide, and with the HES guides if you need remote communication.",
         items: [
-          "An onboarded meter connected to the Momas platform.",
+          "An onboarded meter connected to the Memmcol platform.",
           "A test API key — see the Authentication guide to create one.",
           "The test base URL: https://memmcolapps.memmserve.com/powerhub/v1/api",
         ],
