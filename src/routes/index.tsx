@@ -32,9 +32,9 @@ function DocsHome() {
     <div className="docs-home">
       <section className="docs-intro">
         <div className="site-eyebrow">Documentation</div>
-        <h1 className="docs-intro-title">Momas Meters API Documentation</h1>
+        <h1 className="docs-intro-title">Memmcol Meters API Documentation</h1>
         <p className="docs-intro-lede">
-          Reference and guides for integrating with the Momas metering platform.
+          Reference and guides for integrating with the Memmcol metering platform.
           Browse the APIs below to read, manage, and communicate with meters. New
           here? Start with the getting-started guides.
         </p>

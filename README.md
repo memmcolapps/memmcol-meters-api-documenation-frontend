@@ -1,4 +1,4 @@
-# Momas Meters Portal
+# Memmcol Meters Portal
 
 React 19 + TypeScript + Vite application using TanStack Router for navigation and
 TanStack Query for remote/server state.
