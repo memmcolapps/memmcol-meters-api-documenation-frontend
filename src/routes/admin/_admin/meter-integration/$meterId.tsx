@@ -47,6 +47,7 @@ type ObisRealtimeInitial = {
   unit?: string
   multiplyBy?: string
   actionType?: string
+  obisType?:string
 }
 
 function MeterViewPage() {
@@ -309,11 +310,16 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
       const obisCode = await createObisCode.mutateAsync({
         action: values.action,
         code: values.code,
+        obisType:"PROFILE",
         ...(values.description ? { description: values.description } : {}),
         ...(values.scaler ? { scaler: values.scaler } : {}),
         ...(values.unit ? { unit: values.unit } : {}),
         ...(values.multiplyBy ? { multiplyBy: values.multiplyBy } : {}),
         ...(values.actionType ? { actionType: values.actionType } : {}),
+
+
+
+
       })
       setAddMode(null)
       showToast({
@@ -375,6 +381,7 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
         obisCodeId: editing.code.id,
         action: values.action,
         code: values.code,
+        obisType:values.obisType,
         ...(values.description ? { description: values.description } : {}),
         ...(values.scaler ? { scaler: values.scaler } : {}),
         ...(values.unit ? { unit: values.unit } : {}),
@@ -1438,6 +1445,7 @@ function ObisFormModal({
   const [unit, setUnit] = useState(initial?.unit ?? '')
   const [multiplyBy, setMultiplyBy] = useState(initial?.multiplyBy ?? '')
   const [actionType, setActionType] = useState(initial?.actionType ?? '')
+   const [obisType,setObisType] = useState(initial?.obisType ?? '')
   const [selectedActions, setSelectedActions] = useState<string[]>(() => {
     if (!initial?.description) return []
     return initial.description
@@ -1668,6 +1676,7 @@ function ObisFormModal({
                 unit: unit.trim(),
                 multiplyBy: multiplyBy.trim(),
                 actionType: actionType.trim(),
+                obisType:obisType.trim()
               })}
             >
               {isSubmitting ? submittingLabel : submitLabel}

@@ -108,6 +108,7 @@ export type CreateObisCodeInput = {
   unit?: string
   multiplyBy?: string
   actionType?: string
+  obisType?:string
 }
 
 export type UpdateObisCodeInput = CreateObisCodeInput & {
@@ -437,6 +438,7 @@ async function updateObisCode(
         ...(input.unit !== undefined ? { unit: input.unit } : {}),
         ...(input.multiplyBy !== undefined ? { multiplyBy: input.multiplyBy } : {}),
         ...(input.actionType !== undefined ? { actionType: input.actionType } : {}),
+               ...(input.obisType !== undefined ? { obisType: input.obisType} : {}),
       },
     },
   )
