@@ -159,32 +159,24 @@ function DashboardSummary({
       </section>
 
       <section className="dash-grid">
-        <article className="dash-panel">
+        <article className="dash-panel dash-panel-performance">
           <div className="panel-head">
             <h2 className="panel-title">Performance by API</h2>
           </div>
           {apiSegments.length ? (
             <>
-              <div className="gauge">
-                <div
-                  className="donut"
-                  style={{ background: donutGradient(apiSegments) }}
-                  role="img"
-                  aria-label={apiSegments
-                    .map((segment) => `${segment.name} ${segment.percentage}%`)
-                    .join(', ')}
-                >
-                  <div className="donut-hole" />
-                </div>
+              <div className="gauge gauge-performace-api">
+                <DonutChart segments={apiSegments} />
               </div>
-              <div className="dashboard-api-legend" aria-label="API usage legend">
+
+              {/*<div className="dashboard-api-legend" aria-label="API usage legend">
                 {apiSegments.map((segment) => (
                   <span className="legend-item" key={segment.apiId}>
                     <i className="legend-dot" style={{ background: segment.color }} />
                     {segment.name}: {formatNumber(segment.calls)} ({segment.percentage}%)
                   </span>
                 ))}
-              </div>
+              </div>*/}
             </>
           ) : (
             <EmptyState message="No API usage is available for this period." />
@@ -299,21 +291,111 @@ function chartScale(values: number[]) {
 const API_COLORS = ['#123524', '#9fb3a4', '#d64545', '#0b2e1f', '#26b8ce', '#2f9e44']
 const SEGMENT_GAP = 0.75
 
-function donutGradient(
-  segments: Array<{ percentage: number; color: string }>,
-) {
-  let start = 0
-  const stops: string[] = []
-  for (const segment of segments) {
-    const value = Math.max(0, segment.percentage)
-    const end = start + value
-    const gap = Math.min(SEGMENT_GAP, value / 4)
-    stops.push(`${segment.color} ${start}% ${Math.max(start, end - gap)}%`)
-    stops.push(`#ffffff ${Math.max(start, end - gap)}% ${end}%`)
-    start = end
-  }
-  return stops.length ? `conic-gradient(${stops.join(', ')})` : '#edf0ee'
+// function donutGradient(
+//   segments: Array<{ percentage: number; color: string }>,
+// ) {
+//   let start = 0
+//   const stops: string[] = []
+//   for (const segment of segments) {
+//     const value = Math.max(0, segment.percentage)
+//     const end = start + value
+//     const gap = Math.min(SEGMENT_GAP, value / 4)
+//     stops.push(`${segment.color} ${start}% ${Math.max(start, end - gap)}%`)
+//     stops.push(`#ffffff ${Math.max(start, end - gap)}% ${end}%`)
+//     start = end
+//   }
+//   return stops.length ? `conic-gradient(${stops.join(', ')})` : '#edf0ee'
+// }
+//
+function DonutChart({
+  segments,
+}: {
+  segments: Array<{
+    apiId: string
+    name: string
+    calls: number
+    percentage: number
+    color: string
+  }>
+}) {
+  const [hoveredSegment, setHoveredSegment] = useState<
+    | {
+        apiId: string
+        name: string
+        calls: number
+        percentage: number
+        color: string
+      }
+    | null
+  >(null)
+
+  let offset = 0
+
+  return (
+    <div className="donut-wrap">
+      <svg
+        className="donut donut--svg"
+        viewBox="0 0 120 120"
+        role="img"
+        aria-label={segments
+          .map((segment) => `${segment.name}: ${segment.calls} calls, ${segment.percentage}%`)
+          .join(', ')}
+      >
+        <circle
+          cx="60"
+          cy="60"
+          r="42"
+          fill="none"
+          stroke="#edf0ee"
+          strokeWidth="22"
+        />
+
+        {segments.map((segment) => {
+          const value = Math.max(0, segment.percentage)
+          const start = offset
+          offset += value
+
+          const visibleValue = Math.max(0, value - SEGMENT_GAP)
+
+          return (
+            <circle
+              key={segment.apiId}
+              cx="60"
+              cy="60"
+              r="42"
+              fill="none"
+              stroke={segment.color}
+              strokeWidth="22"
+              pathLength="100"
+              strokeDasharray={`${visibleValue} ${100 - visibleValue}`}
+              strokeDashoffset={-start}
+              transform="rotate(-90 60 60)"
+              className="donut-segment"
+              onMouseEnter={() => setHoveredSegment(segment)}
+              onMouseLeave={() => setHoveredSegment(null)}
+              onFocus={() => setHoveredSegment(segment)}
+              onBlur={() => setHoveredSegment(null)}
+              tabIndex={0}
+            />
+          )
+        })}
+
+        <circle cx="60" cy="60" r="29" fill="white" />
+      </svg>
+
+      {hoveredSegment ? (
+        <div
+          className="donut-tooltip"
+          style={{ backgroundColor: hoveredSegment.color }}
+        >
+          <strong>{hoveredSegment.name}: </strong>
+          <span> {hoveredSegment.percentage}%</span>
+        </div>
+      ) : null}
+    </div>
+  )
 }
+
 
 type HealthPoint = AdminDashboardSummary['serviceHealth']['points'][number]
 
