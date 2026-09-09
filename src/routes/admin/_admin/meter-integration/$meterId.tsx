@@ -1445,7 +1445,6 @@ function ObisFormModal({
   const [unit, setUnit] = useState(initial?.unit ?? '')
   const [multiplyBy, setMultiplyBy] = useState(initial?.multiplyBy ?? '')
   const [actionType, setActionType] = useState(initial?.actionType ?? '')
-   const [obisType,setObisType] = useState(initial?.obisType ?? '')
   const [selectedActions, setSelectedActions] = useState<string[]>(() => {
     if (!initial?.description) return []
     return initial.description
@@ -1676,7 +1675,7 @@ function ObisFormModal({
                 unit: unit.trim(),
                 multiplyBy: multiplyBy.trim(),
                 actionType: actionType.trim(),
-                obisType:obisType.trim()
+                obisType: "PROFILE"
               })}
             >
               {isSubmitting ? submittingLabel : submitLabel}
