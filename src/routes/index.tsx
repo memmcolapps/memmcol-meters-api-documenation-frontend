@@ -2,6 +2,8 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { AsyncState } from '../app/AsyncState'
 import { guides } from '../app/apis'
 import { usePublicApis } from '../features/public-apis/publicApiQueries'
+import { useState } from 'react'
+import { ca } from 'zod/v4/locales'
 
 export const Route = createFileRoute('/')({
   component: DocsHome,
@@ -26,6 +28,12 @@ function DocsHome() {
   }, {})
   for (const category of Object.keys(grouped)) {
     grouped[category].sort((a, b) => (a.documentationPosition ?? Infinity) - (b.documentationPosition ?? Infinity))
+  }
+
+  let [hiddenCards, setHiddenCards] = useState<string[]>([])
+
+  const toggleHide = (category: string) => {
+    setHiddenCards(prev => prev.includes(category) ? prev.filter(cat => cat !== category) : [...prev, category])
   }
 
   return (
@@ -86,23 +94,38 @@ function DocsHome() {
                       ? 'Vending'
                       : category}
                 </h3>
-                <div className="api-grid" aria-busy={apisQuery.isFetching}>
-                  {categoryApis.map((api) => (
-                    <Link
-                      key={api.id}
-                      to="/docs/$slug"
-                      params={{ slug: api.id }}
-                      className="api-card"
-                    >
-                      <span className="api-card-icon" aria-hidden="true">
-                        <ApiIcon />
-                      </span>
-                      <span className="api-card-title">{api.name}</span>
-                      <span className="api-card-blurb">{api.summary}</span>
-                      <span className="api-card-link">Read docs →</span>
-                    </Link>
-                  ))}
-                </div>
+                <span
+                  style={{ color: 'green', cursor: 'pointer' }}
+                  onClick={() => toggleHide(category)}
+                >
+                  {hiddenCards.includes(category)
+                    ? <span className='toggle-category'>show &darr;</span>
+                    : <span className='toggle-category'>hide &uarr;</span>
+                  }
+                </span>
+                {
+                  !hiddenCards.includes(category) ?
+
+                  <div className="api-grid" aria-busy={apisQuery.isFetching}>
+                    {categoryApis.map((api) => (
+                      <Link
+                        key={api.id}
+                        to="/docs/$slug"
+                        params={{ slug: api.id }}
+                        className="api-card"
+                      >
+                        <span className="api-card-icon" aria-hidden="true">
+                          <ApiIcon />
+                        </span>
+                        <span className="api-card-title">{api.name}</span>
+                        <span className="api-card-blurb">{api.summary}</span>
+                        <span className="api-card-link">Read docs →</span>
+                      </Link>
+                    ))}
+                  </div>
+                    : ""
+                }
+
               </div>
             ))
           ) : (
@@ -121,6 +144,26 @@ function ApiIcon() {
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="2" y="7" width="20" height="10" rx="2" />
       <path d="M7 12h.01M12 12h.01M17 12h.01" />
+    </svg>
+  )
+}
+
+function EyeOffIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9.88 9.88a3 3 0 0 0 4.24 4.24" />
+      <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+      <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+      <line x1="2" y1="2" x2="22" y2="22" />
+    </svg>
+  )
+}
+
+function EyeIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   )
 }

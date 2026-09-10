@@ -3215,6 +3215,16 @@ h1 {
   color: #101a16;
 }
 
+.toggle-category {
+    color: #1f6f58;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    display: flex;
+    gap: 10px;
+}
+
 .docs-intro-lede {
   margin: 0;
   color: #46564f;
@@ -3296,7 +3306,7 @@ h1 {
 
 .api-category-title {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: #13231d;
   text-transform: uppercase;
