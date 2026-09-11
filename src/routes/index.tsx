@@ -3,7 +3,6 @@ import { AsyncState } from '../app/AsyncState'
 import { guides } from '../app/apis'
 import { usePublicApis } from '../features/public-apis/publicApiQueries'
 import { useState } from 'react'
-import { ca } from 'zod/v4/locales'
 
 export const Route = createFileRoute('/')({
   component: DocsHome,
