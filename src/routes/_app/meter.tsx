@@ -484,7 +484,6 @@ function AddMeterModal({
 
     try {
       const meter = await createMeter.mutateAsync(input)
-      console.log(meter)
       showToast({
         title: 'Meter created',
         message: `${meter.meterNumber ?? form.meterNumber} was added successfully.`,
