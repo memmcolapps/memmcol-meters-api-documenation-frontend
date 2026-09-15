@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { AsyncState } from '../app/AsyncState'
+import { BaseUrlCallout } from '../app/BaseUrlCallout'
 import { guides } from '../app/apis'
 import { usePublicApis } from '../features/public-apis/publicApiQueries'
 import { useState } from 'react'
@@ -45,6 +46,7 @@ function DocsHome() {
           Browse the APIs below to read, manage, and communicate with meters. New
           here? Start with the getting-started guides.
         </p>
+        <BaseUrlCallout />
       </section>
 
       <section className="site-section" aria-labelledby="gs-title">

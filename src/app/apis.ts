@@ -1,3 +1,13 @@
+/**
+ * The base URL every API request is sent to, shown to developers across the
+ * docs. Deliberately a literal and not read from `VITE_API_BASE_URL` — that
+ * var is the same-origin path this site proxies through, which differs per
+ * deploy context and would publish the wrong host. Build every URL shown in
+ * docs content from this constant so the value can never drift between the
+ * guides, the code samples, and the API reference pages.
+ */
+export const API_BASE_URL = "https://sbctest.memmserve.com/powerhub/v1/api";
+
 export type DocTable = {
   columns: string[];
   rows: string[][];
@@ -329,7 +339,7 @@ export const guides: ApiEntry[] = [
         items: [
           "An onboarded meter connected to the Memmcol platform.",
           "A test API key — see the Authentication guide to create one.",
-          "The test base URL: https://memmcolapps.memmserve.com/powerhub/v1/api",
+          `The base URL every request goes to: ${API_BASE_URL}`,
         ],
       },
       {
@@ -340,7 +350,7 @@ export const guides: ApiEntry[] = [
       {
         heading: "Step 2 — Make an authenticated request",
         body: "Send the key in the X-API-Key header. Replace <ENDPOINT> with the route from the API you want to call — every API reference page lists its exact route (for example, the Consumption Data page).",
-        code: 'curl https://memmcolapps.memmserve.com/powerhub/v1/api/<ENDPOINT> \\\n  -H "X-API-Key: $MOMAS_API_KEY" \\\n  -H "Accept: application/json"',
+        code: `curl ${API_BASE_URL}/<ENDPOINT> \\\n  -H "X-API-Key: $MOMAS_API_KEY" \\\n  -H "Accept: application/json"`,
       },
       {
         heading: "Step 3 — Read the response",
@@ -350,7 +360,7 @@ export const guides: ApiEntry[] = [
       {
         heading: "Idempotency key (required on writes)",
         body: "Every write request — such as vending a token or sending a remote command — must include an Idempotency-Key header. Write requests sent without it are rejected. Set it to a unique value (a UUID works well) that you generate once per operation. If a network error makes you unsure whether a request went through, retry it with the same Idempotency-Key: the API returns the original result instead of running the operation twice, so a token is never vended twice. Use a fresh key for each new operation.",
-        code: 'curl https://memmcolapps.memmserve.com/powerhub/v1/api/<ENDPOINT> \\\n  -H "X-API-Key: $MOMAS_API_KEY" \\\n  -H "Idempotency-Key: 3f8c2b1a-7d4e-4a91-b0c2-9e5f1d6a8c30" \\\n  -H "Content-Type: application/json" \\\n  -d \'{ /* request body */ }\'',
+        code: `curl ${API_BASE_URL}/<ENDPOINT> \\\n  -H "X-API-Key: $MOMAS_API_KEY" \\\n  -H "Idempotency-Key: 3f8c2b1a-7d4e-4a91-b0c2-9e5f1d6a8c30" \\\n  -H "Content-Type: application/json" \\\n  -d '{ /* request body */ }'`,
       },
       {
         heading: "Next steps",

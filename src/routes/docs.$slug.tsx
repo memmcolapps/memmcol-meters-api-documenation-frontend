@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { AsyncState } from "../app/AsyncState";
+import { BaseUrlCallout } from "../app/BaseUrlCallout";
 import { guides } from "../app/apis";
 import {
   usePublicApi,
@@ -230,6 +231,13 @@ function ApiReference({ api }: { api: PublicApi }) {
       <h1 className="doc-detail-title">{api.name}</h1>
 
       <dl className="api-reference-meta">
+        <div className="api-reference-meta-wide">
+          <dt>Base URL</dt>
+          <dd>
+            {/* Every route below is relative to this host. */}
+            <BaseUrlCallout showLabel={false} />
+          </dd>
+        </div>
         <div>
           <dt>Route</dt>
           <dd>

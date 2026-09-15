@@ -4,6 +4,7 @@ import { useDismiss } from "../../../app/useDismiss";
 import { useToast } from "../../../app/toastContext";
 import { AsyncState } from "../../../app/AsyncState";
 import { getApiErrorMessage } from "../../../lib/api/client";
+import { writeToClipboard } from "../../../lib/clipboard";
 import { ConfirmModal } from "../../../app/ConfirmModal";
 import {
   getApiKeyValue,
@@ -35,37 +36,6 @@ const expiryOptions = [
 ] as const;
 
 type ModalStep = "closed" | "form" | "result";
-
-async function writeToClipboard(value: string) {
-  if (!value) throw new Error("There is no API key to copy.");
-
-  if (navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(value);
-      return;
-    } catch {
-      // Fall back for browsers that expose the API but deny clipboard access.
-    }
-  }
-
-  const textArea = document.createElement("textarea");
-  textArea.value = value;
-  textArea.readOnly = true;
-  textArea.style.position = "fixed";
-  textArea.style.left = "-9999px";
-  textArea.style.opacity = "0";
-  document.body.appendChild(textArea);
-  textArea.focus();
-  textArea.select();
-
-  try {
-    if (!document.execCommand("copy")) {
-      throw new Error("The browser did not allow clipboard access.");
-    }
-  } finally {
-    textArea.remove();
-  }
-}
 
 function ApiKeysPage() {
   const apiKeysQuery = useApiKeys();
@@ -114,7 +84,7 @@ function ApiKeysPage() {
 
   const copy = async (value: string, id: string) => {
     try {
-      await writeToClipboard(value);
+      await writeToClipboard(value, "There is no API key to copy.");
       setCopied(id);
       window.setTimeout(() => setCopied(null), 1500);
       showToast({
