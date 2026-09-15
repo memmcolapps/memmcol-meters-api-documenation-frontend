@@ -1,12 +1,16 @@
 /**
  * The base URL every API request is sent to, shown to developers across the
- * docs. Deliberately a literal and not read from `VITE_API_BASE_URL` — that
- * var is the same-origin path this site proxies through, which differs per
- * deploy context and would publish the wrong host. Build every URL shown in
- * docs content from this constant so the value can never drift between the
- * guides, the code samples, and the API reference pages.
+ * docs. This is the production API and stays the same on every deploy: a
+ * developer reading a branch or preview deploy should still be told to call
+ * the live host. Deliberately a literal and NOT derived from the proxy config
+ * in netlify.toml — `API_PROXY_TARGET` is where this site fetches its own
+ * content and varies per deploy context, so wiring the two together would
+ * publish the test host to developers whenever the docs were built on a
+ * non-production context. Build every URL shown in docs content from this
+ * constant so the value can never drift between the guides, the code samples,
+ * and the API reference pages.
  */
-export const API_BASE_URL = "https://sbctest.memmserve.com/powerhub/v1/api";
+export const API_BASE_URL = "https://memmcolapps.memmserve.com/powerhub/v1/api";
 
 export type DocTable = {
   columns: string[];
