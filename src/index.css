@@ -1537,10 +1537,10 @@ h1 {
 }
 
 .dash-grid-admin {
-    display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      align-items: start;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
 }
 
 .legend {
@@ -3216,13 +3216,13 @@ h1 {
 }
 
 .toggle-category {
-    color: #1f6f58;
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    display: flex;
-    gap: 10px;
+  color: #1f6f58;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex;
+  gap: 10px;
 }
 
 .docs-intro-lede {
@@ -3973,14 +3973,15 @@ h1 {
 
 .donut-segment {
   cursor: pointer;
-  transition: opacity 0.2s ease, stroke-width 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    stroke-width 0.2s ease;
 }
 
 .donut-segment:hover {
   opacity: 0.85;
   stroke-width: 26;
 }
-
 
 .uptime-chart {
   display: block;
