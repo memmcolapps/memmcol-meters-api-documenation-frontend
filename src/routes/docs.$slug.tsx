@@ -10,7 +10,7 @@ import {
 import { usePublicMeterIntegrations } from "../features/public-meter-integrations/publicMeterIntegrationQueries";
 import { ApiError } from "../lib/api/client";
 import { formatDateTime, formatJson, formatStatusLabel } from "../lib/format";
-import  PricingPage  from "../app/billingex";
+import  PricingPage  from "../app/billing-display";
 
 const componentMap: Record<string, React.ReactNode> = {
   PricingPage: <PricingPage />,
