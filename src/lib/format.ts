@@ -79,3 +79,7 @@ export function formatJson(value: unknown) {
     return text
   }
 }
+
+export function formatNaira(value: number) {
+  return `₦ ${value.toLocaleString("en-NG")}`;
+}
