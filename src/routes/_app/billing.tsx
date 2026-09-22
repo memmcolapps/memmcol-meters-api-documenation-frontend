@@ -16,6 +16,7 @@ import {
   useBillingPurchase,
   useStartBillingPurchase,
 } from '../../features/billing/billingPurchaseQueries'
+import { formatNaira } from '../../lib/format'
 
 // Checkout returns the customer here with the purchase to report on.
 const billingSearchSchema = z.object({
@@ -26,8 +27,6 @@ export const Route = createFileRoute('/_app/billing')({
   component: BillingPage,
   validateSearch: billingSearchSchema,
 })
-
-const naira = (value: number) => `₦ ${value.toLocaleString('en-NG')}`
 
 const formatDate = (isoDate: string) => {
   const date = new Date(isoDate)
@@ -220,7 +219,7 @@ function BillingPage() {
                 <p className="stat-value">
                   {account.lastCreditMovement
                     ? typeof account.lastCreditMovement.amount === 'number'
-                      ? naira(account.lastCreditMovement.amount)
+                      ? formatNaira(account.lastCreditMovement.amount)
                       : 'Manual'
                     : '—'}{' '}
                   {account.lastCreditMovement ? (
@@ -260,7 +259,7 @@ function BillingPage() {
                   </div>
                   <p className="plan-desc">{plan.description}</p>
                   <div className="plan-pricing">
-                    <p className="plan-price">{naira(plan.amount)}</p>
+                    <p className="plan-price">{formatNaira(plan.amount)}</p>
                     <p className="plan-rate">{plan.credits.toLocaleString()} credits</p>
                   </div>
                   <ul className="plan-features">
@@ -312,7 +311,7 @@ function BillingPage() {
                       <td>{sourceLabel(entry.source)}</td>
                       <td>{formatDate(entry.createdAt)}</td>
                       <td>{entry.credits.toLocaleString()}</td>
-                      <td>{typeof entry.amount === 'number' ? naira(entry.amount) : '—'}</td>
+                      <td>{typeof entry.amount === 'number' ? formatNaira(entry.amount) : '—'}</td>
                       <td>{entry.balanceAfter.toLocaleString()}</td>
                     </tr>
                   ))}
@@ -331,7 +330,7 @@ function BillingPage() {
   )
 }
 
-function CheckIcon() {
+export function CheckIcon() {
   return (
     <svg className="plan-check" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="3" y="3" width="18" height="18" rx="4" />

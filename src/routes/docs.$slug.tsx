@@ -10,6 +10,11 @@ import {
 import { usePublicMeterIntegrations } from "../features/public-meter-integrations/publicMeterIntegrationQueries";
 import { ApiError } from "../lib/api/client";
 import { formatDateTime, formatJson, formatStatusLabel } from "../lib/format";
+import  PricingPage  from "../app/billing-display";
+
+const componentMap: Record<string, React.ReactNode> = {
+  PricingPage: <PricingPage />,
+};
 
 export const Route = createFileRoute("/docs/$slug")({
   component: DocPage,
@@ -25,11 +30,14 @@ function DocPage() {
   const { slug } = Route.useParams();
   const guide = guides.find((item) => item.slug === slug);
   const apiQuery = usePublicApi(slug, !guide);
+  const isFullWidth = slug === "explore-pricing";
 
   if (guide?.slug === "supported-meters") {
     return <SupportedMetersGuide guide={guide} />;
   }
-  if (guide) return <GuidePage guide={guide} />;
+  if (guide) {
+    return <GuidePage guide={guide} isFullWidth={isFullWidth} />;
+  }
 
   return (
     <div className="doc-detail">
@@ -159,11 +167,11 @@ function SupportedMetersGuide({ guide }: { guide: (typeof guides)[number] }) {
   );
 }
 
-function GuidePage({ guide }: { guide: (typeof guides)[number] }) {
+function GuidePage({ guide, isFullWidth }: { guide: (typeof guides)[number]; isFullWidth?: boolean }) {
   const title = guide.name ?? humanize(guide.slug);
 
   return (
-    <div className="doc-detail">
+    <div className={`doc-detail${isFullWidth ? " doc-detail--full" : ""}`}>
       <Link to="/" className="doc-back">
         ← Back to documentation
       </Link>
@@ -175,7 +183,17 @@ function GuidePage({ guide }: { guide: (typeof guides)[number] }) {
           {guide.sections.map((section) => (
             <section className="doc-section" key={section.heading}>
               <h2 className="doc-section-heading">{section.heading}</h2>
-              <p className="doc-section-body">{section.body}</p>
+              
+              {section.body ? (
+                <p className="doc-section-body">{section.body}</p>
+              ) : null}
+
+              {section.componentKey && componentMap[section.componentKey] ? (
+                <div className="doc-section-custom">
+                  {componentMap[section.componentKey]}
+                </div>
+              ) : null}
+
               {section.code ? (
                 <pre className="api-reference-code">
                   <code>{section.code}</code>

@@ -18,14 +18,15 @@ export type DocTable = {
 };
 
 export type DocSection = {
-  heading: string;
-  body: string;
+  heading?: string;
+  body?: string;
   /** Optional fenced code/example block rendered after the body paragraph. */
   code?: string;
   /** Optional bullet list rendered after the body paragraph. */
   items?: string[];
   /** Optional data table rendered after the body/list. */
   table?: DocTable;
+  componentKey?: "PricingPage";
 };
 
 export type ApiEntry = {
@@ -374,6 +375,18 @@ export const guides: ApiEntry[] = [
           "Switch to a live key when you are ready for production traffic.",
           "Review Authentication for rotating and protecting your keys.",
         ],
+      },
+    ],
+  },
+  {
+    slug: "explore-pricing",
+    name: "Plans & Pricing",
+    hint: "check out our plans and pricing",
+    blurb:
+      "Explore our credit plans, pricing tiers, and rate structures to choose the best option for your organization.",
+    sections: [
+      {
+        componentKey: "PricingPage",
       },
     ],
   },
