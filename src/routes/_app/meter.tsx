@@ -21,6 +21,7 @@ import {
   type Meter,
   type MeterStatus,
 } from '../../features/meters/meterQueries'
+import type { File } from 'buffer'
 
 export const Route = createFileRoute('/_app/meter')({
   component: MeterPage,
@@ -105,12 +106,6 @@ function validateMeterForm(form: MeterFormValues) {
     errors.meterNumber = 'Meter number must contain digits only.'
   }
 
-  // if (!form.simNumber.trim()) {
-  //   errors.simNumber = 'SIM number is required.'
-  // } else if (!/^\d+$/.test(form.simNumber.trim())) {
-  //   errors.simNumber = 'SIM number must contain digits only.'
-  // }
-  //
   if (form.simNumber) {
     if (!/^\d+$/.test(form.simNumber.trim())) {
       errors.simNumber = 'SIM number must contain digits only.'
@@ -141,6 +136,8 @@ function MeterPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [openBulkUploadModal, setOpenBulkUploadModal] = useState<boolean>(false)
   const [editTarget, setEditTarget] = useState<Meter | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Meter | null>(null)
   const [detailMeterId, setDetailMeterId] = useState<string | null>(null)
@@ -211,9 +208,14 @@ function MeterPage() {
           <h1 className="dash-title">Meters</h1>
           <p className="dash-subtitle">Add, Manage and Access meter records.</p>
         </div>
-        <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
-          Add Meters <PlusIcon />
-        </button>
+        <div className='dash-meter-bar'>
+          <button className='icon-btn-upload' onClick={() => setOpenBulkUploadModal(true)}>
+            <UploadIcon />
+          </button>
+          <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
+            Add Meters <PlusIcon />
+          </button>
+        </div>
       </header>
 
       <div className="dash-tabs" role="tablist">
@@ -409,6 +411,10 @@ function MeterPage() {
           meter={editTarget}
           onClose={() => setEditTarget(null)}
         />
+      ) : null}
+
+      {openBulkUploadModal ? (
+        <BulkUploadModal file={selectedFile} onClose={() => setOpenBulkUploadModal(false)}/>
       ) : null}
     </div>
   )
@@ -1288,6 +1294,53 @@ function Field({
   )
 }
 
+function BulkUploadModal({
+  file,
+  onClose
+}: {
+  file: File,
+  onClose: () => void
+  }
+) {
+
+  const handleImport = () => {
+    // Validate file type
+    // upload to backend
+    console.log(file)
+  }
+
+  return (
+    <div className='modal modal-grid'>
+      <div>
+        <span>Upload File</span>
+        <button>
+          <CloseIcon />
+        </button>
+      </div>
+      <div>
+        <p>Upload Meters</p>
+        <p>Upload your file containing meter details</p>
+      </div>
+      <div>
+        <button>
+          <PasteIcon />
+        </button>
+      </div>
+      <div>
+        <p>
+          Click the link to download the required document. <br />
+          Please ensure your file follow the structure before uploading.
+        </p>
+      </div>
+      <div>
+        <button onClick={() => onClose()}>Cancel</button>
+        <button onClick={() => handleImport()}>Import</button>
+      </div>
+
+     </div>
+   )
+}
+
 function CloseIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1387,6 +1440,16 @@ function SortIcon() {
   )
 }
 
+function UploadIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  )
+}
+
 function DownloadIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1419,5 +1482,15 @@ function ChevronRightIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="m9 18 6-6-6-6" />
     </svg>
+  )
+}
+
+function PasteIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://w3.org">
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <rect x="8" y="2" width="8" height="4" rx="1" ry="1" fill="currentColor" />
+    </svg>
+
   )
 }

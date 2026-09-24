@@ -1061,6 +1061,14 @@ h1 {
   cursor: pointer;
 }
 
+/* DASHBOARD UPLOAD AND DOWNLOAD */
+.dash-meter-bar {
+    display: inline-flex;
+    justify-content: space-between;
+    align-items: center;
+    min-width: 200px;
+}
+
 /* Date picker + calendar popover */
 
 .datepicker {
@@ -4287,6 +4295,20 @@ h1 {
 
 .icon-btn-primary:hover {
   filter: brightness(0.92);
+}
+
+.icon-btn-upload {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--app-green);
+    border: var(--app-green) solid 2px;
+    background: #fff;
+    border-radius: 5px;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 5px 10px;
+    cursor: pointer;
 }
 
 /* Role picker with per-option descriptions */
