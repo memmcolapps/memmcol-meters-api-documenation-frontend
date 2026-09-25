@@ -20,6 +20,8 @@ import {
   type CreateMeterInput,
   type Meter,
   type MeterStatus,
+  useUploadBulkMeterCSV,
+  type BulkUploadMeterResponse,
 } from '../../features/meters/meterQueries'
 
 export const Route = createFileRoute('/_app/meter')({
@@ -105,12 +107,6 @@ function validateMeterForm(form: MeterFormValues) {
     errors.meterNumber = 'Meter number must contain digits only.'
   }
 
-  // if (!form.simNumber.trim()) {
-  //   errors.simNumber = 'SIM number is required.'
-  // } else if (!/^\d+$/.test(form.simNumber.trim())) {
-  //   errors.simNumber = 'SIM number must contain digits only.'
-  // }
-  //
   if (form.simNumber) {
     if (!/^\d+$/.test(form.simNumber.trim())) {
       errors.simNumber = 'SIM number must contain digits only.'
@@ -141,10 +137,12 @@ function MeterPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [openBulkUploadModal, setOpenBulkUploadModal] = useState<boolean>(false)
   const [editTarget, setEditTarget] = useState<Meter | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Meter | null>(null)
   const [detailMeterId, setDetailMeterId] = useState<string | null>(null)
   const deferredSearch = useDeferredValue(search.trim())
+
 
   const params = {
     page,
@@ -211,9 +209,14 @@ function MeterPage() {
           <h1 className="dash-title">Meters</h1>
           <p className="dash-subtitle">Add, Manage and Access meter records.</p>
         </div>
-        <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
-          Add Meters <PlusIcon />
-        </button>
+        <div className='dash-meter-bar'>
+          <button className='icon-btn-upload' onClick={() => setOpenBulkUploadModal(true)}>
+            <UploadIcon />
+          </button>
+          <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
+            Add Meters <PlusIcon />
+          </button>
+        </div>
       </header>
 
       <div className="dash-tabs" role="tablist">
@@ -409,6 +412,10 @@ function MeterPage() {
           meter={editTarget}
           onClose={() => setEditTarget(null)}
         />
+      ) : null}
+
+      {openBulkUploadModal ? (
+        <BulkUploadModal onClose={() => setOpenBulkUploadModal(false)}/>
       ) : null}
     </div>
   )
@@ -1288,6 +1295,127 @@ function Field({
   )
 }
 
+function BulkUploadModal({
+  onClose
+}: {
+  onClose: () => void
+  }
+) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const {showToast} = useToast()
+  const [isSuccessful, setIsSuccessful] = useState<boolean>(false)
+  const modalRef = useRef<HTMLDivElement>(null)
+  const uploadMutation = useUploadBulkMeterCSV();
+
+  const requestClose = () => {
+    return uploadMutation.isPending
+  }
+
+  useDismiss(modalRef, requestClose)
+
+  const handleSubmit = async () => {
+
+    try {
+      if (!selectedFile) {
+        return
+      }
+      const response: BulkUploadMeterResponse = await uploadMutation.mutateAsync(selectedFile)
+      if (response.failed === response.total) {
+        showToast({
+          title: 'Some meters creation failed',
+          message: `${response.failed} meters failed to create.`,
+          variant: 'error',
+        })
+      } else {
+        showToast({
+          title: 'Meters created',
+          message: `${response.successful} meters were added successfully.`,
+          variant: 'success',
+        })
+        setIsSuccessful(true)
+      }
+    } catch (error: unknown) {
+      showToast({
+        title: 'Meter(s) creation failed',
+        message: `Bulk meters creation failed.`,
+        variant: 'error',
+      })
+    }
+  }
+
+
+  return (
+    <div className='modal-overlay'>
+      <div className='modal' ref={modalRef}>
+          <div className='modal-head'>
+            <span className='modal-title'>Upload File</span>
+            <button className='modal-close' onClick={() => onClose()} disabled={uploadMutation.isPending}>
+              <CloseIcon />
+            </button>
+          </div>
+          <div className='modal-body'>
+              <div className='para'>
+                <p>
+                  <b>Upload Meters</b>
+                </p>
+                <p className='gray-para'>Upload your file containing meter details</p>
+              </div>
+              <div className='upload-zone'>
+                <label htmlFor="bulk-meter" className="file-upload">
+
+                  <button type="button" className="icon-btn-primary">
+                    <PasteIcon />
+                  </button>
+                  <input
+                    type="file"
+                    name="bulk-meter"
+                    id="bulk-meter"
+                    accept=".csv"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      setSelectedFile(file);
+                    }}
+                  />
+                </label>
+
+            {selectedFile && (
+                <div className="selected-file">
+                <span>{selectedFile.name} | {selectedFile.size/1000}kb</span>
+                </div>
+              )}
+            {isSuccessful && (
+              <div>
+                <span className='.gray-para'>Your "{selectedFile?.name}" has been <br/> successfully updated</span>
+              </div>
+            )}
+
+          </div>
+              <div className='para-download'>
+                <p>
+                  Click the <a href="../../public/bulk_meter.csv" download>link to download</a> the required document. <br />
+                  Please ensure your file follow the structure before uploading.
+                </p>
+              </div>
+          </div>
+          <div className='modal-actions'>
+            <button className='button secondary' onClick={() => onClose()}>Cancel</button>
+          <button className='btn-primary' onClick={() => handleSubmit()} disabled={uploadMutation.isPending}>
+            {uploadMutation.isPending ? (
+                <>
+                  <span className="async-spinner" />
+                  Uploading...
+                </>
+              ) : (
+                "Import"
+              )}
+            </button>
+          </div>
+        </div>
+
+    </div>
+   )
+}
+
 function CloseIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1387,6 +1515,15 @@ function SortIcon() {
   )
 }
 
+function UploadIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M15.75 10.75V11.75C15.75 13.1501 15.75 13.8502 15.4775 14.385C15.2378 14.8554 14.8554 15.2378 14.385 15.4775C13.8502 15.75 13.1501 15.75 11.75 15.75H4.75C3.34987 15.75 2.6498 15.75 2.11502 15.4775C1.64462 15.2378 1.26217 14.8554 1.02248 14.385C0.75 13.8502 0.75 13.1501 0.75 11.75V10.75M4.08333 4.91667L8.25 0.75L12.4167 4.91667M8.25 0.75V10.75" stroke="#00401B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+
+  )
+}
+
 function DownloadIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1419,5 +1556,17 @@ function ChevronRightIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="m9 18 6-6-6-6" />
     </svg>
+  )
+}
+
+function PasteIcon() {
+  return (
+    <svg width="16" height="19" viewBox="0 0 16 19" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M14.0326 7.78255V4.69922C14.0326 3.29909 14.0326 2.59902 13.7601 2.06424C13.5204 1.59384 13.1379 1.21139 12.6675 0.971702C12.1327 0.699219 11.4327 0.699219 10.0326 0.699219H4.69922C3.29909 0.699219 2.59902 0.699219 2.06424 0.971702C1.59384 1.21139 1.21139 1.59384 0.971702 2.06424C0.699219 2.59902 0.699219 3.29909 0.699219 4.69922V13.3659C0.699219 14.766 0.699219 15.4661 0.971702 16.0009C1.21139 16.4713 1.59384 16.8537 2.06424 17.0934C2.59902 17.3659 3.29909 17.3659 4.69922 17.3659H7.36589M9.03255 8.19922H4.03255M5.69922 11.5326H4.03255M10.6992 4.86589H4.03255M12.3659 16.5326V11.5326M9.86589 14.0326H14.8659" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+
+
+
+
   )
 }
