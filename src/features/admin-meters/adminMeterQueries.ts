@@ -440,6 +440,9 @@ async function updateObisCode(
         ...(input.multiplyBy !== undefined ? { multiplyBy: input.multiplyBy } : {}),
         ...(input.actionType !== undefined ? { actionType: input.actionType } : {}),
         ...(input.obisType !== undefined ? { obisType: input.obisType } : {}),
+        ...(input.linkedRealTimeObisCodeIds !== undefined
+          ? { linkedRealTimeObisCodeIds: input.linkedRealTimeObisCodeIds }
+          : {}),
       },
     },
   )
