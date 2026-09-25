@@ -130,6 +130,15 @@ type MeterErrorPayload = {
   }
 }
 
+// BULK UPLOAD Meter Response
+export type BulkUploadMeterResponse = {
+    total: number,
+    successful: number,
+    failed: number,
+    created: Meter[],
+    errors: any[]
+}
+
 async function listMeters(params: MeterListParams) {
   const query = new URLSearchParams({
     page: String(params.page),
@@ -188,6 +197,18 @@ async function editMeter(id: string, input: EditMeterPayload) {
     {
       method: 'PATCH',
       json: input,
+    }
+  )
+}
+
+async function uploadBulkMeterCSV(file: File) {
+  const formData = new FormData();
+  formData.append("file", file)
+  return apiRequest<BulkUploadMeterResponse>(
+    `/meters/bulk`,
+    {
+      method: 'POST',
+      formData
     }
   )
 }
@@ -300,4 +321,15 @@ export function getCreateMeterError(error: unknown) {
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,
   }
+}
+
+export function useUploadBulkMeterCSV() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) => uploadBulkMeterCSV(file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: meterKeys.lists() })
+    },
+  })
 }

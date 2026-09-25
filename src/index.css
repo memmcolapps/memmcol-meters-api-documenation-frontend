@@ -2119,7 +2119,7 @@ h1 {
   box-shadow: 0 0 0 3px rgba(31, 111, 88, 0.12);
 }
 
-.modal-input[aria-invalid="true"],
+.modal-[aria-invalid="true"],
 .modal-select[aria-invalid="true"] {
   border-color: #b42318;
 }
@@ -2432,6 +2432,46 @@ h1 {
   background: #fbe9e9;
 }
 
+/* METER > BULK METER UPLOAD FILE INPUT FIELD*/
+.file-upload {
+    width: 100%;
+    background: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    height: 6.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.file-upload input {
+    width: 100%;
+    height: 100%;
+    display: none;
+
+}
+
+.file-upload button {
+    pointer-events: none;
+    height: 40px;
+    width: 40px;;
+}
+
+.modal-body .para-download {
+    margin-top: 5px;
+    margin-bottom: 3rem;
+}
+
+.modal-body .para-download a {
+    color: var(--app-green)
+}
+
+.gray-para {
+    color: grey;
+}
+
 /* ---------- Profile ---------- */
 
 .profile-top {
@@ -2683,7 +2723,7 @@ h1 {
 
 /* Modal input */
 
-.modal-input {
+.input {
   width: 100%;
   padding: 0.95rem 1rem;
   border: 1px solid var(--app-border);
@@ -2915,6 +2955,7 @@ h1 {
   padding: 1rem;
   font-size: 1.05rem;
 }
+
 
 /* Custom role dropdown */
 
