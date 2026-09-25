@@ -6,6 +6,7 @@ export type PublicMeterIntegration = {
   manufacturer: string
   model: string
   class: string
+  meterSerialNumber: string
   category: string
   protocol: string
   hesStatus: string
