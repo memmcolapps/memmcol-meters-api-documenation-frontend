@@ -310,7 +310,10 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
       const obisCode = await createObisCode.mutateAsync({
         action: values.action,
         code: values.code,
-        obisType:"PROFILE",
+        obisType: 'PROFILE',
+        ...(values.obisType === 'PROFILE'
+          ? { linkedRealTimeObisCodeIds: values.linkedRealTimeObisCodeIds }
+          : {}),
         ...(values.description ? { description: values.description } : {}),
         ...(values.scaler ? { scaler: values.scaler } : {}),
         ...(values.unit ? { unit: values.unit } : {}),
@@ -1675,7 +1678,10 @@ function ObisFormModal({
                 unit: unit.trim(),
                 multiplyBy: multiplyBy.trim(),
                 actionType: actionType.trim(),
-                obisType: "PROFILE"
+                obisType: 'PROFILE',
+                linkedRealTimeObisCodeIds: (integratedActions ?? [])
+                  .filter((value) => selectedActions.includes(value.action))
+                  .map((value) => value.id),
               })}
             >
               {isSubmitting ? submittingLabel : submitLabel}
