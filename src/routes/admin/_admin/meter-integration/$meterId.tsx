@@ -47,7 +47,8 @@ type ObisRealtimeInitial = {
   unit?: string
   multiplyBy?: string
   actionType?: string
-  obisType?:string
+  obisType?: string
+  linkedRealTimeActions?: string[]
 }
 
 function MeterViewPage() {
@@ -384,7 +385,10 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
         obisCodeId: editing.code.id,
         action: values.action,
         code: values.code,
-        obisType:values.obisType,
+        obisType: values.obisType,
+        ...(editing.mode === 'profile'
+          ? { linkedRealTimeObisCodeIds: values.linkedRealTimeObisCodeIds }
+          : {}),
         ...(values.description ? { description: values.description } : {}),
         ...(values.scaler ? { scaler: values.scaler } : {}),
         ...(values.unit ? { unit: values.unit } : {}),
@@ -711,6 +715,9 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
             action: editing.code.action,
             code: editing.code.code,
             description: editing.code.description,
+            linkedRealTimeActions: editing.code.linkedRealTimeCodes?.map(
+              (linkedCode) => linkedCode.action,
+            ) ?? [],
           }}
           integratedActions={availableActions}
           isSubmitting={updateObisCode.isPending}
@@ -1449,6 +1456,9 @@ function ObisFormModal({
   const [multiplyBy, setMultiplyBy] = useState(initial?.multiplyBy ?? '')
   const [actionType, setActionType] = useState(initial?.actionType ?? '')
   const [selectedActions, setSelectedActions] = useState<string[]>(() => {
+    if (initial?.linkedRealTimeActions !== undefined) {
+      return initial.linkedRealTimeActions
+    }
     if (!initial?.description) return []
     return initial.description
       .split(',')
