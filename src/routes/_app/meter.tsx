@@ -58,6 +58,7 @@ type MeterFormField =
   | 'newKrn'
   | 'oldTariffIndex'
   | 'newTariffIndex'
+  | 'meterCategory'
 
 
 type MeterFormValues = Record<MeterFormField, string>
@@ -436,6 +437,7 @@ function AddMeterModal({
     newKrn: '',
     oldTariffIndex: '',
     newTariffIndex: '',
+    meterCategory: ''
   })
   const [fieldErrors, setFieldErrors] = useState<MeterFormErrors>({})
   const createMeter = useCreateMeter()
@@ -626,6 +628,22 @@ function AddMeterModal({
               <input className="modal-input" inputMode="numeric" placeholder="Enter new tariff index" value={form.newTariffIndex} aria-invalid={Boolean(fieldErrors.newTariffIndex)} disabled={isSubmitting} onChange={(e) => set('newTariffIndex', e.target.value)} />
             </Field>
           </div>
+          <Field label="Meter Type" error={fieldErrors.meterCategory}>
+            <select
+              className="modal-select"
+              value={form.meterCategory}
+              aria-invalid={Boolean(fieldErrors.meterCategory)}
+              disabled={isSubmitting || meterTypesQuery.isPending || meterTypesQuery.isError}
+              onChange={(e) => set('meterTypeId', e.target.value)}
+            >
+              <option value="single_tariff">
+                Single Tariff
+              </option>
+              <option value="dual_tariff">
+                Dual Tariff
+              </option>
+            </select>
+          </Field>
 
           <div className="modal-foot">
             <button type="button" className="btn-neutral" onClick={requestClose} disabled={isSubmitting}>
