@@ -931,6 +931,10 @@ function MeterDetailsDialog({
                 <DetailItem
                   label="New Tariff Index"
                   value={meter.keyChange.newTariffIndex}
+                  />
+                <DetailItem
+                  label="Tariff Type"
+                  value={meter.tariffType === "SINGLE_TARIFF" ? "Single Tariff" : "Dual Tariff"}
                 />
               </div>
             </div>
