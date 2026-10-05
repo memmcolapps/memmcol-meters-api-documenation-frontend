@@ -15,6 +15,7 @@ export type Meter = {
   simNumber?: string | null
   manufacturer: string
   meterTypeId: string
+  tariffType: string
   model: string
   meterClass: string
   status: MeterStatus
@@ -24,6 +25,12 @@ export type Meter = {
   newKrn?: string
   oldTariffIndex?: string
   newTariffIndex?: string
+  dualNewKrn?: string
+  dualNewSgc?: string
+  dualOldKrn?: string
+  dualOldSgc?: string
+  dualOldTariffIndex?: string
+  dualNewTariffIndex?: string
   createdAt: string
   updatedAt: string
 }
@@ -93,6 +100,7 @@ export type CreateMeterInput = {
   simNumber?: string
   meterTypeId?: string
   keyChange: MeterKeyChange
+  dualKeyChange: MeterKeyChange | null
 }
 
 export type CreatedMeter = Omit<

@@ -52,13 +52,39 @@ type MeterFormField =
   | 'meterNumber'
   | 'simNumber'
   | 'meterTypeId'
+  | 'tariffType'
   | 'oldSgc'
   | 'newSgc'
   | 'oldKrn'
   | 'newKrn'
   | 'oldTariffIndex'
   | 'newTariffIndex'
-  | 'meterCategory'
+  | 'dualOldSgc'
+  | 'dualNewSgc'
+  | 'dualOldKrn'
+  | 'dualNewKrn'
+  | 'dualOldTariffIndex'
+  | 'dualNewTariffIndex'
+
+type TariffType = "SINGLE_TARIFF" | "DUAL_TARIFF"
+
+type MeterKeyChange = {
+  oldSgc: number;
+  newSgc: number;
+  oldKrn: number;
+  newKrn: number;
+  oldTariffIndex: number;
+  newTariffIndex: number;
+};
+
+type MeterKeyChangePayload = {
+  meterNumber: string;
+  simNumber: string;
+  meterTypeId: string;
+  tariffType: TariffType;
+  keyChange: MeterKeyChange;
+  dualKeyChange: MeterKeyChange;
+};
 
 
 type MeterFormValues = Record<MeterFormField, string>
@@ -68,19 +94,22 @@ const meterFormFieldAliases: Record<string, MeterFormField> = {
   meterNumber: 'meterNumber',
   simNumber: 'simNumber',
   meterTypeId: 'meterTypeId',
-  oldSgc: 'oldSgc',
-  newSgc: 'newSgc',
-  oldKrn: 'oldKrn',
-  newKrn: 'newKrn',
-  oldTariffIndex: 'oldTariffIndex',
-  newTariffIndex: 'newTariffIndex',
+  tariffType: 'tariffType',
+
   'keyChange.oldSgc': 'oldSgc',
   'keyChange.newSgc': 'newSgc',
   'keyChange.oldKrn': 'oldKrn',
   'keyChange.newKrn': 'newKrn',
   'keyChange.oldTariffIndex': 'oldTariffIndex',
   'keyChange.newTariffIndex': 'newTariffIndex',
-}
+
+  'dualKeyChange.oldSgc': 'dualOldSgc',
+  'dualKeyChange.newSgc': 'dualNewSgc',
+  'dualKeyChange.oldKrn': 'dualOldKrn',
+  'dualKeyChange.newKrn': 'dualNewKrn',
+  'dualKeyChange.oldTariffIndex': 'dualOldTariffIndex',
+  'dualKeyChange.newTariffIndex': 'dualNewTariffIndex',
+};
 
 const keyChangeFields: Array<{ field: MeterFormField; label: string }> = [
   { field: 'oldSgc', label: 'Old SGC' },
@@ -113,8 +142,6 @@ function validateMeterForm(form: MeterFormValues) {
       errors.simNumber = 'SIM number must contain digits only.'
     }
   }
-
-  // if (!form.meterTypeId) errors.meterTypeId = 'Select a meter type.'
 
   keyChangeFields.forEach(({ field, label }) => {
     const value = form[field].trim()
@@ -437,9 +464,17 @@ function AddMeterModal({
     newKrn: '',
     oldTariffIndex: '',
     newTariffIndex: '',
-    meterCategory: ''
+    tariffType: '',
+    dualOldSgc: '',
+    dualNewSgc: '',
+    dualOldKrn: '',
+    dualNewKrn: '',
+    dualOldTariffIndex: '',
+    dualNewTariffIndex: '',
   })
   const [fieldErrors, setFieldErrors] = useState<MeterFormErrors>({})
+  const [tariffType, setTariffType] = useState<TariffType>('SINGLE_TARIFF')
+  const [step, setStep] = useState<number>(1)
   const createMeter = useCreateMeter()
   const meterTypesQuery = useActiveMeterIntegrationOptions()
   const meterTypes = meterTypesQuery.data ?? []
@@ -459,6 +494,10 @@ function AddMeterModal({
       delete next[key]
       return next
     })
+  }
+
+  const toggleTariffType = () => {
+    tariffType === 'SINGLE_TARIFF' ? setTariffType('DUAL_TARIFF'): setTariffType('SINGLE_TARIFF')
   }
 
   const handleSubmit = async () => {
@@ -489,6 +528,14 @@ function AddMeterModal({
         oldTariffIndex: Number(form.oldTariffIndex),
         newTariffIndex: Number(form.newTariffIndex),
       },
+      dualKeyChange: tariffType === 'SINGLE_TARIFF' ? {
+        oldKrn: Number(form.dualOldKrn),
+        newKrn: Number(form.dualNewKrn),
+        oldSgc: Number(form.dualOldSgc),
+        newSgc: Number(form.dualNewSgc),
+        oldTariffIndex: Number(form.oldTariffIndex),
+        newTariffIndex: Number(form.newTariffIndex)
+      } : null
     }
 
     try {
@@ -542,131 +589,196 @@ function AddMeterModal({
             <CloseIcon />
           </button>
         </div>
+        {/*Add conditional rendering for the steps here */}
+        {step === 1 &&
+          <div className="modal-body">
+            <div className="modal-grid">
+              <Field label="Meter Number" required error={fieldErrors.meterNumber}>
+                <input
+                  className="modal-input"
+                  placeholder="E.g. 04040404040"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={form.meterNumber}
+                  aria-invalid={Boolean(fieldErrors.meterNumber)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set('meterNumber', e.target.value)}
+                />
+              </Field>
+              <Field label="Sim Card Number" error={fieldErrors.simNumber}>
+                <input
+                  className="modal-input"
+                  placeholder="E.g. 89006809734095874"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={form.simNumber}
+                  aria-invalid={Boolean(fieldErrors.simNumber)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set('simNumber', e.target.value)}
+                />
+              </Field>
+            </div>
 
-        <div className="modal-body">
-          <div className="modal-grid">
-            <Field label="Meter Number" required error={fieldErrors.meterNumber}>
-              <input
-                className="modal-input"
-                placeholder="E.g. 04040404040"
-                inputMode="numeric"
-                autoComplete="off"
-                value={form.meterNumber}
-                aria-invalid={Boolean(fieldErrors.meterNumber)}
-                disabled={isSubmitting}
-                onChange={(e) => set('meterNumber', e.target.value)}
-              />
-            </Field>
-            <Field label="Sim Card Number" error={fieldErrors.simNumber}>
-              <input
-                className="modal-input"
-                placeholder="E.g. 89006809734095874"
-                inputMode="numeric"
-                autoComplete="off"
-                value={form.simNumber}
-                aria-invalid={Boolean(fieldErrors.simNumber)}
-                disabled={isSubmitting}
-                onChange={(e) => set('simNumber', e.target.value)}
-              />
-            </Field>
-          </div>
-
-          <Field label="Meter Type" error={fieldErrors.meterTypeId}>
-            <select
-              className="modal-select"
-              value={form.meterTypeId}
-              aria-invalid={Boolean(fieldErrors.meterTypeId)}
-              disabled={isSubmitting || meterTypesQuery.isPending || meterTypesQuery.isError}
-              onChange={(e) => set('meterTypeId', e.target.value)}
-            >
-              <option value="" disabled>
-                {meterTypesQuery.isPending ? 'Loading meter types…' : 'Select Meter Type'}
-              </option>
-              {meterTypes.map((meterType) => (
-                <option key={meterType.id} value={meterType.id}>
-                  {meterType.model} — {meterType.manufacturer}
-                  {meterType.category ? ` (${formatMeterCategory(meterType.category)})` : ''}
+            <Field label="Meter Type" error={fieldErrors.meterTypeId}>
+              <select
+                className="modal-select"
+                value={form.meterTypeId}
+                aria-invalid={Boolean(fieldErrors.meterTypeId)}
+                disabled={isSubmitting || meterTypesQuery.isPending || meterTypesQuery.isError}
+                onChange={(e) => set('meterTypeId', e.target.value)}
+              >
+                <option value="" disabled>
+                  {meterTypesQuery.isPending ? 'Loading meter types…' : 'Select Meter Type'}
                 </option>
-              ))}
-            </select>
-            {meterTypesQuery.isError ? (
-              <span className="modal-field-error" role="alert">
-                {getMeterIntegrationError(meterTypesQuery.error).message}{' '}
+                {meterTypes.map((meterType) => (
+                  <option key={meterType.id} value={meterType.id}>
+                    {meterType.model} — {meterType.manufacturer}
+                    {meterType.category ? ` (${formatMeterCategory(meterType.category)})` : ''}
+                  </option>
+                ))}
+              </select>
+              {meterTypesQuery.isError ? (
+                <span className="modal-field-error" role="alert">
+                  {getMeterIntegrationError(meterTypesQuery.error).message}{' '}
+                  <button
+                    type="button"
+                    className="upload-link"
+                    onClick={() => void meterTypesQuery.refetch()}
+                  >
+                    Try again
+                  </button>
+                </span>
+              ) : null}
+              {!meterTypesQuery.isPending && !meterTypesQuery.isError && meterTypes.length === 0 ? (
+                <span className="modal-field-error" role="alert">
+                  No active meter integrations are available.
+                </span>
+              ) : null}
+            </Field>
+
+            <div className="modal-grid">
+              <Field label="Old SGC" required error={fieldErrors.oldSgc}>
+                <input className="modal-input" inputMode="numeric" placeholder="Enter old sgc" value={form.oldSgc} aria-invalid={Boolean(fieldErrors.oldSgc)} disabled={isSubmitting} onChange={(e) => set('oldSgc', e.target.value)} />
+              </Field>
+              <Field label="New SGC" required error={fieldErrors.newSgc}>
+                <input className="modal-input" inputMode="numeric" placeholder="Enter new sgc" value={form.newSgc} aria-invalid={Boolean(fieldErrors.newSgc)} disabled={isSubmitting} onChange={(e) => set('newSgc', e.target.value)} />
+              </Field>
+              <Field label="Old KRN" required error={fieldErrors.oldKrn}>
+                <input className="modal-input" inputMode="numeric" placeholder="Enter old krn" value={form.oldKrn} aria-invalid={Boolean(fieldErrors.oldKrn)} disabled={isSubmitting} onChange={(e) => set('oldKrn', e.target.value)} />
+              </Field>
+              <Field label="New KRN" required error={fieldErrors.newKrn}>
+                <input className="modal-input" inputMode="numeric" placeholder="Enter new krn" value={form.newKrn} aria-invalid={Boolean(fieldErrors.newKrn)} disabled={isSubmitting} onChange={(e) => set('newKrn', e.target.value)} />
+              </Field>
+              <Field label="Old Tariff Index" required error={fieldErrors.oldTariffIndex}>
+                <input className="modal-input" inputMode="numeric" placeholder="Enter old tariff index" value={form.oldTariffIndex} aria-invalid={Boolean(fieldErrors.oldTariffIndex)} disabled={isSubmitting} onChange={(e) => set('oldTariffIndex', e.target.value)} />
+              </Field>
+              <Field label="New Tariff Index" required error={fieldErrors.newTariffIndex}>
+                <input className="modal-input" inputMode="numeric" placeholder="Enter new tariff index" value={form.newTariffIndex} aria-invalid={Boolean(fieldErrors.newTariffIndex)} disabled={isSubmitting} onChange={(e) => set('newTariffIndex', e.target.value)} />
+              </Field>
+            </div>
+            <Field label="Meter Type" error={fieldErrors.tariffType}>
+              <select
+                className="modal-select"
+                value={form.tariffType}
+                aria-invalid={Boolean(fieldErrors.tariffType)}
+                onChange={() => toggleTariffType()}
+              >
+                <option value="SINGLE_TARIFF">
+                  Single Tariff
+                </option>
+                <option value="DUAL_TARIFF">
+                  Dual Tariff
+                </option>
+              </select>
+            </Field>
+
+            <div className="modal-foot">
+              <button type="button" className="btn-neutral" onClick={requestClose} disabled={isSubmitting}>
+                Cancel
+              </button>
+              {tariffType === 'SINGLE_TARIFF'
+
+                ? (
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    disabled={
+                      isSubmitting ||
+                      meterTypesQuery.isPending ||
+                      meterTypesQuery.isError ||
+                      meterTypes.length === 0
+                    }
+                    onClick={() => void handleSubmit()}
+                  >
+                    {isSubmitting ? 'Adding…' : 'Add Meter'}
+                  </button>
+                )
+
+                : (<button
+                    type="button"
+                    className="btn-primary"
+                    disabled={
+                      isSubmitting ||
+                      meterTypesQuery.isPending ||
+                      meterTypesQuery.isError ||
+                      meterTypes.length === 0
+                    }
+                    onClick={() => setStep(2)}
+                  >
+                    Next
+                  </button>)
+              }
+            </div>
+          </div>
+        }
+        {step === 2 &&
+          (
+            <>
+              <div className="modal-grid">
+                <Field label="Old SGC" required error={fieldErrors.oldSgc}>
+                  <input className="modal-input" inputMode="numeric" placeholder="Enter old sgc" value={form.oldSgc} aria-invalid={Boolean(fieldErrors.oldSgc)} disabled={isSubmitting} onChange={(e) => set('oldSgc', e.target.value)} />
+                </Field>
+                <Field label="New SGC" required error={fieldErrors.newSgc}>
+                  <input className="modal-input" inputMode="numeric" placeholder="Enter new sgc" value={form.newSgc} aria-invalid={Boolean(fieldErrors.newSgc)} disabled={isSubmitting} onChange={(e) => set('newSgc', e.target.value)} />
+                </Field>
+                <Field label="Old KRN" required error={fieldErrors.oldKrn}>
+                  <input className="modal-input" inputMode="numeric" placeholder="Enter old krn" value={form.oldKrn} aria-invalid={Boolean(fieldErrors.oldKrn)} disabled={isSubmitting} onChange={(e) => set('oldKrn', e.target.value)} />
+                </Field>
+                <Field label="New KRN" required error={fieldErrors.newKrn}>
+                  <input className="modal-input" inputMode="numeric" placeholder="Enter new krn" value={form.newKrn} aria-invalid={Boolean(fieldErrors.newKrn)} disabled={isSubmitting} onChange={(e) => set('newKrn', e.target.value)} />
+                </Field>
+                <Field label="Old Tariff Index" required error={fieldErrors.oldTariffIndex}>
+                  <input className="modal-input" inputMode="numeric" placeholder="Enter old tariff index" value={form.oldTariffIndex} aria-invalid={Boolean(fieldErrors.oldTariffIndex)} disabled={isSubmitting} onChange={(e) => set('oldTariffIndex', e.target.value)} />
+                </Field>
+                <Field label="New Tariff Index" required error={fieldErrors.newTariffIndex}>
+                  <input className="modal-input" inputMode="numeric" placeholder="Enter new tariff index" value={form.newTariffIndex} aria-invalid={Boolean(fieldErrors.newTariffIndex)} disabled={isSubmitting} onChange={(e) => set('newTariffIndex', e.target.value)} />
+                </Field>
+              </div>
+              <div className="modal-foot">
+                <button type="button" className="btn-neutral" onClick={requestClose} disabled={isSubmitting}>
+                  Cancel
+                </button>
                 <button
                   type="button"
-                  className="upload-link"
-                  onClick={() => void meterTypesQuery.refetch()}
+                  className="btn-primary"
+                  disabled={
+                    isSubmitting ||
+                    meterTypesQuery.isPending ||
+                    meterTypesQuery.isError ||
+                    meterTypes.length === 0
+                  }
+                  onClick={() => void handleSubmit()}
                 >
-                  Try again
+                  {isSubmitting ? 'Adding…' : 'Add Meter'}
                 </button>
-              </span>
-            ) : null}
-            {!meterTypesQuery.isPending && !meterTypesQuery.isError && meterTypes.length === 0 ? (
-              <span className="modal-field-error" role="alert">
-                No active meter integrations are available.
-              </span>
-            ) : null}
-          </Field>
-
-          <div className="modal-grid">
-            <Field label="Old SGC" required error={fieldErrors.oldSgc}>
-              <input className="modal-input" inputMode="numeric" placeholder="Enter old sgc" value={form.oldSgc} aria-invalid={Boolean(fieldErrors.oldSgc)} disabled={isSubmitting} onChange={(e) => set('oldSgc', e.target.value)} />
-            </Field>
-            <Field label="New SGC" required error={fieldErrors.newSgc}>
-              <input className="modal-input" inputMode="numeric" placeholder="Enter new sgc" value={form.newSgc} aria-invalid={Boolean(fieldErrors.newSgc)} disabled={isSubmitting} onChange={(e) => set('newSgc', e.target.value)} />
-            </Field>
-            <Field label="Old KRN" required error={fieldErrors.oldKrn}>
-              <input className="modal-input" inputMode="numeric" placeholder="Enter old krn" value={form.oldKrn} aria-invalid={Boolean(fieldErrors.oldKrn)} disabled={isSubmitting} onChange={(e) => set('oldKrn', e.target.value)} />
-            </Field>
-            <Field label="New KRN" required error={fieldErrors.newKrn}>
-              <input className="modal-input" inputMode="numeric" placeholder="Enter new krn" value={form.newKrn} aria-invalid={Boolean(fieldErrors.newKrn)} disabled={isSubmitting} onChange={(e) => set('newKrn', e.target.value)} />
-            </Field>
-            <Field label="Old Tariff Index" required error={fieldErrors.oldTariffIndex}>
-              <input className="modal-input" inputMode="numeric" placeholder="Enter old tariff index" value={form.oldTariffIndex} aria-invalid={Boolean(fieldErrors.oldTariffIndex)} disabled={isSubmitting} onChange={(e) => set('oldTariffIndex', e.target.value)} />
-            </Field>
-            <Field label="New Tariff Index" required error={fieldErrors.newTariffIndex}>
-              <input className="modal-input" inputMode="numeric" placeholder="Enter new tariff index" value={form.newTariffIndex} aria-invalid={Boolean(fieldErrors.newTariffIndex)} disabled={isSubmitting} onChange={(e) => set('newTariffIndex', e.target.value)} />
-            </Field>
-          </div>
-          <Field label="Meter Type" error={fieldErrors.meterCategory}>
-            <select
-              className="modal-select"
-              value={form.meterCategory}
-              aria-invalid={Boolean(fieldErrors.meterCategory)}
-              disabled={isSubmitting || meterTypesQuery.isPending || meterTypesQuery.isError}
-              onChange={(e) => set('meterTypeId', e.target.value)}
-            >
-              <option value="single_tariff">
-                Single Tariff
-              </option>
-              <option value="dual_tariff">
-                Dual Tariff
-              </option>
-            </select>
-          </Field>
-
-          <div className="modal-foot">
-            <button type="button" className="btn-neutral" onClick={requestClose} disabled={isSubmitting}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={
-                isSubmitting ||
-                meterTypesQuery.isPending ||
-                meterTypesQuery.isError ||
-                meterTypes.length === 0
-              }
-              onClick={() => void handleSubmit()}
-            >
-              {isSubmitting ? 'Adding…' : 'Add Meter'}
-            </button>
-          </div>
+              </div>
+            </>
+          )
+        }
         </div>
       </div>
-    </div>
   )
+
 }
 
 function formatMeterCategory(category: string) {
@@ -947,6 +1059,13 @@ function EditMeterModal({
     newKrn: meter.keyChange?.newKrn != null ? String(meter.keyChange.newKrn) : '',
     oldTariffIndex: meter.keyChange?.oldTariffIndex != null ? String(meter.keyChange.oldTariffIndex) : '',
     newTariffIndex: meter.keyChange?.newTariffIndex != null ? String(meter.keyChange.newTariffIndex) : '',
+    tariffType: meter.tariffType ?? 'SINGLE_TARIFF',
+    dualNewKrn: meter.keyChange?.dualNewKrn != null ? String(meter.keyChange.dualNewKrn) : '',
+    dualNewSgc: meter.keyChange?.dualNewSgc != null ? String(meter.keyChange.dualNewSgc) : '',
+    dualOldKrn: meter.keyChange?.dualOldKrn != null ? String(meter.keyChange.dualOldKrn) : '',
+    dualOldSgc: meter.keyChange?.dualOldSgc != null ? String(meter.keyChange.dualOldSgc) : '',
+    dualOldTariffIndex: meter.keyChange?.dualOldTariffIndex != null ? String(meter.keyChange.dualOldTariffIndex) : '',
+    dualNewTariffIndex: meter.keyChange?.dualNewTariffIndex != null ? String(meter.keyChange.dualNewTariffIndex) : '',
   })
 
   const [fieldErrors, setFieldErrors] = useState<MeterFormErrors>({})
