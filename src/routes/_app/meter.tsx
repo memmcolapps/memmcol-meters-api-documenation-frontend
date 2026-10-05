@@ -77,15 +77,6 @@ type MeterKeyChange = {
   newTariffIndex: number;
 };
 
-type MeterKeyChangePayload = {
-  meterNumber: string;
-  simNumber: string;
-  meterTypeId: string;
-  tariffType: TariffType;
-  keyChange: MeterKeyChange;
-  dualKeyChange: MeterKeyChange;
-};
-
 type MeterFormValues = Record<MeterFormField, string>;
 type MeterFormErrors = Partial<Record<MeterFormField, string>>;
 
