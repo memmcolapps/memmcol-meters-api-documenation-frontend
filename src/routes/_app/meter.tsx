@@ -697,6 +697,43 @@ function AddMeterModal({
                 Cancel
               </button>
               {tariffType === 'SINGLE_TARIFF'
+          <Field label="Meter Type" error={fieldErrors.meterTypeId}>
+            <select
+              className="modal-select"
+              value={form.meterTypeId}
+              aria-invalid={Boolean(fieldErrors.meterTypeId)}
+              disabled={isSubmitting || meterTypesQuery.isPending || meterTypesQuery.isError}
+              onChange={(e) => set('meterTypeId', e.target.value)}
+            >
+              <option value="" disabled>
+                {meterTypesQuery.isPending ? 'Loading meter types…' : 'Select Meter Type'}
+              </option>
+              {meterTypes.map((meterType) => (
+                <option key={meterType.id} value={meterType.id}>
+                  {meterType.model} — {meterType.manufacturer}
+                  {meterType.serial ? ` (${meterType.serial})` : ''}
+                  {meterType.category ? ` (${formatMeterCategory(meterType.category)})` : ''}
+                </option>
+              ))}
+            </select>
+            {meterTypesQuery.isError ? (
+              <span className="modal-field-error" role="alert">
+                {getMeterIntegrationError(meterTypesQuery.error).message}{' '}
+                <button
+                  type="button"
+                  className="upload-link"
+                  onClick={() => void meterTypesQuery.refetch()}
+                >
+                  Try again
+                </button>
+              </span>
+            ) : null}
+            {!meterTypesQuery.isPending && !meterTypesQuery.isError && meterTypes.length === 0 ? (
+              <span className="modal-field-error" role="alert">
+                No active meter integrations are available.
+              </span>
+            ) : null}
+          </Field>
 
                 ? (
                   <button
@@ -1224,7 +1261,7 @@ function EditMeterModal({
 
               {meterTypes.map((meterType) => (
                 <option key={meterType.id} value={meterType.id}>
-                  { meterType.model} {meterType.manufacturer} {meterType.category}
+                  { meterType.model} {meterType.manufacturer}{meterType.serial} {meterType.category}
                 </option>
               ))}
             </select>
