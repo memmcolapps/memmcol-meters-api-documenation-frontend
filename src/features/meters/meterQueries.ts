@@ -97,6 +97,7 @@ export type MeterKeyChange = {
 
 export type CreateMeterInput = {
   meterNumber: string
+  tariffType: string
   simNumber?: string
   meterTypeId?: string
   keyChange: MeterKeyChange

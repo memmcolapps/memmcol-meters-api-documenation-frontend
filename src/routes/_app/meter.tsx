@@ -496,10 +496,6 @@ function AddMeterModal({
     })
   }
 
-  const toggleTariffType = () => {
-    tariffType === 'SINGLE_TARIFF' ? setTariffType('DUAL_TARIFF'): setTariffType('SINGLE_TARIFF')
-  }
-
   const handleSubmit = async () => {
     const validationErrors = validateMeterForm(form)
     if (
@@ -518,8 +514,9 @@ function AddMeterModal({
 
     const input: CreateMeterInput = {
       meterNumber: form.meterNumber.trim(),
+      tariffType: form.tariffType || tariffType,
       ...(simNumber ? { simNumber } : {}),
-      ...(meterTypeId ? { meterTypeId }: {}),
+      ...(meterTypeId ? { meterTypeId } : {}),
       keyChange: {
         oldSgc: Number(form.oldSgc),
         newSgc: Number(form.newSgc),
@@ -528,7 +525,7 @@ function AddMeterModal({
         oldTariffIndex: Number(form.oldTariffIndex),
         newTariffIndex: Number(form.newTariffIndex),
       },
-      dualKeyChange: tariffType === 'SINGLE_TARIFF' ? {
+      dualKeyChange: form.tariffType === 'DUAL_TARIFF' ? {
         oldKrn: Number(form.dualOldKrn),
         newKrn: Number(form.dualNewKrn),
         oldSgc: Number(form.dualOldSgc),
@@ -681,14 +678,17 @@ function AddMeterModal({
                 className="modal-select"
                 value={form.tariffType}
                 aria-invalid={Boolean(fieldErrors.tariffType)}
-                onChange={() => toggleTariffType()}
+                onChange={(e) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    tariffType: e.target.value as TariffType,
+                  }))
+                  setTariffType(e.target.value as TariffType)
+                }
+                }
               >
-                <option value="SINGLE_TARIFF">
-                  Single Tariff
-                </option>
-                <option value="DUAL_TARIFF">
-                  Dual Tariff
-                </option>
+                <option value="SINGLE_TARIFF">Single Tariff</option>
+                <option value="DUAL_TARIFF">Dual Tariff</option>
               </select>
             </Field>
 
@@ -736,22 +736,22 @@ function AddMeterModal({
             <>
               <div className="modal-grid">
                 <Field label="Old SGC" required error={fieldErrors.oldSgc}>
-                  <input className="modal-input" inputMode="numeric" placeholder="Enter old sgc" value={form.oldSgc} aria-invalid={Boolean(fieldErrors.oldSgc)} disabled={isSubmitting} onChange={(e) => set('oldSgc', e.target.value)} />
+                  <input className="modal-input" inputMode="numeric" placeholder="Enter old sgc" value={form.dualOldSgc} aria-invalid={Boolean(fieldErrors.dualOldSgc)} disabled={isSubmitting} onChange={(e) => set('dualOldSgc', e.target.value)} />
                 </Field>
                 <Field label="New SGC" required error={fieldErrors.newSgc}>
-                  <input className="modal-input" inputMode="numeric" placeholder="Enter new sgc" value={form.newSgc} aria-invalid={Boolean(fieldErrors.newSgc)} disabled={isSubmitting} onChange={(e) => set('newSgc', e.target.value)} />
+                  <input className="modal-input" inputMode="numeric" placeholder="Enter new sgc" value={form.dualNewSgc} aria-invalid={Boolean(fieldErrors.dualNewSgc)} disabled={isSubmitting} onChange={(e) => set('dualNewSgc', e.target.value)} />
                 </Field>
                 <Field label="Old KRN" required error={fieldErrors.oldKrn}>
-                  <input className="modal-input" inputMode="numeric" placeholder="Enter old krn" value={form.oldKrn} aria-invalid={Boolean(fieldErrors.oldKrn)} disabled={isSubmitting} onChange={(e) => set('oldKrn', e.target.value)} />
+                  <input className="modal-input" inputMode="numeric" placeholder="Enter old krn" value={form.dualOldKrn} aria-invalid={Boolean(fieldErrors.dualOldKrn)} disabled={isSubmitting} onChange={(e) => set('dualOldKrn', e.target.value)} />
                 </Field>
                 <Field label="New KRN" required error={fieldErrors.newKrn}>
-                  <input className="modal-input" inputMode="numeric" placeholder="Enter new krn" value={form.newKrn} aria-invalid={Boolean(fieldErrors.newKrn)} disabled={isSubmitting} onChange={(e) => set('newKrn', e.target.value)} />
+                  <input className="modal-input" inputMode="numeric" placeholder="Enter new krn" value={form.dualNewKrn} aria-invalid={Boolean(fieldErrors.dualNewKrn)} disabled={isSubmitting} onChange={(e) => set('dualNewKrn', e.target.value)} />
                 </Field>
                 <Field label="Old Tariff Index" required error={fieldErrors.oldTariffIndex}>
-                  <input className="modal-input" inputMode="numeric" placeholder="Enter old tariff index" value={form.oldTariffIndex} aria-invalid={Boolean(fieldErrors.oldTariffIndex)} disabled={isSubmitting} onChange={(e) => set('oldTariffIndex', e.target.value)} />
+                  <input className="modal-input" inputMode="numeric" placeholder="Enter old tariff index" value={form.dualOldTariffIndex} aria-invalid={Boolean(fieldErrors.dualOldTariffIndex)} disabled={isSubmitting} onChange={(e) => set('dualOldTariffIndex', e.target.value)} />
                 </Field>
                 <Field label="New Tariff Index" required error={fieldErrors.newTariffIndex}>
-                  <input className="modal-input" inputMode="numeric" placeholder="Enter new tariff index" value={form.newTariffIndex} aria-invalid={Boolean(fieldErrors.newTariffIndex)} disabled={isSubmitting} onChange={(e) => set('newTariffIndex', e.target.value)} />
+                  <input className="modal-input" inputMode="numeric" placeholder="Enter new tariff index" value={form.dualNewTariffIndex} aria-invalid={Boolean(fieldErrors.dualNewTariffIndex)} disabled={isSubmitting} onChange={(e) => set('dualNewTariffIndex', e.target.value)} />
                 </Field>
               </div>
               <div className="modal-foot">
