@@ -68,15 +68,6 @@ type MeterFormField =
 
 type TariffType = "SINGLE_TARIFF" | "DUAL_TARIFF";
 
-type MeterKeyChange = {
-  oldSgc: number;
-  newSgc: number;
-  oldKrn: number;
-  newKrn: number;
-  oldTariffIndex: number;
-  newTariffIndex: number;
-};
-
 type MeterFormValues = Record<MeterFormField, string>;
 type MeterFormErrors = Partial<Record<MeterFormField, string>>;
 
