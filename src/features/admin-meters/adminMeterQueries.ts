@@ -58,6 +58,7 @@ export type MeterIntegrationSummary = {
   meterClass?: string
   category?: string
   meterCategory?: string
+  serial?: string
   protocol: string
   authenticationType: string
   status: MeterIntegrationStatus

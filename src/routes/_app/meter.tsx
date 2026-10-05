@@ -583,6 +583,7 @@ function AddMeterModal({
               {meterTypes.map((meterType) => (
                 <option key={meterType.id} value={meterType.id}>
                   {meterType.model} — {meterType.manufacturer}
+                  {meterType.serial ? ` (${meterType.serial})` : ''}
                   {meterType.category ? ` (${formatMeterCategory(meterType.category)})` : ''}
                 </option>
               ))}
@@ -1083,7 +1084,7 @@ function EditMeterModal({
 
               {meterTypes.map((meterType) => (
                 <option key={meterType.id} value={meterType.id}>
-                  { meterType.model} {meterType.manufacturer} {meterType.category}
+                  { meterType.model} {meterType.manufacturer}{meterType.serial} {meterType.category}
                 </option>
               ))}
             </select>
