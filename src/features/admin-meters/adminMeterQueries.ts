@@ -3,298 +3,303 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
-} from '@tanstack/react-query'
-import { ApiError, apiRequest } from '../../lib/api/client'
-import { publicMeterIntegrationKeys } from '../public-meter-integrations/publicMeterIntegrationQueries'
+} from "@tanstack/react-query";
+import { ApiError, apiRequest } from "../../lib/api/client";
+import { publicMeterIntegrationKeys } from "../public-meter-integrations/publicMeterIntegrationQueries";
 
 export type HlsSecurityConfig = {
-  securityPolicy: string
-  authMechanism: string
-  encryptionKey: string
-  masterKey: string
-  globalBroadcastEncryptionKey: string
-  destinationAddress: string
-  clientId: string
-}
+  securityPolicy: string;
+  authMechanism: string;
+  encryptionKey: string;
+  masterKey: string;
+  globalBroadcastEncryptionKey: string;
+  destinationAddress: string;
+  clientId: string;
+};
 
 export type LlsSecurityConfig = {
-  clientId: string
-  destinationAddress: string
-  password: string
-}
+  clientId: string;
+  destinationAddress: string;
+  password: string;
+};
 
 export type CreateMeterIntegrationInput = {
-  manufacturer: string
-  model: string
-  class: string
-  category: string
-  protocol: string
-  authenticationType: string
-  serial?: string
-  multiplier: string
-  description?: string
-  hesStatus?: string
-  hlsConfig?: HlsSecurityConfig | null
-  llsConfig?: LlsSecurityConfig | null
-}
+  manufacturer: string;
+  model: string;
+  class: string;
+  category: string;
+  protocol: string;
+  authenticationType: string;
+  serial?: string;
+  multiplier: string;
+  description?: string;
+  hesStatus?: string;
+  hlsConfig?: HlsSecurityConfig | null;
+  llsConfig?: LlsSecurityConfig | null;
+};
 
 export type UpdateMeterIntegrationInput = CreateMeterIntegrationInput & {
-  meterIntegrationId: string
-}
+  meterIntegrationId: string;
+};
 
 export type ChangeMeterIntegrationStatusInput = {
-  meterIntegrationId: string
-  status: MeterIntegrationStatus
-  reason?: string
-}
+  meterIntegrationId: string;
+  status: MeterIntegrationStatus;
+  reason?: string;
+};
 
-export type MeterIntegrationStatus = 'ACTIVE' | 'DEPRECATED'
+export type MeterIntegrationStatus = "ACTIVE" | "DEPRECATED";
 
 export type MeterIntegrationSummary = {
-  id: string
-  manufacturer: string
-  model: string
-  class?: string
-  meterClass?: string
-  category?: string
-  meterCategory?: string
-  protocol: string
-  authenticationType: string
-  status: MeterIntegrationStatus
-  statusReason?: string
-  obisCodeCount: number
+  id: string;
+  manufacturer: string;
+  model: string;
+  class?: string;
+  meterClass?: string;
+  category?: string;
+  meterCategory?: string;
+  protocol: string;
+  authenticationType: string;
+  status: MeterIntegrationStatus;
+  statusReason?: string;
+  obisCodeCount: number;
   addedBy: {
-    id: string
-    name: string
-  }
-  createdAt: string
-  updatedAt: string
-}
+    id: string;
+    name: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+};
 
 export type MeterIntegration = MeterIntegrationSummary & {
-  class: string
-  category: string
-  description: string
-  hesStatus: string
-  serial?: string
-  multiplier?: string
-  hlsConfig?: HlsSecurityConfig | null
-  llsConfig?: LlsSecurityConfig | null
-}
+  class: string;
+  category: string;
+  description: string;
+  hesStatus: string;
+  serial?: string;
+  multiplier?: string;
+  hlsConfig?: HlsSecurityConfig | null;
+  llsConfig?: LlsSecurityConfig | null;
+};
 
 export type MeterIntegrationListParams = {
-  search?: string
-  status?: MeterIntegrationStatus
-  manufacturer?: string
-  page: number
-  limit: number
-}
+  search?: string;
+  status?: MeterIntegrationStatus;
+  manufacturer?: string;
+  page: number;
+  limit: number;
+};
 
 export type MeterIntegrationListResponse = {
-  items: MeterIntegrationSummary[]
+  items: MeterIntegrationSummary[];
   pagination: {
-    page: number
-    limit: number
-    total: number
-    totalPages: number
-  }
-}
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+};
 
 export type CreateObisCodeInput = {
-  action: string
-  code: string
-  description?: string
-  scaler?: string
-  unit?: string
-  multiplyBy?: string
-  actionType?: string
-  obisType?:string
-}
+  action: string;
+  code: string;
+  description?: string;
+  profileItems?: string[];
+  scaler?: string;
+  unit?: string;
+  multiplyBy?: string;
+  actionType?: string;
+  obisType?: string;
+};
 
 export type UpdateObisCodeInput = CreateObisCodeInput & {
-  obisCodeId: string
-}
+  obisCodeId: string;
+};
 
-export type ObisCodeStatus = 'ACTIVE' | 'DEPRECATED'
+export type ObisCodeStatus = "ACTIVE" | "DEPRECATED";
 
 export type ObisCode = {
-  id: string
-  meterIntegrationId?: string
-  action: string
-  code: string
-  description: string
-  status: ObisCodeStatus
-  statusReason?: string
-  obisType?: string
-  linkedRealTimeCodes?: {
-    action: string
-    code: string
-  }[] | null
-  linkedRealTimeCodeCount?: number
-  scaler?: string
-  unit?: string
-  multiplyBy?: string
-  actionType?: string
+  id: string;
+  meterIntegrationId?: string;
+  action: string;
+  code: string;
+  description: string;
+  confirmation?: string;
+  integratedActions?: string[];
+  status: ObisCodeStatus;
+  statusReason?: string;
+  obisType?: string;
+  linkedRealTimeCodes?:
+    | {
+        action: string;
+        code: string;
+      }[]
+    | null;
+  linkedRealTimeCodeCount?: number;
+  scaler?: string;
+  profileItems?: string[];
+  unit?: string;
+  multiplyBy?: string;
+  actionType?: string;
   integratedRealTimeCodes?: {
-    action: string
-    code: string
-  }[]
+    action: string;
+    code: string;
+  }[];
   addedBy?: {
-    id: string
-    name: string
-  }
-  createdAt: string
-  updatedAt: string
-}
+    id: string;
+    name: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+};
 
 export type ChangeObisCodeStatusInput = {
-  obisCodeId: string
-  status: ObisCodeStatus
-  reason?: string
-}
+  obisCodeId: string;
+  status: ObisCodeStatus;
+  reason?: string;
+};
 
 export type ObisCodeListParams = {
-  search?: string
-  status?: ObisCodeStatus
-  page: number
-  limit: number
-}
+  search?: string;
+  status?: ObisCodeStatus;
+  page: number;
+  limit: number;
+};
 
 export type ObisCodeListResponse = {
-  items: ObisCode[]
+  items: ObisCode[];
   pagination: {
-    page: number
-    limit: number
-    total: number
-    totalPages: number
-  }
-}
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+};
 
-export type ObisUploadMode = 'append' | 'replace'
+export type ObisUploadMode = "append" | "replace";
 
 export type ObisUploadError = {
-  row: number
-  field: string
-  message: string
-}
+  row: number;
+  field: string;
+  message: string;
+};
 
 export type ObisUpload = {
-  id: string
-  status: string
-  mode: ObisUploadMode
-  totalRows: number
-  created: number
-  updated: number
-  failed: number
-  errors: ObisUploadError[]
-  uploadedAt: string
-}
+  id: string;
+  status: string;
+  mode: ObisUploadMode;
+  totalRows: number;
+  created: number;
+  updated: number;
+  failed: number;
+  errors: ObisUploadError[];
+  uploadedAt: string;
+};
 
 export type UploadObisCodesInput = {
-  file: File
-  mode: ObisUploadMode
-}
+  file: File;
+  mode: ObisUploadMode;
+};
 
 export type MeterAction = {
-  action: string,
-  code: string,
-  description: string,
-  id: string,
-  obisType: string
-}
+  action: string;
+  code: string;
+  description: string;
+  id: string;
+  obisType: string;
+};
 
 type MeterIntegrationResponse = {
-  meterIntegration: MeterIntegration
-}
+  meterIntegration: MeterIntegration;
+};
 
 type MeterIntegrationUpdate = Pick<
   MeterIntegration,
-  | 'id'
-  | 'manufacturer'
-  | 'model'
-  | 'class'
-  | 'category'
-  | 'protocol'
-  | 'authenticationType'
-  | 'description'
-  | 'status'
-  | 'updatedAt'
->
+  | "id"
+  | "manufacturer"
+  | "model"
+  | "class"
+  | "category"
+  | "protocol"
+  | "authenticationType"
+  | "description"
+  | "status"
+  | "updatedAt"
+>;
 
 type UpdateMeterIntegrationResponse = {
-  meterIntegration: MeterIntegrationUpdate
-}
+  meterIntegration: MeterIntegrationUpdate;
+};
 
 type ChangeMeterIntegrationStatusResponse = {
   meterIntegration: Pick<
     MeterIntegration,
-    'id' | 'status' | 'statusReason' | 'updatedAt'
-  >
-}
+    "id" | "status" | "statusReason" | "updatedAt"
+  >;
+};
 
 type CreateObisCodeResponse = {
-  obisCode: ObisCode
-}
+  obisCode: ObisCode;
+};
 
 type UpdateObisCodeResponse = {
   obisCode: Pick<
     ObisCode,
-    | 'id'
-    | 'meterIntegrationId'
-    | 'action'
-    | 'code'
-    | 'description'
-    | 'status'
-    | 'updatedAt'
-  >
-}
+    | "id"
+    | "meterIntegrationId"
+    | "action"
+    | "code"
+    | "description"
+    | "status"
+    | "updatedAt"
+  >;
+};
 
 type ChangeObisCodeStatusResponse = {
-  obisCode: Pick<ObisCode, 'id' | 'status' | 'statusReason' | 'updatedAt'>
-}
+  obisCode: Pick<ObisCode, "id" | "status" | "statusReason" | "updatedAt">;
+};
 
 type UploadObisCodesResponse = {
-  upload: ObisUpload
-}
+  upload: ObisUpload;
+};
 
 type MeterIntegrationErrorPayload = {
   error?: {
-    code?: string
-    message?: string
-    fields?: Record<string, string>
-    requestId?: string
-  }
-}
-
+    code?: string;
+    message?: string;
+    fields?: Record<string, string>;
+    requestId?: string;
+  };
+};
 
 async function createMeterIntegration(input: CreateMeterIntegrationInput) {
   const response = await apiRequest<MeterIntegrationResponse>(
-    '/admin/meter-integrations',
+    "/admin/meter-integrations",
     {
-      method: 'POST',
+      method: "POST",
       json: input,
     },
-  )
-  return response.meterIntegration
+  );
+  return response.meterIntegration;
 }
 
 async function listMeterIntegrations(params: MeterIntegrationListParams) {
   const query = new URLSearchParams({
     page: String(params.page),
     limit: String(params.limit),
-  })
-  if (params.search) query.set('search', params.search)
-  if (params.status) query.set('status', params.status)
-  if (params.manufacturer) query.set('manufacturer', params.manufacturer)
+  });
+  if (params.search) query.set("search", params.search);
+  if (params.status) query.set("status", params.status);
+  if (params.manufacturer) query.set("manufacturer", params.manufacturer);
 
   const response = await apiRequest<MeterIntegrationListResponse>(
     `/admin/meter-integrations?${query.toString()}`,
-  )
+  );
 
   return {
     ...response,
     items: response.items.map(normalizeMeterIntegrationSummary),
-  }
+  };
 }
 
 function normalizeMeterIntegrationSummary(
@@ -304,104 +309,110 @@ function normalizeMeterIntegrationSummary(
     ...integration,
     class: integration.class ?? integration.meterClass,
     category: integration.category ?? integration.meterCategory,
-  }
+  };
 }
 
 async function getMeterIntegration(meterIntegrationId: string) {
   const response = await apiRequest<MeterIntegrationResponse>(
     `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}`,
-  )
+  );
   const integration = response.meterIntegration as MeterIntegration &
-    Record<string, unknown>
+    Record<string, unknown>;
 
   return {
     ...integration,
-    class: typeof integration.class === 'string'
-      ? integration.class
-      : typeof integration.meterClass === 'string'
-        ? integration.meterClass
-        : '',
-    category: typeof integration.category === 'string'
-      ? integration.category
-      : typeof integration.meterCategory === 'string'
-        ? integration.meterCategory
-        : '',
-  }
+    class:
+      typeof integration.class === "string"
+        ? integration.class
+        : typeof integration.meterClass === "string"
+          ? integration.meterClass
+          : "",
+    category:
+      typeof integration.category === "string"
+        ? integration.category
+        : typeof integration.meterCategory === "string"
+          ? integration.meterCategory
+          : "",
+  };
 }
 
 async function updateMeterIntegration(input: UpdateMeterIntegrationInput) {
-  const { meterIntegrationId, ...updates } = input
+  const { meterIntegrationId, ...updates } = input;
   const response = await apiRequest<UpdateMeterIntegrationResponse>(
     `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}`,
     {
-      method: 'PATCH',
+      method: "PATCH",
       json: updates,
     },
-  )
-  return response.meterIntegration
+  );
+  return response.meterIntegration;
 }
 
 async function changeMeterIntegrationStatus(
   input: ChangeMeterIntegrationStatusInput,
 ) {
-  const { meterIntegrationId, status, reason } = input
+  const { meterIntegrationId, status, reason } = input;
   const response = await apiRequest<ChangeMeterIntegrationStatusResponse>(
     `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/status`,
     {
-      method: 'PATCH',
+      method: "PATCH",
       json: {
         status,
         ...(reason ? { reason } : {}),
       },
     },
-  )
-  return response.meterIntegration
+  );
+  return response.meterIntegration;
 }
 
 async function listOrganisationMeterIntegrations() {
-  const response = await apiRequest<unknown>(
-    '/organisation/meter-integration',
-  )
-  const payload = (
-    response &&
-    typeof response === 'object' &&
-    'data' in response
-  )
-    ? response.data
-    : response
+  const response = await apiRequest<unknown>("/organisation/meter-integration");
+  const payload =
+    response && typeof response === "object" && "data" in response
+      ? response.data
+      : response;
 
   if (Array.isArray(payload)) {
     return (payload as MeterIntegrationSummary[]).map(
       normalizeMeterIntegrationSummary,
-    )
+    );
   }
 
-  if (payload && typeof payload === 'object') {
-    for (const key of ['items', 'meterIntegrations', 'meterIntegration', 'content']) {
-      const integrations = (payload as Record<string, unknown>)[key]
+  if (payload && typeof payload === "object") {
+    for (const key of [
+      "items",
+      "meterIntegrations",
+      "meterIntegration",
+      "content",
+    ]) {
+      const integrations = (payload as Record<string, unknown>)[key];
       if (Array.isArray(integrations)) {
         return (integrations as MeterIntegrationSummary[]).map(
           normalizeMeterIntegrationSummary,
-        )
+        );
       }
     }
   }
 
-  throw new Error('The meter integrations response has an invalid format.')
+  throw new Error("The meter integrations response has an invalid format.");
 }
 
 async function createObisCode(
   meterIntegrationId: string,
   input: CreateObisCodeInput,
 ) {
+  const { profileItems, ...rest } = input;
   const response = await apiRequest<CreateObisCodeResponse>(
     `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/obis-codes`,
     {
-      method: 'POST',
-      json: input,
+      method: "POST",
+      json: {
+        ...rest,
+        ...(profileItems?.length ? { profileItemObisCodes: profileItems } : {}),
+      },
     },
-  )
-  return response.obisCode
+  );
+  return response.obisCode;
 }
 
 async function listObisCodes(
@@ -411,13 +422,13 @@ async function listObisCodes(
   const query = new URLSearchParams({
     page: String(params.page),
     limit: String(params.limit),
-  })
-  if (params.search) query.set('search', params.search)
-  if (params.status) query.set('status', params.status)
+  });
+  if (params.search) query.set("search", params.search);
+  if (params.status) query.set("status", params.status);
 
   return apiRequest<ObisCodeListResponse>(
     `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/obis-codes?${query.toString()}`,
-  )
+  );
 }
 
 async function updateObisCode(
@@ -427,7 +438,7 @@ async function updateObisCode(
   const response = await apiRequest<UpdateObisCodeResponse>(
     `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/obis-codes/${encodeURIComponent(input.obisCodeId)}`,
     {
-      method: 'PATCH',
+      method: "PATCH",
       json: {
         action: input.action,
         code: input.code,
@@ -436,13 +447,20 @@ async function updateObisCode(
           : {}),
         ...(input.scaler !== undefined ? { scaler: input.scaler } : {}),
         ...(input.unit !== undefined ? { unit: input.unit } : {}),
-        ...(input.multiplyBy !== undefined ? { multiplyBy: input.multiplyBy } : {}),
-        ...(input.actionType !== undefined ? { actionType: input.actionType } : {}),
-               ...(input.obisType !== undefined ? { obisType: input.obisType} : {}),
+        ...(input.multiplyBy !== undefined
+          ? { multiplyBy: input.multiplyBy }
+          : {}),
+        ...(input.actionType !== undefined
+          ? { actionType: input.actionType }
+          : {}),
+        ...(input.obisType !== undefined ? { obisType: input.obisType } : {}),
+        ...(input.profileItems !== undefined
+          ? { profileItemObisCodes: input.profileItems }
+          : {}),
       },
     },
-  )
-  return response.obisCode
+  );
+  return response.obisCode;
 }
 
 async function changeObisCodeStatus(
@@ -452,49 +470,51 @@ async function changeObisCodeStatus(
   const response = await apiRequest<ChangeObisCodeStatusResponse>(
     `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/obis-codes/${encodeURIComponent(input.obisCodeId)}/status`,
     {
-      method: 'PATCH',
+      method: "PATCH",
       json: {
         status: input.status,
         ...(input.reason ? { reason: input.reason } : {}),
       },
     },
-  )
-  return response.obisCode
+  );
+  return response.obisCode;
 }
 
 async function uploadObisCodes(
   meterIntegrationId: string,
   input: UploadObisCodesInput,
 ) {
-  const formData = new FormData()
-  formData.append('file', input.file)
-  formData.append('mode', input.mode)
+  const formData = new FormData();
+  formData.append("file", input.file);
+  formData.append("mode", input.mode);
 
   const response = await apiRequest<UploadObisCodesResponse>(
     `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/obis-codes/upload`,
     {
-      method: 'POST',
+      method: "POST",
       formData,
     },
-  )
-  return response.upload
+  );
+  return response.upload;
 }
 
 export const meterIntegrationKeys = {
-  all: ['admin-meter-integrations'] as const,
-  lists: () => ['admin-meter-integrations', 'list'] as const,
-  options: () => ['admin-meter-integrations', 'options'] as const,
+  all: ["admin-meter-integrations"] as const,
+  lists: () => ["admin-meter-integrations", "list"] as const,
+  options: () => ["admin-meter-integrations", "options"] as const,
   list: (params: MeterIntegrationListParams) =>
-    ['admin-meter-integrations', 'list', params] as const,
-  detail: (id: string) => ['admin-meter-integrations', 'detail', id] as const,
-  realTimeActions: (id: string) => [...meterIntegrationKeys.detail(id), 'real-time-actions'] as const,
-  obisCodes: (id: string) => ['admin-meter-integrations', 'detail', id, 'obis-codes'] as const,
+    ["admin-meter-integrations", "list", params] as const,
+  detail: (id: string) => ["admin-meter-integrations", "detail", id] as const,
+  realTimeActions: (id: string) =>
+    [...meterIntegrationKeys.detail(id), "real-time-actions"] as const,
+  obisCodes: (id: string) =>
+    ["admin-meter-integrations", "detail", id, "obis-codes"] as const,
   obisCodeList: (id: string, params: ObisCodeListParams) =>
     [...meterIntegrationKeys.obisCodes(id), params] as const,
-}
+};
 
 export function useCreateMeterIntegration() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: createMeterIntegration,
@@ -502,14 +522,20 @@ export function useCreateMeterIntegration() {
       queryClient.setQueryData(
         meterIntegrationKeys.detail(integration.id),
         integration,
-      )
+      );
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() }),
-        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.options() }),
-        queryClient.invalidateQueries({ queryKey: publicMeterIntegrationKeys.all }),
-      ])
+        queryClient.invalidateQueries({
+          queryKey: meterIntegrationKeys.lists(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: meterIntegrationKeys.options(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: publicMeterIntegrationKeys.all,
+        }),
+      ]);
     },
-  })
+  });
 }
 
 export function useMeterIntegrations(params: MeterIntegrationListParams) {
@@ -517,67 +543,81 @@ export function useMeterIntegrations(params: MeterIntegrationListParams) {
     queryKey: meterIntegrationKeys.list(params),
     queryFn: () => listMeterIntegrations(params),
     placeholderData: keepPreviousData,
-  })
+  });
 }
 
 export function useMeterIntegration(meterIntegrationId: string) {
   return useQuery({
     queryKey: meterIntegrationKeys.detail(meterIntegrationId),
     queryFn: () => getMeterIntegration(meterIntegrationId),
-    refetchOnMount: 'always',
-  })
+    refetchOnMount: "always",
+  });
 }
 
 export function useUpdateMeterIntegration() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: updateMeterIntegration,
     onSuccess: async (integration) => {
       queryClient.setQueryData<MeterIntegration | undefined>(
         meterIntegrationKeys.detail(integration.id),
-        (current) => current ? { ...current, ...integration } : current,
-      )
+        (current) => (current ? { ...current, ...integration } : current),
+      );
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() }),
-        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.options() }),
-        queryClient.invalidateQueries({ queryKey: publicMeterIntegrationKeys.all }),
-      ])
+        queryClient.invalidateQueries({
+          queryKey: meterIntegrationKeys.lists(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: meterIntegrationKeys.options(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: publicMeterIntegrationKeys.all,
+        }),
+      ]);
     },
-  })
+  });
 }
 
 export function useChangeMeterIntegrationStatus() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: changeMeterIntegrationStatus,
     onSuccess: async (integration) => {
       queryClient.setQueryData<MeterIntegration | undefined>(
         meterIntegrationKeys.detail(integration.id),
-        (current) => current ? { ...current, ...integration } : current,
-      )
+        (current) => (current ? { ...current, ...integration } : current),
+      );
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() }),
-        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.options() }),
-        queryClient.invalidateQueries({ queryKey: publicMeterIntegrationKeys.all }),
-      ])
+        queryClient.invalidateQueries({
+          queryKey: meterIntegrationKeys.lists(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: meterIntegrationKeys.options(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: publicMeterIntegrationKeys.all,
+        }),
+      ]);
     },
-  })
+  });
 }
 
 export function useActiveMeterIntegrationOptions() {
   return useQuery({
     queryKey: meterIntegrationKeys.options(),
     queryFn: async () => {
-      const integrations = await listOrganisationMeterIntegrations()
-      return integrations.filter((integration) => integration.status === 'ACTIVE')
+      const integrations = await listOrganisationMeterIntegrations();
+      return integrations.filter(
+        (integration) => integration.status === "ACTIVE",
+      );
     },
-  })
+  });
 }
 
 export function useCreateObisCode(meterIntegrationId: string) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: CreateObisCodeInput) =>
@@ -585,9 +625,9 @@ export function useCreateObisCode(meterIntegrationId: string) {
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: meterIntegrationKeys.obisCodes(meterIntegrationId),
-      })
+      });
     },
-  })
+  });
 }
 
 export function useObisCodes(
@@ -598,11 +638,11 @@ export function useObisCodes(
     queryKey: meterIntegrationKeys.obisCodeList(meterIntegrationId, params),
     queryFn: () => listObisCodes(meterIntegrationId, params),
     placeholderData: keepPreviousData,
-  })
+  });
 }
 
 export function useUpdateObisCode(meterIntegrationId: string) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: UpdateObisCodeInput) =>
@@ -610,13 +650,13 @@ export function useUpdateObisCode(meterIntegrationId: string) {
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: meterIntegrationKeys.obisCodes(meterIntegrationId),
-      })
+      });
     },
-  })
+  });
 }
 
 export function useChangeObisCodeStatus(meterIntegrationId: string) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: ChangeObisCodeStatusInput) =>
@@ -624,13 +664,13 @@ export function useChangeObisCodeStatus(meterIntegrationId: string) {
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: meterIntegrationKeys.obisCodes(meterIntegrationId),
-      })
+      });
     },
-  })
+  });
 }
 
 export function useUploadObisCodes(meterIntegrationId: string) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: UploadObisCodesInput) =>
@@ -640,95 +680,114 @@ export function useUploadObisCodes(meterIntegrationId: string) {
         queryClient.invalidateQueries({
           queryKey: meterIntegrationKeys.obisCodes(meterIntegrationId),
         }),
-        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() }),
-      ])
+        queryClient.invalidateQueries({
+          queryKey: meterIntegrationKeys.lists(),
+        }),
+      ]);
     },
-  })
+  });
 }
 
 export function getMeterIntegrationError(error: unknown) {
-  const payload = error instanceof ApiError
-    ? error.details as MeterIntegrationErrorPayload | undefined
-    : undefined
+  const payload =
+    error instanceof ApiError
+      ? (error.details as MeterIntegrationErrorPayload | undefined)
+      : undefined;
 
   return {
     status: error instanceof ApiError ? error.status : undefined,
     code: payload?.error?.code,
-    message: payload?.error?.message ?? (
-      error instanceof Error ? error.message : 'The meter integration could not be created.'
-    ),
+    message:
+      payload?.error?.message ??
+      (error instanceof Error
+        ? error.message
+        : "The meter integration could not be created."),
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,
-  }
+  };
 }
 
 export function getObisCodeError(error: unknown) {
-  const payload = error instanceof ApiError
-    ? error.details as MeterIntegrationErrorPayload | undefined
-    : undefined
+  const payload =
+    error instanceof ApiError
+      ? (error.details as MeterIntegrationErrorPayload | undefined)
+      : undefined;
 
   return {
     code: payload?.error?.code,
-    message: payload?.error?.message ?? (
-      error instanceof Error ? error.message : 'The OBIS code could not be created.'
-    ),
+    message:
+      payload?.error?.message ??
+      (error instanceof Error
+        ? error.message
+        : "The OBIS code could not be created."),
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,
-  }
+  };
 }
 
 export function getObisCodeStatusError(error: unknown) {
-  const payload = error instanceof ApiError
-    ? error.details as MeterIntegrationErrorPayload | undefined
-    : undefined
+  const payload =
+    error instanceof ApiError
+      ? (error.details as MeterIntegrationErrorPayload | undefined)
+      : undefined;
 
   return {
     code: payload?.error?.code,
-    message: payload?.error?.message ?? (
-      error instanceof Error ? error.message : 'The OBIS code status could not be changed.'
-    ),
+    message:
+      payload?.error?.message ??
+      (error instanceof Error
+        ? error.message
+        : "The OBIS code status could not be changed."),
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,
-  }
+  };
 }
 
 export function getObisCodeUpdateError(error: unknown) {
-  const payload = error instanceof ApiError
-    ? error.details as MeterIntegrationErrorPayload | undefined
-    : undefined
+  const payload =
+    error instanceof ApiError
+      ? (error.details as MeterIntegrationErrorPayload | undefined)
+      : undefined;
 
   return {
     code: payload?.error?.code,
-    message: payload?.error?.message ?? (
-      error instanceof Error ? error.message : 'The OBIS code could not be updated.'
-    ),
+    message:
+      payload?.error?.message ??
+      (error instanceof Error
+        ? error.message
+        : "The OBIS code could not be updated."),
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,
-  }
+  };
 }
 
 export function getObisUploadError(error: unknown) {
-  const payload = error instanceof ApiError
-    ? error.details as MeterIntegrationErrorPayload | undefined
-    : undefined
+  const payload =
+    error instanceof ApiError
+      ? (error.details as MeterIntegrationErrorPayload | undefined)
+      : undefined;
 
   return {
     code: payload?.error?.code,
-    message: payload?.error?.message ?? (
-      error instanceof Error ? error.message : 'The OBIS codes could not be uploaded.'
-    ),
+    message:
+      payload?.error?.message ??
+      (error instanceof Error
+        ? error.message
+        : "The OBIS codes could not be uploaded."),
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,
-  }
+  };
 }
 
 async function getRealTimeActions(meterId: string) {
-  return await apiRequest<MeterAction[]>(`/admin/meter-integrations/real-time/obis/${encodeURIComponent(meterId)}`)
+  return await apiRequest<MeterAction[]>(
+    `/admin/meter-integrations/real-time/obis/${encodeURIComponent(meterId)}`,
+  );
 }
 
 export function useRealTimeActions(meterId: string) {
   return useQuery({
     queryKey: meterIntegrationKeys.realTimeActions(meterId),
-    queryFn: () => getRealTimeActions(meterId)
-  })
+    queryFn: () => getRealTimeActions(meterId),
+  });
 }
