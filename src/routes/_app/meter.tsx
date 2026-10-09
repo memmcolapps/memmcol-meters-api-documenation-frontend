@@ -1,13 +1,13 @@
-import { useDeferredValue, useRef, useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
-import { useToast } from '../../app/toastContext'
-import { useDismiss } from '../../app/useDismiss'
-import { useAnchoredMenu } from '../../app/useAnchoredMenu'
-import { getApiErrorMessage } from '../../lib/api/client'
+import { useDeferredValue, useRef, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useToast } from "../../app/toastContext";
+import { useDismiss } from "../../app/useDismiss";
+import { useAnchoredMenu } from "../../app/useAnchoredMenu";
+import { getApiErrorMessage } from "../../lib/api/client";
 import {
   getMeterIntegrationError,
   useActiveMeterIntegrationOptions,
-} from '../../features/admin-meters/adminMeterQueries'
+} from "../../features/admin-meters/adminMeterQueries";
 import {
   getCreateMeterError,
   useCreateMeter,
@@ -20,131 +20,141 @@ import {
   type CreateMeterInput,
   type Meter,
   type MeterStatus,
-} from '../../features/meters/meterQueries'
+  useUploadBulkMeterCSV,
+  type BulkUploadMeterResponse,
+} from "../../features/meters/meterQueries";
 
-export const Route = createFileRoute('/_app/meter')({
+export const Route = createFileRoute("/_app/meter")({
   component: MeterPage,
-})
+});
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 10;
 
-function generatePages(current: number, total: number): (number | '…')[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+function generatePages(current: number, total: number): (number | "…")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
 
-  const pages: (number | '…')[] = []
+  const pages: (number | "…")[] = [];
   if (current <= 4) {
-    for (let i = 1; i <= 5; i++) pages.push(i)
-    pages.push('…', total)
+    for (let i = 1; i <= 5; i++) pages.push(i);
+    pages.push("…", total);
   } else if (current >= total - 3) {
-    pages.push(1, '…')
-    for (let i = total - 4; i <= total; i++) pages.push(i)
+    pages.push(1, "…");
+    for (let i = total - 4; i <= total; i++) pages.push(i);
   } else {
-    pages.push(1, '…')
-    for (let i = current - 1; i <= current + 1; i++) pages.push(i)
-    pages.push('…', total)
+    pages.push(1, "…");
+    for (let i = current - 1; i <= current + 1; i++) pages.push(i);
+    pages.push("…", total);
   }
-  return pages
+  return pages;
 }
 
 type MeterFormField =
-  | 'meterNumber'
-  | 'simNumber'
-  | 'meterTypeId'
-  | 'oldSgc'
-  | 'newSgc'
-  | 'oldKrn'
-  | 'newKrn'
-  | 'oldTariffIndex'
-  | 'newTariffIndex'
+  | "meterNumber"
+  | "simNumber"
+  | "meterTypeId"
+  | "tariffType"
+  | "oldSgc"
+  | "newSgc"
+  | "oldKrn"
+  | "newKrn"
+  | "oldTariffIndex"
+  | "newTariffIndex"
+  | "dualOldSgc"
+  | "dualNewSgc"
+  | "dualOldKrn"
+  | "dualNewKrn"
+  | "dualOldTariffIndex"
+  | "dualNewTariffIndex";
 
+type TariffType = "SINGLE_TARIFF" | "DUAL_TARIFF";
 
-type MeterFormValues = Record<MeterFormField, string>
-type MeterFormErrors = Partial<Record<MeterFormField, string>>
+type MeterFormValues = Record<MeterFormField, string>;
+type MeterFormErrors = Partial<Record<MeterFormField, string>>;
 
 const meterFormFieldAliases: Record<string, MeterFormField> = {
-  meterNumber: 'meterNumber',
-  simNumber: 'simNumber',
-  meterTypeId: 'meterTypeId',
-  oldSgc: 'oldSgc',
-  newSgc: 'newSgc',
-  oldKrn: 'oldKrn',
-  newKrn: 'newKrn',
-  oldTariffIndex: 'oldTariffIndex',
-  newTariffIndex: 'newTariffIndex',
-  'keyChange.oldSgc': 'oldSgc',
-  'keyChange.newSgc': 'newSgc',
-  'keyChange.oldKrn': 'oldKrn',
-  'keyChange.newKrn': 'newKrn',
-  'keyChange.oldTariffIndex': 'oldTariffIndex',
-  'keyChange.newTariffIndex': 'newTariffIndex',
-}
+  meterNumber: "meterNumber",
+  simNumber: "simNumber",
+  meterTypeId: "meterTypeId",
+  tariffType: "tariffType",
+
+  "keyChange.oldSgc": "oldSgc",
+  "keyChange.newSgc": "newSgc",
+  "keyChange.oldKrn": "oldKrn",
+  "keyChange.newKrn": "newKrn",
+  "keyChange.oldTariffIndex": "oldTariffIndex",
+  "keyChange.newTariffIndex": "newTariffIndex",
+
+  "dualKeyChange.oldSgc": "dualOldSgc",
+  "dualKeyChange.newSgc": "dualNewSgc",
+  "dualKeyChange.oldKrn": "dualOldKrn",
+  "dualKeyChange.newKrn": "dualNewKrn",
+  "dualKeyChange.oldTariffIndex": "dualOldTariffIndex",
+  "dualKeyChange.newTariffIndex": "dualNewTariffIndex",
+};
 
 const keyChangeFields: Array<{ field: MeterFormField; label: string }> = [
-  { field: 'oldSgc', label: 'Old SGC' },
-  { field: 'newSgc', label: 'New SGC' },
-  { field: 'oldKrn', label: 'Old KRN' },
-  { field: 'newKrn', label: 'New KRN' },
-  { field: 'oldTariffIndex', label: 'Old tariff index' },
-  { field: 'newTariffIndex', label: 'New tariff index' },
-]
+  { field: "oldSgc", label: "Old SGC" },
+  { field: "newSgc", label: "New SGC" },
+  { field: "oldKrn", label: "Old KRN" },
+  { field: "newKrn", label: "New KRN" },
+  { field: "oldTariffIndex", label: "Old tariff index" },
+  { field: "newTariffIndex", label: "New tariff index" },
+];
 
 function normalizeMeterFieldErrors(fields: Record<string, string>) {
-  return Object.entries(fields).reduce<MeterFormErrors>((errors, [field, message]) => {
-    const formField = meterFormFieldAliases[field]
-    if (formField) errors[formField] = message
-    return errors
-  }, {})
+  return Object.entries(fields).reduce<MeterFormErrors>(
+    (errors, [field, message]) => {
+      const formField = meterFormFieldAliases[field];
+      if (formField) errors[formField] = message;
+      return errors;
+    },
+    {},
+  );
 }
 
 function validateMeterForm(form: MeterFormValues) {
-  const errors: MeterFormErrors = {}
+  const errors: MeterFormErrors = {};
 
   if (!form.meterNumber.trim()) {
-    errors.meterNumber = 'Meter number is required.'
+    errors.meterNumber = "Meter number is required.";
   } else if (!/^\d+$/.test(form.meterNumber.trim())) {
-    errors.meterNumber = 'Meter number must contain digits only.'
+    errors.meterNumber = "Meter number must contain digits only.";
   }
 
-  // if (!form.simNumber.trim()) {
-  //   errors.simNumber = 'SIM number is required.'
-  // } else if (!/^\d+$/.test(form.simNumber.trim())) {
-  //   errors.simNumber = 'SIM number must contain digits only.'
-  // }
-  //
   if (form.simNumber) {
     if (!/^\d+$/.test(form.simNumber.trim())) {
-      errors.simNumber = 'SIM number must contain digits only.'
+      errors.simNumber = "SIM number must contain digits only.";
     }
   }
 
-  // if (!form.meterTypeId) errors.meterTypeId = 'Select a meter type.'
-
   keyChangeFields.forEach(({ field, label }) => {
-    const value = form[field].trim()
+    const value = form[field].trim();
     if (!value) {
-      errors[field] = `${label} is required.`
+      errors[field] = `${label} is required.`;
     } else if (!/^\d+$/.test(value)) {
-      errors[field] = `${label} must be a whole number.`
+      errors[field] = `${label} must be a whole number.`;
     } else if (!Number.isSafeInteger(Number(value))) {
-      errors[field] = `${label} is too large.`
+      errors[field] = `${label} is too large.`;
     }
-  })
+  });
 
-  return errors
+  return errors;
 }
 
 function MeterPage() {
-  const [page, setPage] = useState(1)
-  const [status, setStatus] = useState<MeterStatus | ''>('')
-  const [search, setSearch] = useState('')
-  const sortBy = 'createdAt'
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [openMenu, setOpenMenu] = useState<string | null>(null)
-  const [addOpen, setAddOpen] = useState(false)
-  const [editTarget, setEditTarget] = useState<Meter | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<Meter | null>(null)
-  const [detailMeterId, setDetailMeterId] = useState<string | null>(null)
-  const deferredSearch = useDeferredValue(search.trim())
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState<MeterStatus | "">("");
+  const [search, setSearch] = useState("");
+  const sortBy = "createdAt";
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [openBulkUploadModal, setOpenBulkUploadModal] =
+    useState<boolean>(false);
+  const [editTarget, setEditTarget] = useState<Meter | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Meter | null>(null);
+  const [detailMeterId, setDetailMeterId] = useState<string | null>(null);
+  const deferredSearch = useDeferredValue(search.trim());
 
   const params = {
     page,
@@ -153,27 +163,28 @@ function MeterPage() {
     ...(deferredSearch ? { search: deferredSearch } : {}),
     sortBy,
     sortOrder,
-  }
+  };
 
-  const { data, isLoading, isError } = useMeters(params)
-  const updateMeterStatus = useUpdateMeterStatus()
-  const exportMeters = useExportMeters()
-  const { showToast } = useToast()
+  const { data, isLoading, isError } = useMeters(params);
+  const updateMeterStatus = useUpdateMeterStatus();
+  const exportMeters = useExportMeters();
+  const { showToast } = useToast();
 
-  const meters = data?.items ?? []
-  const pagination = data?.pagination
-  const isEmpty = !isLoading && !isError && meters.length === 0
+  const meters = data?.items ?? [];
+  const pagination = data?.pagination;
+  const isEmpty = !isLoading && !isError && meters.length === 0;
 
   const toggleStatus = (id: string, currentStatus: MeterStatus) => {
-    const newStatus: MeterStatus = currentStatus === 'ACTIVE' ? 'DEACTIVATED' : 'ACTIVE'
-    updateMeterStatus.mutate({ id, status: newStatus })
-    setOpenMenu(null)
-  }
+    const newStatus: MeterStatus =
+      currentStatus === "ACTIVE" ? "DEACTIVATED" : "ACTIVE";
+    updateMeterStatus.mutate({ id, status: newStatus });
+    setOpenMenu(null);
+  };
 
   const confirmDelete = (meter: Meter) => {
-    setDeleteTarget(meter)
-    setOpenMenu(null)
-  }
+    setDeleteTarget(meter);
+    setOpenMenu(null);
+  };
 
   const handleExport = async () => {
     try {
@@ -182,27 +193,28 @@ function MeterPage() {
         ...(deferredSearch ? { search: deferredSearch } : {}),
         sortBy,
         sortOrder,
-      })
-      const downloadUrl = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = downloadUrl
-      link.download = filename || `meters-${new Date().toISOString().slice(0, 10)}.csv`
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1_000)
+      });
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download =
+        filename || `meters-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1_000);
     } catch (error) {
       showToast({
-        title: 'Could not export meters',
+        title: "Could not export meters",
         message: getApiErrorMessage(error),
-        variant: 'error',
-      })
+        variant: "error",
+      });
     }
-  }
+  };
 
-  const allPages = pagination ? generatePages(page, pagination.totalPages) : []
-  const hasNext = pagination ? page < pagination.totalPages : false
-  const hasPrev = page > 1
+  const allPages = pagination ? generatePages(page, pagination.totalPages) : [];
+  const hasNext = pagination ? page < pagination.totalPages : false;
+  const hasPrev = page > 1;
 
   return (
     <div className="dash">
@@ -211,13 +223,30 @@ function MeterPage() {
           <h1 className="dash-title">Meters</h1>
           <p className="dash-subtitle">Add, Manage and Access meter records.</p>
         </div>
-        <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
-          Add Meters <PlusIcon />
-        </button>
+        <div className="dash-meter-bar">
+          <button
+            className="icon-btn-upload"
+            onClick={() => setOpenBulkUploadModal(true)}
+          >
+            <UploadIcon />
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setAddOpen(true)}
+          >
+            Add Meters <PlusIcon />
+          </button>
+        </div>
       </header>
 
       <div className="dash-tabs" role="tablist">
-        <button type="button" className="dash-tab is-active" role="tab" aria-selected="true">
+        <button
+          type="button"
+          className="dash-tab is-active"
+          role="tab"
+          aria-selected="true"
+        >
           Meter list
         </button>
       </div>
@@ -231,8 +260,8 @@ function MeterPage() {
               aria-label="Search by meter or SIM number"
               value={search}
               onChange={(event) => {
-                setSearch(event.target.value)
-                setPage(1)
+                setSearch(event.target.value);
+                setPage(1);
               }}
             />
             <SearchIcon />
@@ -241,8 +270,8 @@ function MeterPage() {
             className="filter-btn filter-select"
             value={status}
             onChange={(event) => {
-              setStatus(event.target.value as MeterStatus | '')
-              setPage(1)
+              setStatus(event.target.value as MeterStatus | "");
+              setPage(1);
             }}
           >
             <option value="">All status</option>
@@ -252,8 +281,8 @@ function MeterPage() {
           <SortDropdown
             value={sortOrder}
             onChange={(order) => {
-              setSortOrder(order)
-              setPage(1)
+              setSortOrder(order);
+              setPage(1);
             }}
           />
         </div>
@@ -263,7 +292,7 @@ function MeterPage() {
           disabled={exportMeters.isPending}
           onClick={() => void handleExport()}
         >
-          {exportMeters.isPending ? 'Exporting…' : 'Download'} <DownloadIcon />
+          {exportMeters.isPending ? "Exporting…" : "Download"} <DownloadIcon />
         </button>
       </div>
 
@@ -273,12 +302,18 @@ function MeterPage() {
         </div>
       ) : isError ? (
         <div className="meter-empty">
-          <p className="meter-empty-text">Failed to load meters. Please try again.</p>
+          <p className="meter-empty-text">
+            Failed to load meters. Please try again.
+          </p>
         </div>
       ) : isEmpty ? (
         <div className="meter-empty">
           <p className="meter-empty-text">No meters Available</p>
-          <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setAddOpen(true)}
+          >
             Add Meters <PlusIcon />
           </button>
         </div>
@@ -305,9 +340,17 @@ function MeterPage() {
                 {meters.map((meter, index) => (
                   <tr key={meter.id}>
                     <td className="col-check">
-                      <input type="checkbox" aria-label={`Select meter ${(page - 1) * PAGE_SIZE + index + 1}`} />
+                      <input
+                        type="checkbox"
+                        aria-label={`Select meter ${(page - 1) * PAGE_SIZE + index + 1}`}
+                      />
                     </td>
-                    <td>{String((page - 1) * PAGE_SIZE + index + 1).padStart(2, '0')}</td>
+                    <td>
+                      {String((page - 1) * PAGE_SIZE + index + 1).padStart(
+                        2,
+                        "0",
+                      )}
+                    </td>
                     <td>{meter.meterNumber}</td>
                     <td>{meter.simNumber}</td>
                     <td>{meter.manufacturer}</td>
@@ -315,27 +358,32 @@ function MeterPage() {
                     <td>{meter.meterClass}</td>
                     <td>
                       <span
-                        className={`code-badge${meter.status === 'ACTIVE' ? ' is-ok' : ' is-error'}`}
+                        className={`code-badge${meter.status === "ACTIVE" ? " is-ok" : " is-error"}`}
                       >
-                        {meter.status === 'ACTIVE' ? 'Active' : 'Deactivated'}
+                        {meter.status === "ACTIVE" ? "Active" : "Deactivated"}
                       </span>
                     </td>
                     <td className="col-actions">
                       <RowActions
                         isOpen={openMenu === meter.id}
                         status={meter.status}
-                        onEditMeter={
-                          () => {
-                            setEditTarget(meter)
-                            setOpenMenu(null)
-                          }
-                        }
+                        onEditMeter={() => {
+                          setEditTarget(meter);
+                          setOpenMenu(null);
+                        }}
                         onToggle={() =>
-                          setOpenMenu((prev) => (prev === meter.id ? null : meter.id))
+                          setOpenMenu((prev) =>
+                            prev === meter.id ? null : meter.id,
+                          )
                         }
                         onClose={() => setOpenMenu(null)}
-                        onViewDetails={() => { setDetailMeterId(meter.id); setOpenMenu(null) }}
-                        onToggleStatus={() => toggleStatus(meter.id, meter.status)}
+                        onViewDetails={() => {
+                          setDetailMeterId(meter.id);
+                          setOpenMenu(null);
+                        }}
+                        onToggleStatus={() =>
+                          toggleStatus(meter.id, meter.status)
+                        }
                         onDelete={() => confirmDelete(meter)}
                       />
                     </td>
@@ -356,7 +404,7 @@ function MeterPage() {
             </button>
             <div className="page-numbers">
               {allPages.map((p, index) =>
-                p === '…' ? (
+                p === "…" ? (
                   <span key={`gap-${index}`} className="page-gap">
                     …
                   </span>
@@ -364,8 +412,8 @@ function MeterPage() {
                   <button
                     type="button"
                     key={p}
-                    className={`page-num${p === page ? ' is-active' : ''}`}
-                    aria-current={p === page ? 'page' : undefined}
+                    className={`page-num${p === page ? " is-active" : ""}`}
+                    aria-current={p === page ? "page" : undefined}
                     onClick={() => setPage(p)}
                   >
                     {p}
@@ -385,9 +433,7 @@ function MeterPage() {
         </>
       )}
 
-      {addOpen ? (
-        <AddMeterModal onClose={() => setAddOpen(false)} />
-      ) : null}
+      {addOpen ? <AddMeterModal onClose={() => setAddOpen(false)} /> : null}
 
       {deleteTarget ? (
         <DeleteMeterModal
@@ -403,75 +449,84 @@ function MeterPage() {
         />
       ) : null}
 
-
       {editTarget ? (
         <EditMeterModal
           meter={editTarget}
           onClose={() => setEditTarget(null)}
         />
       ) : null}
+
+      {openBulkUploadModal ? (
+        <BulkUploadModal onClose={() => setOpenBulkUploadModal(false)} />
+      ) : null}
     </div>
-  )
+  );
 }
 
-function AddMeterModal({
-  onClose,
-}: {
-  onClose: () => void
-}) {
+function AddMeterModal({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState<MeterFormValues>({
-    meterNumber: '',
-    simNumber: '',
-    meterTypeId: '',
-    oldSgc: '',
-    newSgc: '',
-    oldKrn: '',
-    newKrn: '',
-    oldTariffIndex: '',
-    newTariffIndex: '',
-  })
-  const [fieldErrors, setFieldErrors] = useState<MeterFormErrors>({})
-  const createMeter = useCreateMeter()
-  const meterTypesQuery = useActiveMeterIntegrationOptions()
-  const meterTypes = meterTypesQuery.data ?? []
-  const { showToast } = useToast()
-  const modalRef = useRef<HTMLDivElement>(null)
-  const isSubmitting = createMeter.isPending
+    meterNumber: "",
+    simNumber: "",
+    meterTypeId: "",
+    oldSgc: "",
+    newSgc: "",
+    oldKrn: "",
+    newKrn: "",
+    oldTariffIndex: "",
+    newTariffIndex: "",
+    tariffType: "",
+    dualOldSgc: "",
+    dualNewSgc: "",
+    dualOldKrn: "",
+    dualNewKrn: "",
+    dualOldTariffIndex: "",
+    dualNewTariffIndex: "",
+  });
+  const [fieldErrors, setFieldErrors] = useState<MeterFormErrors>({});
+  const [tariffType, setTariffType] = useState<TariffType>("SINGLE_TARIFF");
+  const [step, setStep] = useState<number>(1);
+  const createMeter = useCreateMeter();
+  const meterTypesQuery = useActiveMeterIntegrationOptions();
+  const meterTypes = meterTypesQuery.data ?? [];
+  const { showToast } = useToast();
+  const modalRef = useRef<HTMLDivElement>(null);
+  const isSubmitting = createMeter.isPending;
   const requestClose = () => {
-    if (!isSubmitting) onClose()
-  }
-  useDismiss(modalRef, requestClose)
+    if (!isSubmitting) onClose();
+  };
+  useDismiss(modalRef, requestClose);
 
   const set = (key: MeterFormField, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }))
+    setForm((prev) => ({ ...prev, [key]: value }));
     setFieldErrors((current) => {
-      if (!current[key]) return current
-      const next = { ...current }
-      delete next[key]
-      return next
-    })
-  }
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
 
   const handleSubmit = async () => {
-    const validationErrors = validateMeterForm(form)
+    const validationErrors = validateMeterForm(form);
     if (
       form.meterTypeId &&
       !meterTypes.some((meterType) => meterType.id === form.meterTypeId)
     ) {
-      validationErrors.meterTypeId = 'Select a valid meter type.'
+      validationErrors.meterTypeId = "Select a valid meter type.";
     }
     if (Object.keys(validationErrors).length > 0) {
-      setFieldErrors(validationErrors)
-      return
+      setFieldErrors(validationErrors);
+      return;
     }
 
-    const simNumber = form.simNumber.trim()
-    const meterTypeId = form.meterTypeId.trim()
+    const simNumber = form.simNumber.trim();
+    const meterTypeId = form.meterTypeId.trim();
 
     const input: CreateMeterInput = {
       meterNumber: form.meterNumber.trim(),
+      tariffType: form.tariffType || tariffType,
       ...(simNumber ? { simNumber } : {}),
-      ...(meterTypeId ? { meterTypeId }: {}),
+      ...(meterTypeId ? { meterTypeId } : {}),
       keyChange: {
         oldSgc: Number(form.oldSgc),
         newSgc: Number(form.newSgc),
@@ -480,48 +535,68 @@ function AddMeterModal({
         oldTariffIndex: Number(form.oldTariffIndex),
         newTariffIndex: Number(form.newTariffIndex),
       },
-    }
+      dualKeyChange:
+        form.tariffType === "DUAL_TARIFF"
+          ? {
+              oldKrn: Number(form.dualOldKrn),
+              newKrn: Number(form.dualNewKrn),
+              oldSgc: Number(form.dualOldSgc),
+              newSgc: Number(form.dualNewSgc),
+              oldTariffIndex: Number(form.oldTariffIndex),
+              newTariffIndex: Number(form.newTariffIndex),
+            }
+          : null,
+    };
 
     try {
-      const meter = await createMeter.mutateAsync(input)
+      const meter = await createMeter.mutateAsync(input);
       showToast({
-        title: 'Meter created',
+        title: "Meter created",
         message: `${meter.meterNumber ?? form.meterNumber} was added successfully.`,
-        variant: 'success',
-      })
-      onClose()
+        variant: "success",
+      });
+      onClose();
     } catch (error) {
-      const apiError = getCreateMeterError(error)
-      const normalizedFields = normalizeMeterFieldErrors(apiError.fields)
-      const errors = apiError.status === 409 && Object.keys(normalizedFields).length === 0
-        ? {
-            meterNumber: 'Meter number or SIM number already exists.',
-            simNumber: 'Meter number or SIM number already exists.',
-          }
-        : normalizedFields
-      setFieldErrors(errors)
+      const apiError = getCreateMeterError(error);
+      const normalizedFields = normalizeMeterFieldErrors(apiError.fields);
+      const errors =
+        apiError.status === 409 && Object.keys(normalizedFields).length === 0
+          ? {
+              meterNumber: "Meter number or SIM number already exists.",
+              simNumber: "Meter number or SIM number already exists.",
+            }
+          : normalizedFields;
+      setFieldErrors(errors);
       showToast({
-        title: apiError.status === 409
-          ? 'Meter or SIM already exists'
-          : 'Could not create meter',
+        title:
+          apiError.status === 409
+            ? "Meter or SIM already exists"
+            : "Could not create meter",
         message: [
           apiError.message,
-          apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
-        ].filter(Boolean).join(' · '),
-        variant: 'error',
-      })
+          apiError.requestId ? `Request ID: ${apiError.requestId}` : "",
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        variant: "error",
+      });
     }
-  }
+  };
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="add-meter-title">
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-meter-title"
+    >
       <div className="modal modal--wide" ref={modalRef}>
         <div className="modal-head">
           <div>
             <h2 id="add-meter-title" className="modal-title">
               Add new meter
             </h2>
-            <p className="modal-subtitle">Basic Information</p>
+            <p className="modal-subtitle">{step === 1 ? "Basic Information" : "Dual Tariff Information"}</p>
           </div>
           <button
             type="button"
@@ -533,222 +608,450 @@ function AddMeterModal({
             <CloseIcon />
           </button>
         </div>
+        {/*Add conditional rendering for the steps here */}
+        {step === 1 && (
+          <div className="modal-body">
+            <div className="modal-grid">
+              <Field
+                label="Meter Number"
+                required
+                error={fieldErrors.meterNumber}
+              >
+                <input
+                  className="modal-input"
+                  placeholder="E.g. 04040404040"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={form.meterNumber}
+                  aria-invalid={Boolean(fieldErrors.meterNumber)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set("meterNumber", e.target.value)}
+                />
+              </Field>
+              <Field label="Sim Card Number" error={fieldErrors.simNumber}>
+                <input
+                  className="modal-input"
+                  placeholder="E.g. 89006809734095874"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={form.simNumber}
+                  aria-invalid={Boolean(fieldErrors.simNumber)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set("simNumber", e.target.value)}
+                />
+              </Field>
+            </div>
 
-        <div className="modal-body">
-          <div className="modal-grid">
-            <Field label="Meter Number" required error={fieldErrors.meterNumber}>
-              <input
-                className="modal-input"
-                placeholder="E.g. 04040404040"
-                inputMode="numeric"
-                autoComplete="off"
-                value={form.meterNumber}
-                aria-invalid={Boolean(fieldErrors.meterNumber)}
-                disabled={isSubmitting}
-                onChange={(e) => set('meterNumber', e.target.value)}
-              />
-            </Field>
-            <Field label="Sim Card Number" error={fieldErrors.simNumber}>
-              <input
-                className="modal-input"
-                placeholder="E.g. 89006809734095874"
-                inputMode="numeric"
-                autoComplete="off"
-                value={form.simNumber}
-                aria-invalid={Boolean(fieldErrors.simNumber)}
-                disabled={isSubmitting}
-                onChange={(e) => set('simNumber', e.target.value)}
-              />
-            </Field>
-          </div>
-
-          <Field label="Meter Type" error={fieldErrors.meterTypeId}>
-            <select
-              className="modal-select"
-              value={form.meterTypeId}
-              aria-invalid={Boolean(fieldErrors.meterTypeId)}
-              disabled={isSubmitting || meterTypesQuery.isPending || meterTypesQuery.isError}
-              onChange={(e) => set('meterTypeId', e.target.value)}
-            >
-              <option value="" disabled>
-                {meterTypesQuery.isPending ? 'Loading meter types…' : 'Select Meter Type'}
-              </option>
-              {meterTypes.map((meterType) => (
-                <option key={meterType.id} value={meterType.id}>
-                  {meterType.model} — {meterType.manufacturer}
-                  {meterType.category ? ` (${formatMeterCategory(meterType.category)})` : ''}
+            <Field label="Meter Type" error={fieldErrors.meterTypeId}>
+              <select
+                className="modal-select"
+                value={form.meterTypeId}
+                aria-invalid={Boolean(fieldErrors.meterTypeId)}
+                disabled={
+                  isSubmitting ||
+                  meterTypesQuery.isPending ||
+                  meterTypesQuery.isError
+                }
+                onChange={(e) => set("meterTypeId", e.target.value)}
+              >
+                <option value="" disabled>
+                  {meterTypesQuery.isPending
+                    ? "Loading meter types…"
+                    : "Select Meter Type"}
                 </option>
-              ))}
-            </select>
-            {meterTypesQuery.isError ? (
-              <span className="modal-field-error" role="alert">
-                {getMeterIntegrationError(meterTypesQuery.error).message}{' '}
+                {meterTypes.map((meterType) => (
+                  <option key={meterType.id} value={meterType.id}>
+                    {meterType.model} — {meterType.manufacturer}
+                    {meterType.category
+                      ? ` (${formatMeterCategory(meterType.category)})`
+                      : ""}
+                  </option>
+                ))}
+              </select>
+              {meterTypesQuery.isError ? (
+                <span className="modal-field-error" role="alert">
+                  {getMeterIntegrationError(meterTypesQuery.error).message}{" "}
+                  <button
+                    type="button"
+                    className="upload-link"
+                    onClick={() => void meterTypesQuery.refetch()}
+                  >
+                    Try again
+                  </button>
+                </span>
+              ) : null}
+              {!meterTypesQuery.isPending &&
+              !meterTypesQuery.isError &&
+              meterTypes.length === 0 ? (
+                <span className="modal-field-error" role="alert">
+                  No active meter integrations are available.
+                </span>
+              ) : null}
+            </Field>
+
+            <div className="modal-grid">
+              <Field label="Old SGC" required error={fieldErrors.oldSgc}>
+                <input
+                  className="modal-input"
+                  inputMode="numeric"
+                  placeholder="Enter old sgc"
+                  value={form.oldSgc}
+                  aria-invalid={Boolean(fieldErrors.oldSgc)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set("oldSgc", e.target.value)}
+                />
+              </Field>
+              <Field label="New SGC" required error={fieldErrors.newSgc}>
+                <input
+                  className="modal-input"
+                  inputMode="numeric"
+                  placeholder="Enter new sgc"
+                  value={form.newSgc}
+                  aria-invalid={Boolean(fieldErrors.newSgc)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set("newSgc", e.target.value)}
+                />
+              </Field>
+              <Field label="Old KRN" required error={fieldErrors.oldKrn}>
+                <input
+                  className="modal-input"
+                  inputMode="numeric"
+                  placeholder="Enter old krn"
+                  value={form.oldKrn}
+                  aria-invalid={Boolean(fieldErrors.oldKrn)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set("oldKrn", e.target.value)}
+                />
+              </Field>
+              <Field label="New KRN" required error={fieldErrors.newKrn}>
+                <input
+                  className="modal-input"
+                  inputMode="numeric"
+                  placeholder="Enter new krn"
+                  value={form.newKrn}
+                  aria-invalid={Boolean(fieldErrors.newKrn)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set("newKrn", e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Old Tariff Index"
+                required
+                error={fieldErrors.oldTariffIndex}
+              >
+                <input
+                  className="modal-input"
+                  inputMode="numeric"
+                  placeholder="Enter old tariff index"
+                  value={form.oldTariffIndex}
+                  aria-invalid={Boolean(fieldErrors.oldTariffIndex)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set("oldTariffIndex", e.target.value)}
+                />
+              </Field>
+              <Field
+                label="New Tariff Index"
+                required
+                error={fieldErrors.newTariffIndex}
+              >
+                <input
+                  className="modal-input"
+                  inputMode="numeric"
+                  placeholder="Enter new tariff index"
+                  value={form.newTariffIndex}
+                  aria-invalid={Boolean(fieldErrors.newTariffIndex)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set("newTariffIndex", e.target.value)}
+                />
+              </Field>
+            </div>
+            <Field label="Meter Type" error={fieldErrors.tariffType}>
+              <select
+                className="modal-select"
+                value={form.tariffType}
+                aria-invalid={Boolean(fieldErrors.tariffType)}
+                onChange={(e) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    tariffType: e.target.value as TariffType,
+                  }));
+                  setTariffType(e.target.value as TariffType);
+                }}
+              >
+                <option value="SINGLE_TARIFF">Single Tariff</option>
+                <option value="DUAL_TARIFF">Dual Tariff</option>
+              </select>
+            </Field>
+
+            <div className="modal-foot">
+              <button
+                type="button"
+                className="btn-neutral"
+                onClick={requestClose}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              {tariffType === "SINGLE_TARIFF" ? (
                 <button
                   type="button"
-                  className="upload-link"
-                  onClick={() => void meterTypesQuery.refetch()}
+                  className="btn-primary"
+                  disabled={
+                    isSubmitting ||
+                    meterTypesQuery.isPending ||
+                    meterTypesQuery.isError ||
+                    meterTypes.length === 0
+                  }
+                  onClick={() => void handleSubmit()}
                 >
-                  Try again
+                  {isSubmitting ? "Adding…" : "Add Meter"}
                 </button>
-              </span>
-            ) : null}
-            {!meterTypesQuery.isPending && !meterTypesQuery.isError && meterTypes.length === 0 ? (
-              <span className="modal-field-error" role="alert">
-                No active meter integrations are available.
-              </span>
-            ) : null}
-          </Field>
-
-          <div className="modal-grid">
-            <Field label="Old SGC" required error={fieldErrors.oldSgc}>
-              <input className="modal-input" inputMode="numeric" placeholder="Enter old sgc" value={form.oldSgc} aria-invalid={Boolean(fieldErrors.oldSgc)} disabled={isSubmitting} onChange={(e) => set('oldSgc', e.target.value)} />
-            </Field>
-            <Field label="New SGC" required error={fieldErrors.newSgc}>
-              <input className="modal-input" inputMode="numeric" placeholder="Enter new sgc" value={form.newSgc} aria-invalid={Boolean(fieldErrors.newSgc)} disabled={isSubmitting} onChange={(e) => set('newSgc', e.target.value)} />
-            </Field>
-            <Field label="Old KRN" required error={fieldErrors.oldKrn}>
-              <input className="modal-input" inputMode="numeric" placeholder="Enter old krn" value={form.oldKrn} aria-invalid={Boolean(fieldErrors.oldKrn)} disabled={isSubmitting} onChange={(e) => set('oldKrn', e.target.value)} />
-            </Field>
-            <Field label="New KRN" required error={fieldErrors.newKrn}>
-              <input className="modal-input" inputMode="numeric" placeholder="Enter new krn" value={form.newKrn} aria-invalid={Boolean(fieldErrors.newKrn)} disabled={isSubmitting} onChange={(e) => set('newKrn', e.target.value)} />
-            </Field>
-            <Field label="Old Tariff Index" required error={fieldErrors.oldTariffIndex}>
-              <input className="modal-input" inputMode="numeric" placeholder="Enter old tariff index" value={form.oldTariffIndex} aria-invalid={Boolean(fieldErrors.oldTariffIndex)} disabled={isSubmitting} onChange={(e) => set('oldTariffIndex', e.target.value)} />
-            </Field>
-            <Field label="New Tariff Index" required error={fieldErrors.newTariffIndex}>
-              <input className="modal-input" inputMode="numeric" placeholder="Enter new tariff index" value={form.newTariffIndex} aria-invalid={Boolean(fieldErrors.newTariffIndex)} disabled={isSubmitting} onChange={(e) => set('newTariffIndex', e.target.value)} />
-            </Field>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={
+                    isSubmitting ||
+                    meterTypesQuery.isPending ||
+                    meterTypesQuery.isError ||
+                    meterTypes.length === 0
+                  }
+                  onClick={() => setStep(2)}
+                >
+                  Next
+                </button>
+              )}
+            </div>
           </div>
-
-          <div className="modal-foot">
-            <button type="button" className="btn-neutral" onClick={requestClose} disabled={isSubmitting}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={
-                isSubmitting ||
-                meterTypesQuery.isPending ||
-                meterTypesQuery.isError ||
-                meterTypes.length === 0
-              }
-              onClick={() => void handleSubmit()}
-            >
-              {isSubmitting ? 'Adding…' : 'Add Meter'}
-            </button>
-          </div>
-        </div>
+        )}
+        {step === 2 && (
+          <>
+            <div className="modal-grid">
+              <Field label="Old SGC" required error={fieldErrors.dualOldSgc}>
+                <input
+                  className="modal-input"
+                  inputMode="numeric"
+                  placeholder="Enter old sgc"
+                  value={form.dualOldSgc}
+                  aria-invalid={Boolean(fieldErrors.dualOldSgc)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set("dualOldSgc", e.target.value)}
+                />
+              </Field>
+              <Field label="New SGC" required error={fieldErrors.newSgc}>
+                <input
+                  className="modal-input"
+                  inputMode="numeric"
+                  placeholder="Enter new sgc"
+                  value={form.dualNewSgc}
+                  aria-invalid={Boolean(fieldErrors.dualNewSgc)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set("dualNewSgc", e.target.value)}
+                />
+              </Field>
+              <Field label="Old KRN" required error={fieldErrors.oldKrn}>
+                <input
+                  className="modal-input"
+                  inputMode="numeric"
+                  placeholder="Enter old krn"
+                  value={form.dualOldKrn}
+                  aria-invalid={Boolean(fieldErrors.dualOldKrn)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set("dualOldKrn", e.target.value)}
+                />
+              </Field>
+              <Field label="New KRN" required error={fieldErrors.newKrn}>
+                <input
+                  className="modal-input"
+                  inputMode="numeric"
+                  placeholder="Enter new krn"
+                  value={form.dualNewKrn}
+                  aria-invalid={Boolean(fieldErrors.dualNewKrn)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set("dualNewKrn", e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Old Tariff Index"
+                required
+                error={fieldErrors.oldTariffIndex}
+              >
+                <input
+                  className="modal-input"
+                  inputMode="numeric"
+                  placeholder="Enter old tariff index"
+                  value={form.dualOldTariffIndex}
+                  aria-invalid={Boolean(fieldErrors.dualOldTariffIndex)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set("dualOldTariffIndex", e.target.value)}
+                />
+              </Field>
+              <Field
+                label="New Tariff Index"
+                required
+                error={fieldErrors.newTariffIndex}
+              >
+                <input
+                  className="modal-input"
+                  inputMode="numeric"
+                  placeholder="Enter new tariff index"
+                  value={form.dualNewTariffIndex}
+                  aria-invalid={Boolean(fieldErrors.dualNewTariffIndex)}
+                  disabled={isSubmitting}
+                  onChange={(e) => set("dualNewTariffIndex", e.target.value)}
+                />
+              </Field>
+            </div>
+            <div className="modal-foot">
+              <button
+                type="button"
+                className="btn-neutral"
+                onClick={requestClose}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={
+                  isSubmitting ||
+                  meterTypesQuery.isPending ||
+                  meterTypesQuery.isError ||
+                  meterTypes.length === 0
+                }
+                onClick={() => void handleSubmit()}
+              >
+                {isSubmitting ? "Adding…" : "Add Meter"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
-  )
+  );
 }
 
 function formatMeterCategory(category: string) {
-  const normalized = category.trim().toUpperCase().replaceAll('-', '_')
-  if (normalized === 'PREPAID') return 'Prepaid'
-  if (normalized === 'POSTPAID' || normalized === 'POST_PAID') return 'Post-paid'
+  const normalized = category.trim().toUpperCase().replaceAll("-", "_");
+  if (normalized === "PREPAID") return "Prepaid";
+  if (normalized === "POSTPAID" || normalized === "POST_PAID")
+    return "Post-paid";
 
-  return category
+  return category;
 }
 
 const overlayStyle: React.CSSProperties = {
-  position: 'fixed',
+  position: "fixed",
   inset: 0,
-  background: 'rgba(0,0,0,0.18)',
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
+  background: "rgba(0,0,0,0.18)",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
   zIndex: 999,
-}
+};
 
 const dialogStyle: React.CSSProperties = {
   width: 500,
-  background: '#fff',
+  background: "#fff",
   borderRadius: 16,
-  padding: '20px 24px',
-  boxShadow: '0 15px 40px rgba(0,0,0,0.12)',
-  fontFamily: 'Inter, sans-serif',
-}
+  padding: "20px 24px",
+  boxShadow: "0 15px 40px rgba(0,0,0,0.12)",
+  fontFamily: "Inter, sans-serif",
+};
 
 const detailHeaderStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
   marginBottom: 24,
-}
+};
 
 const detailTitleStyle: React.CSSProperties = {
   margin: 0,
   fontSize: 22,
   fontWeight: 600,
-  color: '#333',
-}
+  color: "#333",
+};
 
 const closeBtnStyle: React.CSSProperties = {
-  border: 'none',
-  background: 'transparent',
+  border: "none",
+  background: "transparent",
   fontSize: 26,
-  cursor: 'pointer',
-  color: '#667085',
-}
+  cursor: "pointer",
+  color: "#667085",
+};
 
 const gridStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '1fr 1fr',
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
   gap: 40,
-}
+};
 
 const itemStyle: React.CSSProperties = {
   marginBottom: 16,
-}
+};
 
 const labelStyle: React.CSSProperties = {
-  display: 'block',
+  display: "block",
   fontSize: 13,
   fontWeight: 600,
-  color: '#404040',
+  color: "#404040",
   marginBottom: 4,
-}
+};
 
 const valueStyle: React.CSSProperties = {
   margin: 0,
   fontSize: 14,
-  color: '#6b7280',
-}
+  color: "#6b7280",
+};
 
 const footerStyle: React.CSSProperties = {
   marginTop: 16,
-}
+};
 
 const cancelBtnStyle: React.CSSProperties = {
-  background: 'white',
-  border: '2px solid #0b6b3a',
-  color: '#0b6b3a',
-  padding: '12px 28px',
+  background: "white",
+  border: "2px solid #0b6b3a",
+  color: "#0b6b3a",
+  padding: "12px 28px",
   borderRadius: 6,
   fontSize: 16,
-  cursor: 'pointer',
-}
+  cursor: "pointer",
+};
 
 function MeterDetailsDialog({
   meterId,
   onClose,
 }: {
-  meterId: string
-  onClose: () => void
+  meterId: string;
+  onClose: () => void;
 }) {
-  const meterQuery = useMeterDetails(meterId)
-  const meter = meterQuery.data
-  const modalRef = useRef<HTMLDivElement>(null)
-  useDismiss(modalRef, onClose)
+  const meterQuery = useMeterDetails(meterId);
+  const meter = meterQuery.data;
+  const modalRef = useRef<HTMLDivElement>(null);
+  useDismiss(modalRef, onClose);
 
   return (
-    <div style={overlayStyle} role="dialog" aria-modal="true" aria-labelledby="meter-details-title">
+    <div
+      style={overlayStyle}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="meter-details-title"
+    >
       <div style={dialogStyle} ref={modalRef}>
         <div style={detailHeaderStyle}>
-          <h2 id="meter-details-title" style={detailTitleStyle}>Meter Details</h2>
-          <button type="button" style={closeBtnStyle} aria-label="Close" onClick={onClose}>✕</button>
+          <h2 id="meter-details-title" style={detailTitleStyle}>
+            Meter Details
+          </h2>
+          <button
+            type="button"
+            style={closeBtnStyle}
+            aria-label="Close"
+            onClick={onClose}
+          >
+            ✕
+          </button>
         </div>
 
         {meterQuery.isPending ? (
@@ -795,6 +1098,14 @@ function MeterDetailsDialog({
                   label="New Tariff Index"
                   value={meter.keyChange.newTariffIndex}
                 />
+                <DetailItem
+                  label="Tariff Type"
+                  value={
+                    meter.tariffType === "SINGLE_TARIFF"
+                      ? "Single Tariff"
+                      : "Dual Tariff"
+                  }
+                />
               </div>
             </div>
 
@@ -804,12 +1115,12 @@ function MeterDetailsDialog({
                 style={cancelBtnStyle}
                 onClick={onClose}
                 onMouseEnter={(event) => {
-                  event.currentTarget.style.background = '#0b6b3a'
-                  event.currentTarget.style.color = 'white'
+                  event.currentTarget.style.background = "#0b6b3a";
+                  event.currentTarget.style.color = "white";
                 }}
                 onMouseLeave={(event) => {
-                  event.currentTarget.style.background = 'white'
-                  event.currentTarget.style.color = '#0b6b3a'
+                  event.currentTarget.style.background = "white";
+                  event.currentTarget.style.color = "#0b6b3a";
                 }}
               >
                 Cancel
@@ -819,48 +1130,48 @@ function MeterDetailsDialog({
         ) : null}
       </div>
     </div>
-  )
+  );
 }
 
 function DetailItem({
   label,
   value,
 }: {
-  label: string
-  value: string | number | undefined | null
+  label: string;
+  value: string | number | undefined | null;
 }) {
   return (
     <div style={itemStyle}>
       <span style={labelStyle}>{label}</span>
       <p style={valueStyle}>{value}</p>
     </div>
-  )
+  );
 }
 
 function formatMeterEnum(value: string) {
   return value
     .toLowerCase()
-    .split('_')
+    .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
+    .join(" ");
 }
 
 function SortDropdown({
   value,
   onChange,
 }: {
-  value: 'asc' | 'desc'
-  onChange: (value: 'asc' | 'desc') => void
+  value: "asc" | "desc";
+  onChange: (value: "asc" | "desc") => void;
 }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  useDismiss(ref, () => setOpen(false), open)
-  const { anchorRef, menuStyle } = useAnchoredMenu(open)
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useDismiss(ref, () => setOpen(false), open);
+  const { anchorRef, menuStyle } = useAnchoredMenu(open);
 
-  const select = (order: 'asc' | 'desc') => {
-    onChange(order)
-    setOpen(false)
-  }
+  const select = (order: "asc" | "desc") => {
+    onChange(order);
+    setOpen(false);
+  };
 
   return (
     <div className="filter-dropdown" ref={ref}>
@@ -877,24 +1188,24 @@ function SortDropdown({
         <div className="row-menu" style={menuStyle} role="menu">
           <button
             type="button"
-            className={`row-menu-item${value === 'desc' ? ' is-active' : ''}`}
+            className={`row-menu-item${value === "desc" ? " is-active" : ""}`}
             role="menuitem"
-            onClick={() => select('desc')}
+            onClick={() => select("desc")}
           >
             Descending
           </button>
           <button
             type="button"
-            className={`row-menu-item${value === 'asc' ? ' is-active' : ''}`}
+            className={`row-menu-item${value === "asc" ? " is-active" : ""}`}
             role="menuitem"
-            onClick={() => select('asc')}
+            onClick={() => select("asc")}
           >
             Ascending
           </button>
         </div>
       ) : null}
     </div>
-  )
+  );
 }
 
 // EDIT METER MODAL
@@ -902,65 +1213,99 @@ function EditMeterModal({
   meter,
   onClose,
 }: {
-  meter: Meter
-  onClose: () => void
+  meter: Meter;
+  onClose: () => void;
 }) {
-  const editMeterMutation = useEditMeter()
-  const meterTypesQuery = useActiveMeterIntegrationOptions()
-  const meterTypes = meterTypesQuery.data ?? []
-  const { showToast } = useToast()
-  const modalRef = useRef<HTMLDivElement>(null)
-  const isSubmitting = editMeterMutation.isPending
+  const editMeterMutation = useEditMeter();
+  const meterTypesQuery = useActiveMeterIntegrationOptions();
+  const meterTypes = meterTypesQuery.data ?? [];
+  const { showToast } = useToast();
+  const modalRef = useRef<HTMLDivElement>(null);
+  const isSubmitting = editMeterMutation.isPending;
 
   const [form, setForm] = useState<MeterFormValues>({
-    meterNumber: meter.meterNumber ?? '',
-    simNumber: meter.simNumber ?? '',
-    meterTypeId: meter.meterTypeId ?? '',
-    oldSgc: meter.keyChange?.oldSgc != null ? String(meter.keyChange.oldSgc) : '',
-    newSgc: meter.keyChange?.newSgc != null ? String(meter.keyChange.newSgc) : '',
-    oldKrn: meter.keyChange?.oldKrn != null ? String(meter.keyChange.oldKrn) : '',
-    newKrn: meter.keyChange?.newKrn != null ? String(meter.keyChange.newKrn) : '',
-    oldTariffIndex: meter.keyChange?.oldTariffIndex != null ? String(meter.keyChange.oldTariffIndex) : '',
-    newTariffIndex: meter.keyChange?.newTariffIndex != null ? String(meter.keyChange.newTariffIndex) : '',
-  })
+    meterNumber: meter.meterNumber ?? "",
+    simNumber: meter.simNumber ?? "",
+    meterTypeId: meter.meterTypeId ?? "",
+    oldSgc:
+      meter.keyChange?.oldSgc != null ? String(meter.keyChange.oldSgc) : "",
+    newSgc:
+      meter.keyChange?.newSgc != null ? String(meter.keyChange.newSgc) : "",
+    oldKrn:
+      meter.keyChange?.oldKrn != null ? String(meter.keyChange.oldKrn) : "",
+    newKrn:
+      meter.keyChange?.newKrn != null ? String(meter.keyChange.newKrn) : "",
+    oldTariffIndex:
+      meter.keyChange?.oldTariffIndex != null
+        ? String(meter.keyChange.oldTariffIndex)
+        : "",
+    newTariffIndex:
+      meter.keyChange?.newTariffIndex != null
+        ? String(meter.keyChange.newTariffIndex)
+        : "",
+    tariffType: meter.tariffType ?? "SINGLE_TARIFF",
+    dualNewKrn:
+      meter.keyChange?.dualNewKrn != null
+        ? String(meter.keyChange.dualNewKrn)
+        : "",
+    dualNewSgc:
+      meter.keyChange?.dualNewSgc != null
+        ? String(meter.keyChange.dualNewSgc)
+        : "",
+    dualOldKrn:
+      meter.keyChange?.dualOldKrn != null
+        ? String(meter.keyChange.dualOldKrn)
+        : "",
+    dualOldSgc:
+      meter.keyChange?.dualOldSgc != null
+        ? String(meter.keyChange.dualOldSgc)
+        : "",
+    dualOldTariffIndex:
+      meter.keyChange?.dualOldTariffIndex != null
+        ? String(meter.keyChange.dualOldTariffIndex)
+        : "",
+    dualNewTariffIndex:
+      meter.keyChange?.dualNewTariffIndex != null
+        ? String(meter.keyChange.dualNewTariffIndex)
+        : "",
+  });
 
-  const [fieldErrors, setFieldErrors] = useState<MeterFormErrors>({})
+  const [fieldErrors, setFieldErrors] = useState<MeterFormErrors>({});
 
   const requestClose = () => {
-    if (!isSubmitting) onClose()
-  }
+    if (!isSubmitting) onClose();
+  };
 
-  useDismiss(modalRef, requestClose)
+  useDismiss(modalRef, requestClose);
 
   const set = (key: MeterFormField, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }))
+    setForm((prev) => ({ ...prev, [key]: value }));
     setFieldErrors((current) => {
-      if (!current[key]) return current
-      const next = { ...current }
-      delete next[key]
-      return next
-    })
-  }
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
 
   const handleSubmit = async () => {
-    const validationErrors = validateMeterForm(form)
+    const validationErrors = validateMeterForm(form);
 
     if (
       form.meterTypeId &&
       !meterTypes.some((meterType) => meterType.id === form.meterTypeId)
     ) {
-      validationErrors.meterTypeId = 'Select a valid meter type.'
+      validationErrors.meterTypeId = "Select a valid meter type.";
     }
 
     if (Object.keys(validationErrors).length > 0) {
-      setFieldErrors(validationErrors)
-      return
+      setFieldErrors(validationErrors);
+      return;
     }
 
     try {
-
-      const simNumber = form.simNumber.trim()
-      const meterTypeId = form.meterTypeId
+      const simNumber = form.simNumber.trim();
+      const meterTypeId = form.meterTypeId;
       const updatedMeter = await editMeterMutation.mutateAsync({
         id: meter.id,
         input: {
@@ -976,51 +1321,57 @@ function EditMeterModal({
             newTariffIndex: Number(form.newTariffIndex),
           },
         },
-      })
+      });
       showToast({
-        title: 'Meter updated',
+        title: "Meter updated",
         message: `${updatedMeter.meter.meterNumber} was updated successfully.`,
-        variant: 'success',
-      })
+        variant: "success",
+      });
 
-      onClose()
+      onClose();
     } catch (error) {
-      const apiError = getCreateMeterError(error)
-      const normalizedFields = normalizeMeterFieldErrors(apiError.fields)
+      const apiError = getCreateMeterError(error);
+      const normalizedFields = normalizeMeterFieldErrors(apiError.fields);
 
       setFieldErrors(
         apiError.status === 409 && Object.keys(normalizedFields).length === 0
           ? {
-              meterNumber: 'Meter number or SIM number already exists.',
-              simNumber: 'Meter number or SIM number already exists.',
+              meterNumber: "Meter number or SIM number already exists.",
+              simNumber: "Meter number or SIM number already exists.",
             }
           : normalizedFields,
-      )
+      );
 
       showToast({
-        title: apiError.status === 409
-          ? 'Meter or SIM already exists'
-          : 'Could not update meter',
+        title:
+          apiError.status === 409
+            ? "Meter or SIM already exists"
+            : "Could not update meter",
         message: [
           apiError.message,
-          apiError.requestId ? `Request ID: ${apiError.requestId}` : '',
-        ].filter(Boolean).join(' · '),
-        variant: 'error',
-      })
+          apiError.requestId ? `Request ID: ${apiError.requestId}` : "",
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        variant: "error",
+      });
     }
-  }
+  };
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-meter-title">
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-meter-title"
+    >
       <div className="modal modal--medium" ref={modalRef}>
         <div className="modal-head">
           <div>
             <h2 id="edit-meter-title" className="modal-title">
               Edit meter
             </h2>
-            <p className="modal-subtitle">
-              Basic Information
-            </p>
+            <p className="modal-subtitle">Basic Information</p>
           </div>
           <button
             type="button"
@@ -1035,7 +1386,11 @@ function EditMeterModal({
 
         <div className="modal-body">
           <div className="modal-grid">
-            <Field label="Meter Number" required error={fieldErrors.meterNumber}>
+            <Field
+              label="Meter Number"
+              required
+              error={fieldErrors.meterNumber}
+            >
               <input
                 className="modal-input"
                 placeholder="E.g. 04040404040"
@@ -1044,7 +1399,7 @@ function EditMeterModal({
                 value={form.meterNumber}
                 aria-invalid={Boolean(fieldErrors.meterNumber)}
                 disabled={isSubmitting}
-                onChange={(e) => set('meterNumber', e.target.value)}
+                onChange={(e) => set("meterNumber", e.target.value)}
               />
             </Field>
 
@@ -1057,7 +1412,7 @@ function EditMeterModal({
                 value={form.simNumber}
                 aria-invalid={Boolean(fieldErrors.simNumber)}
                 disabled={isSubmitting}
-                onChange={(e) => set('simNumber', e.target.value)}
+                onChange={(e) => set("simNumber", e.target.value)}
               />
             </Field>
           </div>
@@ -1067,23 +1422,30 @@ function EditMeterModal({
               className="modal-select"
               value={form.meterTypeId}
               aria-invalid={Boolean(fieldErrors.meterTypeId)}
-              disabled={isSubmitting || meterTypesQuery.isPending || meterTypesQuery.isError}
-              onChange={(e) => set('meterTypeId', e.target.value)}
+              disabled={
+                isSubmitting ||
+                meterTypesQuery.isPending ||
+                meterTypesQuery.isError
+              }
+              onChange={(e) => set("meterTypeId", e.target.value)}
             >
               <option value="" disabled>
-                {meterTypesQuery.isPending ? 'Loading meter types…' : 'Select Meter Type'}
+                {meterTypesQuery.isPending
+                  ? "Loading meter types…"
+                  : "Select Meter Type"}
               </option>
 
               {meterTypes.map((meterType) => (
                 <option key={meterType.id} value={meterType.id}>
-                  { meterType.model} {meterType.manufacturer} {meterType.category}
+                  {meterType.model} {meterType.manufacturer}
+                  {meterType.serial} {meterType.category}
                 </option>
               ))}
             </select>
 
             {meterTypesQuery.isError ? (
               <span className="modal-field-error" role="alert">
-                {getMeterIntegrationError(meterTypesQuery.error).message}{' '}
+                {getMeterIntegrationError(meterTypesQuery.error).message}{" "}
                 <button
                   type="button"
                   className="upload-link"
@@ -1095,7 +1457,6 @@ function EditMeterModal({
             ) : null}
           </Field>
 
-
           <div className="modal-grid">
             <Field label="Old SGC" required error={fieldErrors.oldSgc}>
               <input
@@ -1105,7 +1466,7 @@ function EditMeterModal({
                 value={form.oldSgc}
                 aria-invalid={Boolean(fieldErrors.oldSgc)}
                 disabled={isSubmitting}
-                onChange={(e) => set('oldSgc', e.target.value)}
+                onChange={(e) => set("oldSgc", e.target.value)}
               />
             </Field>
 
@@ -1117,7 +1478,7 @@ function EditMeterModal({
                 value={form.newSgc}
                 aria-invalid={Boolean(fieldErrors.newSgc)}
                 disabled={isSubmitting}
-                onChange={(e) => set('newSgc', e.target.value)}
+                onChange={(e) => set("newSgc", e.target.value)}
               />
             </Field>
 
@@ -1129,7 +1490,7 @@ function EditMeterModal({
                 value={form.oldKrn}
                 aria-invalid={Boolean(fieldErrors.oldKrn)}
                 disabled={isSubmitting}
-                onChange={(e) => set('oldKrn', e.target.value)}
+                onChange={(e) => set("oldKrn", e.target.value)}
               />
             </Field>
 
@@ -1141,11 +1502,15 @@ function EditMeterModal({
                 value={form.newKrn}
                 aria-invalid={Boolean(fieldErrors.newKrn)}
                 disabled={isSubmitting}
-                onChange={(e) => set('newKrn', e.target.value)}
+                onChange={(e) => set("newKrn", e.target.value)}
               />
             </Field>
 
-            <Field label="Old Tariff Index" required error={fieldErrors.oldTariffIndex}>
+            <Field
+              label="Old Tariff Index"
+              required
+              error={fieldErrors.oldTariffIndex}
+            >
               <input
                 className="modal-input"
                 inputMode="numeric"
@@ -1153,11 +1518,15 @@ function EditMeterModal({
                 value={form.oldTariffIndex}
                 aria-invalid={Boolean(fieldErrors.oldTariffIndex)}
                 disabled={isSubmitting}
-                onChange={(e) => set('oldTariffIndex', e.target.value)}
+                onChange={(e) => set("oldTariffIndex", e.target.value)}
               />
             </Field>
 
-            <Field label="New Tariff Index" required error={fieldErrors.newTariffIndex}>
+            <Field
+              label="New Tariff Index"
+              required
+              error={fieldErrors.newTariffIndex}
+            >
               <input
                 className="modal-input"
                 inputMode="numeric"
@@ -1165,7 +1534,7 @@ function EditMeterModal({
                 value={form.newTariffIndex}
                 aria-invalid={Boolean(fieldErrors.newTariffIndex)}
                 disabled={isSubmitting}
-                onChange={(e) => set('newTariffIndex', e.target.value)}
+                onChange={(e) => set("newTariffIndex", e.target.value)}
               />
             </Field>
           </div>
@@ -1191,52 +1560,63 @@ function EditMeterModal({
               }
               onClick={() => void handleSubmit()}
             >
-              {isSubmitting ? 'Saving…' : 'Save Changes'}
+              {isSubmitting ? "Saving…" : "Save Changes"}
             </button>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
-
 
 function DeleteMeterModal({
   meter,
   onClose,
 }: {
-  meter: Meter
-  onClose: () => void
+  meter: Meter;
+  onClose: () => void;
 }) {
-  const deleteMeter = useDeleteMeter()
-  const { showToast } = useToast()
-  const modalRef = useRef<HTMLDivElement>(null)
-  useDismiss(modalRef, onClose)
+  const deleteMeter = useDeleteMeter();
+  const { showToast } = useToast();
+  const modalRef = useRef<HTMLDivElement>(null);
+  useDismiss(modalRef, onClose);
 
   const handleDelete = async () => {
     try {
-      await deleteMeter.mutateAsync(meter.id)
+      await deleteMeter.mutateAsync(meter.id);
       showToast({
-        title: 'Meter deleted',
+        title: "Meter deleted",
         message: `${meter.meterNumber} has been deleted.`,
-        variant: 'success',
-      })
-      onClose()
+        variant: "success",
+      });
+      onClose();
     } catch (error) {
       showToast({
-        title: 'Could not delete meter',
+        title: "Could not delete meter",
         message: getApiErrorMessage(error),
-        variant: 'error',
-      })
+        variant: "error",
+      });
     }
-  }
+  };
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-meter-title">
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-meter-title"
+    >
       <div className="modal" ref={modalRef}>
         <div className="modal-head">
-          <h2 id="delete-meter-title" className="modal-title">Confirm Action</h2>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+          <h2 id="delete-meter-title" className="modal-title">
+            Confirm Action
+          </h2>
+          <button
+            type="button"
+            className="modal-close"
+            aria-label="Close"
+            onClick={onClose}
+          >
             <CloseIcon />
           </button>
         </div>
@@ -1257,13 +1637,13 @@ function DeleteMeterModal({
               onClick={handleDelete}
               disabled={deleteMeter.isPending}
             >
-              {deleteMeter.isPending ? 'Deleting…' : 'Delete'}
+              {deleteMeter.isPending ? "Deleting…" : "Delete"}
             </button>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function Field({
@@ -1272,10 +1652,10 @@ function Field({
   error,
   children,
 }: {
-  label: string
-  required?: boolean
-  error?: string
-  children: React.ReactNode
+  label: string;
+  required?: boolean;
+  error?: string;
+  children: React.ReactNode;
 }) {
   return (
     <div className="modal-field">
@@ -1283,17 +1663,164 @@ function Field({
         {label} {required ? <span className="req">*</span> : null}
       </label>
       {children}
-      {error ? <span className="modal-field-error" role="alert">{error}</span> : null}
+      {error ? (
+        <span className="modal-field-error" role="alert">
+          {error}
+        </span>
+      ) : null}
     </div>
-  )
+  );
+}
+
+function BulkUploadModal({ onClose }: { onClose: () => void }) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const { showToast } = useToast();
+  const [isSuccessful, setIsSuccessful] = useState<boolean>(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const uploadMutation = useUploadBulkMeterCSV();
+
+  const requestClose = () => {
+    return uploadMutation.isPending;
+  };
+
+  useDismiss(modalRef, requestClose);
+
+  const handleSubmit = async () => {
+    try {
+      if (!selectedFile) {
+        return;
+      }
+      const response: BulkUploadMeterResponse =
+        await uploadMutation.mutateAsync(selectedFile);
+      if (response.failed === response.total) {
+        showToast({
+          title: "Some meters creation failed",
+          message: `${response.failed} meters failed to create.`,
+          variant: "error",
+        });
+      } else {
+        showToast({
+          title: "Meters created",
+          message: `${response.successful} meters were added successfully.`,
+          variant: "success",
+        });
+        setIsSuccessful(true);
+      }
+    } catch (error: unknown) {
+      showToast({
+        title: "Meter(s) creation failed",
+        message: `Bulk meters creation failed.`,
+        variant: "error",
+      });
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal" ref={modalRef}>
+        <div className="modal-head">
+          <span className="modal-title">Upload File</span>
+          <button
+            className="modal-close"
+            onClick={() => onClose()}
+            disabled={uploadMutation.isPending}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+        <div className="modal-body">
+          <div className="para">
+            <p>
+              <b>Upload Meters</b>
+            </p>
+            <p className="gray-para">
+              Upload your file containing meter details
+            </p>
+          </div>
+          <div className="upload-zone">
+            <label htmlFor="bulk-meter" className="file-upload">
+              <button type="button" className="icon-btn-primary">
+                <PasteIcon />
+              </button>
+              <input
+                type="file"
+                name="bulk-meter"
+                id="bulk-meter"
+                accept=".csv"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setSelectedFile(file);
+                }}
+              />
+            </label>
+
+            {selectedFile && (
+              <div className="selected-file">
+                <span>
+                  {selectedFile.name} | {selectedFile.size / 1000}kb
+                </span>
+              </div>
+            )}
+            {isSuccessful && (
+              <div>
+                <span className=".gray-para">
+                  Your "{selectedFile?.name}" has been <br /> successfully
+                  updated
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="para-download">
+            <p>
+              Click the{" "}
+              <a href="../../public/bulk_meter.csv" download>
+                link to download
+              </a>{" "}
+              the required document. <br />
+              Please ensure your file follow the structure before uploading.
+            </p>
+          </div>
+        </div>
+        <div className="modal-actions">
+          <button className="button secondary" onClick={() => onClose()}>
+            Cancel
+          </button>
+          <button
+            className="btn-primary"
+            onClick={() => handleSubmit()}
+            disabled={uploadMutation.isPending}
+          >
+            {uploadMutation.isPending ? (
+              <>
+                <span className="async-spinner" />
+                Uploading...
+              </>
+            ) : (
+              "Import"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function CloseIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="M18 6 6 18M6 6l12 12" />
     </svg>
-  )
+  );
 }
 
 function RowActions({
@@ -1306,18 +1833,18 @@ function RowActions({
   onToggleStatus,
   onDelete,
 }: {
-  isOpen: boolean
-  status: MeterStatus
-  onToggle: () => void
-  onClose: () => void
-  onViewDetails: () => void
-  onToggleStatus: () => void
-  onEditMeter: () => void
-  onDelete: () => void
+  isOpen: boolean;
+  status: MeterStatus;
+  onToggle: () => void;
+  onClose: () => void;
+  onViewDetails: () => void;
+  onToggleStatus: () => void;
+  onEditMeter: () => void;
+  onDelete: () => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null)
-  useDismiss(ref, onClose, isOpen)
-  const { anchorRef, menuStyle } = useAnchoredMenu(isOpen)
+  const ref = useRef<HTMLDivElement>(null);
+  useDismiss(ref, onClose, isOpen);
+  const { anchorRef, menuStyle } = useAnchoredMenu(isOpen);
 
   return (
     <div className="row-actions" ref={ref}>
@@ -1333,10 +1860,20 @@ function RowActions({
       </button>
       {isOpen ? (
         <div className="row-menu" style={menuStyle} role="menu">
-          <button type="button" className="row-menu-item" role="menuitem" onClick={onViewDetails}>
+          <button
+            type="button"
+            className="row-menu-item"
+            role="menuitem"
+            onClick={onViewDetails}
+          >
             View details
           </button>
-          <button type="button" className="row-menu-item" role="menuitem" onClick={onEditMeter}>
+          <button
+            type="button"
+            className="row-menu-item"
+            role="menuitem"
+            onClick={onEditMeter}
+          >
             Edit Meter
           </button>
           <button
@@ -1345,7 +1882,7 @@ function RowActions({
             role="menuitem"
             onClick={onToggleStatus}
           >
-            {status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+            {status === "ACTIVE" ? "Deactivate" : "Activate"}
           </button>
           <button
             type="button"
@@ -1358,66 +1895,172 @@ function RowActions({
         </div>
       ) : null}
     </div>
-  )
+  );
 }
 
 function PlusIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <circle cx="12" cy="12" r="9" />
       <path d="M12 8v8M8 12h8" />
     </svg>
-  )
+  );
 }
 
 function SearchIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3.5-3.5" />
     </svg>
-  )
+  );
 }
 
 function SortIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3" />
     </svg>
-  )
+  );
+}
+
+function UploadIcon() {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 17 17"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M15.75 10.75V11.75C15.75 13.1501 15.75 13.8502 15.4775 14.385C15.2378 14.8554 14.8554 15.2378 14.385 15.4775C13.8502 15.75 13.1501 15.75 11.75 15.75H4.75C3.34987 15.75 2.6498 15.75 2.11502 15.4775C1.64462 15.2378 1.26217 14.8554 1.02248 14.385C0.75 13.8502 0.75 13.1501 0.75 11.75V10.75M4.08333 4.91667L8.25 0.75L12.4167 4.91667M8.25 0.75V10.75"
+        stroke="#00401B"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+  );
 }
 
 function DownloadIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
       <path d="M5 21h14" />
     </svg>
-  )
+  );
 }
 
 function KebabIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <circle cx="12" cy="5" r="1.6" />
       <circle cx="12" cy="12" r="1.6" />
       <circle cx="12" cy="19" r="1.6" />
     </svg>
-  )
+  );
 }
 
 function ChevronLeftIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="m15 18-6-6 6-6" />
     </svg>
-  )
+  );
 }
 
 function ChevronRightIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="m9 18 6-6-6-6" />
     </svg>
-  )
+  );
+}
+
+function PasteIcon() {
+  return (
+    <svg
+      width="16"
+      height="19"
+      viewBox="0 0 16 19"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M14.0326 7.78255V4.69922C14.0326 3.29909 14.0326 2.59902 13.7601 2.06424C13.5204 1.59384 13.1379 1.21139 12.6675 0.971702C12.1327 0.699219 11.4327 0.699219 10.0326 0.699219H4.69922C3.29909 0.699219 2.59902 0.699219 2.06424 0.971702C1.59384 1.21139 1.21139 1.59384 0.971702 2.06424C0.699219 2.59902 0.699219 3.29909 0.699219 4.69922V13.3659C0.699219 14.766 0.699219 15.4661 0.971702 16.0009C1.21139 16.4713 1.59384 16.8537 2.06424 17.0934C2.59902 17.3659 3.29909 17.3659 4.69922 17.3659H7.36589M9.03255 8.19922H4.03255M5.69922 11.5326H4.03255M10.6992 4.86589H4.03255M12.3659 16.5326V11.5326M9.86589 14.0326H14.8659"
+        stroke="white"
+        stroke-width="1.4"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+  );
 }
