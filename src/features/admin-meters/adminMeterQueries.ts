@@ -105,12 +105,12 @@ export type CreateObisCodeInput = {
   action: string
   code: string
   description?: string
+  profileItems?: string[]
   scaler?: string
   unit?: string
   multiplyBy?: string
   actionType?: string
   obisType?: string
-  linkedRealTimeObisCodeIds?: string[]
 }
 
 export type UpdateObisCodeInput = CreateObisCodeInput & {
@@ -125,15 +125,20 @@ export type ObisCode = {
   action: string
   code: string
   description: string
+  confirmation?: string
+  integratedActions?: string[]
   status: ObisCodeStatus
   statusReason?: string
   obisType?: string
-  linkedRealTimeCodes?: {
-    action: string
-    code: string
-  }[] | null
+  linkedRealTimeCodes?:
+    | {
+        action: string
+        code: string
+      }[]
+    | null
   linkedRealTimeCodeCount?: number
   scaler?: string
+  profileItems?: string[]
   unit?: string
   multiplyBy?: string
   actionType?: string
@@ -198,10 +203,10 @@ export type UploadObisCodesInput = {
 }
 
 export type MeterAction = {
-  action: string,
-  code: string,
-  description: string,
-  id: string,
+  action: string
+  code: string
+  description: string
+  id: string
   obisType: string
 }
 
@@ -268,7 +273,6 @@ type MeterIntegrationErrorPayload = {
   }
 }
 
-
 async function createMeterIntegration(input: CreateMeterIntegrationInput) {
   const response = await apiRequest<MeterIntegrationResponse>(
     '/admin/meter-integrations',
@@ -318,16 +322,18 @@ async function getMeterIntegration(meterIntegrationId: string) {
 
   return {
     ...integration,
-    class: typeof integration.class === 'string'
-      ? integration.class
-      : typeof integration.meterClass === 'string'
-        ? integration.meterClass
-        : '',
-    category: typeof integration.category === 'string'
-      ? integration.category
-      : typeof integration.meterCategory === 'string'
-        ? integration.meterCategory
-        : '',
+    class:
+      typeof integration.class === 'string'
+        ? integration.class
+        : typeof integration.meterClass === 'string'
+          ? integration.meterClass
+          : '',
+    category:
+      typeof integration.category === 'string'
+        ? integration.category
+        : typeof integration.meterCategory === 'string'
+          ? integration.meterCategory
+          : '',
   }
 }
 
@@ -361,16 +367,11 @@ async function changeMeterIntegrationStatus(
 }
 
 async function listOrganisationMeterIntegrations() {
-  const response = await apiRequest<unknown>(
-    '/organisation/meter-integration',
-  )
-  const payload = (
-    response &&
-    typeof response === 'object' &&
-    'data' in response
-  )
-    ? response.data
-    : response
+  const response = await apiRequest<unknown>('/organisation/meter-integration')
+  const payload =
+    response && typeof response === 'object' && 'data' in response
+      ? response.data
+      : response
 
   if (Array.isArray(payload)) {
     return (payload as MeterIntegrationSummary[]).map(
@@ -379,7 +380,12 @@ async function listOrganisationMeterIntegrations() {
   }
 
   if (payload && typeof payload === 'object') {
-    for (const key of ['items', 'meterIntegrations', 'meterIntegration', 'content']) {
+    for (const key of [
+      'items',
+      'meterIntegrations',
+      'meterIntegration',
+      'content',
+    ]) {
       const integrations = (payload as Record<string, unknown>)[key]
       if (Array.isArray(integrations)) {
         return (integrations as MeterIntegrationSummary[]).map(
@@ -396,11 +402,15 @@ async function createObisCode(
   meterIntegrationId: string,
   input: CreateObisCodeInput,
 ) {
+  const { profileItems, ...rest } = input
   const response = await apiRequest<CreateObisCodeResponse>(
     `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/obis-codes`,
     {
       method: 'POST',
-      json: input,
+      json: {
+        ...rest,
+        ...(profileItems?.length ? { profileItemObisCodes: profileItems } : {}),
+      },
     },
   )
   return response.obisCode
@@ -438,11 +448,15 @@ async function updateObisCode(
           : {}),
         ...(input.scaler !== undefined ? { scaler: input.scaler } : {}),
         ...(input.unit !== undefined ? { unit: input.unit } : {}),
-        ...(input.multiplyBy !== undefined ? { multiplyBy: input.multiplyBy } : {}),
-        ...(input.actionType !== undefined ? { actionType: input.actionType } : {}),
+        ...(input.multiplyBy !== undefined
+          ? { multiplyBy: input.multiplyBy }
+          : {}),
+        ...(input.actionType !== undefined
+          ? { actionType: input.actionType }
+          : {}),
         ...(input.obisType !== undefined ? { obisType: input.obisType } : {}),
-        ...(input.linkedRealTimeObisCodeIds !== undefined
-          ? { linkedRealTimeObisCodeIds: input.linkedRealTimeObisCodeIds }
+        ...(input.profileItems !== undefined
+          ? { profileItemObisCodes: input.profileItems }
           : {}),
       },
     },
@@ -492,8 +506,10 @@ export const meterIntegrationKeys = {
   list: (params: MeterIntegrationListParams) =>
     ['admin-meter-integrations', 'list', params] as const,
   detail: (id: string) => ['admin-meter-integrations', 'detail', id] as const,
-  realTimeActions: (id: string) => [...meterIntegrationKeys.detail(id), 'real-time-actions'] as const,
-  obisCodes: (id: string) => ['admin-meter-integrations', 'detail', id, 'obis-codes'] as const,
+  realTimeActions: (id: string) =>
+    [...meterIntegrationKeys.detail(id), 'real-time-actions'] as const,
+  obisCodes: (id: string) =>
+    ['admin-meter-integrations', 'detail', id, 'obis-codes'] as const,
   obisCodeList: (id: string, params: ObisCodeListParams) =>
     [...meterIntegrationKeys.obisCodes(id), params] as const,
 }
@@ -509,9 +525,15 @@ export function useCreateMeterIntegration() {
         integration,
       )
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() }),
-        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.options() }),
-        queryClient.invalidateQueries({ queryKey: publicMeterIntegrationKeys.all }),
+        queryClient.invalidateQueries({
+          queryKey: meterIntegrationKeys.lists(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: meterIntegrationKeys.options(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: publicMeterIntegrationKeys.all,
+        }),
       ])
     },
   })
@@ -541,12 +563,18 @@ export function useUpdateMeterIntegration() {
     onSuccess: async (integration) => {
       queryClient.setQueryData<MeterIntegration | undefined>(
         meterIntegrationKeys.detail(integration.id),
-        (current) => current ? { ...current, ...integration } : current,
+        (current) => (current ? { ...current, ...integration } : current),
       )
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() }),
-        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.options() }),
-        queryClient.invalidateQueries({ queryKey: publicMeterIntegrationKeys.all }),
+        queryClient.invalidateQueries({
+          queryKey: meterIntegrationKeys.lists(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: meterIntegrationKeys.options(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: publicMeterIntegrationKeys.all,
+        }),
       ])
     },
   })
@@ -560,12 +588,18 @@ export function useChangeMeterIntegrationStatus() {
     onSuccess: async (integration) => {
       queryClient.setQueryData<MeterIntegration | undefined>(
         meterIntegrationKeys.detail(integration.id),
-        (current) => current ? { ...current, ...integration } : current,
+        (current) => (current ? { ...current, ...integration } : current),
       )
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() }),
-        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.options() }),
-        queryClient.invalidateQueries({ queryKey: publicMeterIntegrationKeys.all }),
+        queryClient.invalidateQueries({
+          queryKey: meterIntegrationKeys.lists(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: meterIntegrationKeys.options(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: publicMeterIntegrationKeys.all,
+        }),
       ])
     },
   })
@@ -576,7 +610,9 @@ export function useActiveMeterIntegrationOptions() {
     queryKey: meterIntegrationKeys.options(),
     queryFn: async () => {
       const integrations = await listOrganisationMeterIntegrations()
-      return integrations.filter((integration) => integration.status === 'ACTIVE')
+      return integrations.filter(
+        (integration) => integration.status === 'ACTIVE',
+      )
     },
   })
 }
@@ -645,95 +681,114 @@ export function useUploadObisCodes(meterIntegrationId: string) {
         queryClient.invalidateQueries({
           queryKey: meterIntegrationKeys.obisCodes(meterIntegrationId),
         }),
-        queryClient.invalidateQueries({ queryKey: meterIntegrationKeys.lists() }),
+        queryClient.invalidateQueries({
+          queryKey: meterIntegrationKeys.lists(),
+        }),
       ])
     },
   })
 }
 
 export function getMeterIntegrationError(error: unknown) {
-  const payload = error instanceof ApiError
-    ? error.details as MeterIntegrationErrorPayload | undefined
-    : undefined
+  const payload =
+    error instanceof ApiError
+      ? (error.details as MeterIntegrationErrorPayload | undefined)
+      : undefined
 
   return {
     status: error instanceof ApiError ? error.status : undefined,
     code: payload?.error?.code,
-    message: payload?.error?.message ?? (
-      error instanceof Error ? error.message : 'The meter integration could not be created.'
-    ),
+    message:
+      payload?.error?.message ??
+      (error instanceof Error
+        ? error.message
+        : 'The meter integration could not be created.'),
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,
   }
 }
 
 export function getObisCodeError(error: unknown) {
-  const payload = error instanceof ApiError
-    ? error.details as MeterIntegrationErrorPayload | undefined
-    : undefined
+  const payload =
+    error instanceof ApiError
+      ? (error.details as MeterIntegrationErrorPayload | undefined)
+      : undefined
 
   return {
     code: payload?.error?.code,
-    message: payload?.error?.message ?? (
-      error instanceof Error ? error.message : 'The OBIS code could not be created.'
-    ),
+    message:
+      payload?.error?.message ??
+      (error instanceof Error
+        ? error.message
+        : 'The OBIS code could not be created.'),
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,
   }
 }
 
 export function getObisCodeStatusError(error: unknown) {
-  const payload = error instanceof ApiError
-    ? error.details as MeterIntegrationErrorPayload | undefined
-    : undefined
+  const payload =
+    error instanceof ApiError
+      ? (error.details as MeterIntegrationErrorPayload | undefined)
+      : undefined
 
   return {
     code: payload?.error?.code,
-    message: payload?.error?.message ?? (
-      error instanceof Error ? error.message : 'The OBIS code status could not be changed.'
-    ),
+    message:
+      payload?.error?.message ??
+      (error instanceof Error
+        ? error.message
+        : 'The OBIS code status could not be changed.'),
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,
   }
 }
 
 export function getObisCodeUpdateError(error: unknown) {
-  const payload = error instanceof ApiError
-    ? error.details as MeterIntegrationErrorPayload | undefined
-    : undefined
+  const payload =
+    error instanceof ApiError
+      ? (error.details as MeterIntegrationErrorPayload | undefined)
+      : undefined
 
   return {
     code: payload?.error?.code,
-    message: payload?.error?.message ?? (
-      error instanceof Error ? error.message : 'The OBIS code could not be updated.'
-    ),
+    message:
+      payload?.error?.message ??
+      (error instanceof Error
+        ? error.message
+        : 'The OBIS code could not be updated.'),
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,
   }
 }
 
 export function getObisUploadError(error: unknown) {
-  const payload = error instanceof ApiError
-    ? error.details as MeterIntegrationErrorPayload | undefined
-    : undefined
+  const payload =
+    error instanceof ApiError
+      ? (error.details as MeterIntegrationErrorPayload | undefined)
+      : undefined
 
   return {
     code: payload?.error?.code,
-    message: payload?.error?.message ?? (
-      error instanceof Error ? error.message : 'The OBIS codes could not be uploaded.'
-    ),
+    message:
+      payload?.error?.message ??
+      (error instanceof Error
+        ? error.message
+        : 'The OBIS codes could not be uploaded.'),
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,
   }
 }
 
 async function getRealTimeActions(meterId: string) {
-  return await apiRequest<MeterAction[]>(`/admin/meter-integrations/real-time/obis/${encodeURIComponent(meterId)}`)
+  return await apiRequest<MeterAction[]>(
+    `/admin/meter-integrations/real-time/obis/${encodeURIComponent(meterId)}`,
+  )
 }
 
 export function useRealTimeActions(meterId: string) {
   return useQuery({
     queryKey: meterIntegrationKeys.realTimeActions(meterId),
-    queryFn: () => getRealTimeActions(meterId)
+    queryFn: () => getRealTimeActions(meterId),
   })
 }
