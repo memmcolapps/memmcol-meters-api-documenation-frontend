@@ -583,6 +583,7 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
                     <th>Created Date</th>
                     <th>Status</th>
                     <th>Confirmation</th>
+                    <th>Response</th>
                     <th className="col-actions">Actions</th>
                   </tr>
                 </thead>
@@ -622,6 +623,7 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
                           {code.confirmation}
                         </span>
                       </td>
+                      <td>{code.response === null ? 'No response' : code.response}</td>
                       <td className="col-actions">
                         <ObisRowActions
                           isOpen={openMenu === code.id}

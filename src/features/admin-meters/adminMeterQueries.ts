@@ -125,6 +125,7 @@ export type ObisCode = {
   code: string;
   description: string;
   confirmation?: string;
+  response?: string;
   integratedActions?: string[];
   status: ObisCodeStatus;
   statusReason?: string;
