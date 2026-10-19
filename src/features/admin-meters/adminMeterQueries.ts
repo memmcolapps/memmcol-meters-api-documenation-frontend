@@ -105,7 +105,7 @@ export type CreateObisCodeInput = {
   action: string
   code: string
   description?: string
-  profileItems?: string[]
+  // profileItems?: string[]
   scaler?: string
   unit?: string
   multiplyBy?: string
@@ -127,7 +127,7 @@ export type ObisCode = {
   description: string;
   confirmation?: string;
   response?: string;
-  integratedActions?: string[];
+  // integratedActions?: string[];
   status: ObisCodeStatus;
   statusReason?: string;
   obisType?: string;
@@ -403,15 +403,11 @@ async function createObisCode(
   meterIntegrationId: string,
   input: CreateObisCodeInput,
 ) {
-  const { profileItems, ...rest } = input
   const response = await apiRequest<CreateObisCodeResponse>(
     `/admin/meter-integrations/${encodeURIComponent(meterIntegrationId)}/obis-codes`,
     {
       method: 'POST',
-      json: {
-        ...rest,
-        ...(profileItems?.length ? { profileItemObisCodes: profileItems } : {}),
-      },
+      json: input,
     },
   )
   return response.obisCode
@@ -456,9 +452,9 @@ async function updateObisCode(
           ? { actionType: input.actionType }
           : {}),
         ...(input.obisType !== undefined ? { obisType: input.obisType } : {}),
-        ...(input.profileItems !== undefined
-          ? { profileItemObisCodes: input.profileItems }
-          : {}),
+        // ...(input.profileItems !== undefined
+        //   ? { profileItemObisCodes: input.profileItems }
+        //   : {}),
       },
     },
   )

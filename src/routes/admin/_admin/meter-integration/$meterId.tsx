@@ -3,7 +3,7 @@ import {
   useEffect,
   useRef,
   useState,
-  type KeyboardEvent,
+  // type KeyboardEvent,
 } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { AsyncState } from '../../../../app/AsyncState'
@@ -333,9 +333,9 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
         action: values.action,
         code: values.code,
         obisType: 'PROFILE',
-        ...(values.profileItems.length
-          ? { profileItems: values.profileItems }
-          : {}),
+        // ...(values.profileItems.length
+        //   ? { profileItems: values.profileItems }
+        //   : {}),
         ...(values.description ? { description: values.description } : {}),
         ...(values.scaler ? { scaler: values.scaler } : {}),
         ...(values.unit ? { unit: values.unit } : {}),
@@ -417,9 +417,9 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
         action: values.action,
         code: values.code,
         obisType: values.obisType,
-        ...(editing.mode === 'profile'
-          ? { profileItems: values.profileItems }
-          : {}),
+        // ...(editing.mode === 'profile'
+        //   ? { profileItems: values.profileItems }
+        //   : {}),
         ...(values.description ? { description: values.description } : {}),
         ...(values.scaler ? { scaler: values.scaler } : {}),
         ...(values.unit ? { unit: values.unit } : {}),
@@ -1710,70 +1710,70 @@ export const PROFILE_OBIS_ACTIONS = [
   'Recharge Token Event logs',
 ] as const
 
-interface TagInputProps {
-  tags: string[]
-  onChange: (tags: string[]) => void
-  disabled?: boolean
-  placeholder?: string
-  hasError?: boolean
-}
+// interface TagInputProps {
+//   tags: string[]
+//   onChange: (tags: string[]) => void
+//   disabled?: boolean
+//   placeholder?: string
+//   hasError?: boolean
+// }
 
-const TagInput: React.FC<TagInputProps> = ({
-  tags,
-  onChange,
-  disabled,
-  placeholder = 'Type here...',
-  hasError,
-}) => {
-  const [inputValue, setInputValue] = useState('')
+// const TagInput: React.FC<TagInputProps> = ({
+//   tags,
+//   onChange,
+//   disabled,
+//   placeholder = 'Type here...',
+//   hasError,
+// }) => {
+//   const [inputValue, setInputValue] = useState('')
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault()
-      const trimmed = inputValue.trim()
-      if (trimmed && !tags.includes(trimmed)) {
-        onChange([...tags, trimmed])
-        setInputValue('')
-      }
-    } else if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
-      onChange(tags.slice(0, -1))
-    }
-  }
+//   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+//     if (e.key === 'Enter' || e.key === ',') {
+//       e.preventDefault()
+//       const trimmed = inputValue.trim()
+//       if (trimmed && !tags.includes(trimmed)) {
+//         onChange([...tags, trimmed])
+//         setInputValue('')
+//       }
+//     } else if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
+//       onChange(tags.slice(0, -1))
+//     }
+//   }
 
-  const removeTag = (indexToRemove: number) => {
-    onChange(tags.filter((_, idx) => idx !== indexToRemove))
-  }
+//   const removeTag = (indexToRemove: number) => {
+//     onChange(tags.filter((_, idx) => idx !== indexToRemove))
+//   }
 
-  return (
-    <div className={`tag-input-container ${hasError ? 'has-error' : ''}`}>
-      <input
-        type="text"
-        className="tag-input-field"
-        placeholder={placeholder}
-        value={inputValue}
-        disabled={disabled}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-      />
-      <div className="tag-list">
-        {tags.map((tag, idx) => (
-          <span key={`${tag}-${idx}`} className="tag-chip">
-            <span className="tag-text">{tag}</span>
-            <button
-              type="button"
-              className="tag-remove-btn"
-              onClick={() => removeTag(idx)}
-              disabled={disabled}
-              aria-label={`Remove ${tag}`}
-            >
-              &times;
-            </button>
-          </span>
-        ))}
-      </div>
-    </div>
-  )
-}
+//   return (
+//     <div className={`tag-input-container ${hasError ? 'has-error' : ''}`}>
+//       <input
+//         type="text"
+//         className="tag-input-field"
+//         placeholder={placeholder}
+//         value={inputValue}
+//         disabled={disabled}
+//         onChange={(e) => setInputValue(e.target.value)}
+//         onKeyDown={handleKeyDown}
+//       />
+//       <div className="tag-list">
+//         {tags.map((tag, idx) => (
+//           <span key={`${tag}-${idx}`} className="tag-chip">
+//             <span className="tag-text">{tag}</span>
+//             <button
+//               type="button"
+//               className="tag-remove-btn"
+//               onClick={() => removeTag(idx)}
+//               disabled={disabled}
+//               aria-label={`Remove ${tag}`}
+//             >
+//               &times;
+//             </button>
+//           </span>
+//         ))}
+//       </div>
+//     </div>
+//   )
+// }
 
 export function ObisFormModal({
   title,
@@ -1788,7 +1788,7 @@ export function ObisFormModal({
   labelPrefix = '',
   showDescription = true,
   showRealtimeDetails = false,
-  showIntegratedActions = false,
+  // showIntegratedActions = false,
 }: {
   title: string
   submitLabel: string
@@ -1814,21 +1814,21 @@ export function ObisFormModal({
   const [multiplyBy, setMultiplyBy] = useState(initial?.multiplyBy ?? '')
   const [actionType, setActionType] = useState(initial?.actionType ?? '')
 
-  const [integratedActions, setIntegratedActions] = useState<string[]>(() => {
-    if (Array.isArray(initial?.integratedActions)) {
-      return initial.integratedActions
-    }
-    if (
-      typeof initial?.integratedActions === 'string' &&
-      initial.integratedActions.trim()
-    ) {
-      return initial.integratedActions
-        .split(',')
-        .map((v) => v.trim())
-        .filter(Boolean)
-    }
-    return []
-  })
+  // const [integratedActions, setIntegratedActions] = useState<string[]>(() => {
+  //   if (Array.isArray(initial?.integratedActions)) {
+  //     return initial.integratedActions
+  //   }
+  //   if (
+  //     typeof initial?.integratedActions === 'string' &&
+  //     initial.integratedActions.trim()
+  //   ) {
+  //     return initial.integratedActions
+  //       .split(',')
+  //       .map((v) => v.trim())
+  //       .filter(Boolean)
+  //   }
+  //   return []
+  // })
 
   const modalRef = useRef<HTMLDivElement>(null)
   useDismiss(modalRef, onClose)
@@ -1907,7 +1907,7 @@ export function ObisFormModal({
             ) : null}
           </div>
 
-          {showIntegratedActions ? (
+          {/* {showIntegratedActions ? (
             <div className="modal-field">
               <label>Integrated Profile Actions</label>
               <TagInput
@@ -1925,7 +1925,7 @@ export function ObisFormModal({
                 </span>
               ) : null}
             </div>
-          ) : null}
+          ) : null} */}
 
           {showRealtimeDetails ? (
             <>
@@ -2016,7 +2016,7 @@ export function ObisFormModal({
                   action: action.trim(),
                   code: code.trim(),
                   description: description.trim(),
-                  profileItems: showIntegratedActions ? integratedActions : [],
+                  // profileItems: showIntegratedActions ? integratedActions : [],
                   scaler: scaler.trim(),
                   unit: unit.trim(),
                   multiplyBy: multiplyBy.trim(),
