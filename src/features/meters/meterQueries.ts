@@ -15,6 +15,7 @@ export type Meter = {
   simNumber?: string | null
   manufacturer: string
   meterTypeId: string
+  tariffType: string
   model: string
   meterClass: string
   status: MeterStatus
@@ -24,6 +25,12 @@ export type Meter = {
   newKrn?: string
   oldTariffIndex?: string
   newTariffIndex?: string
+  dualNewKrn?: string
+  dualNewSgc?: string
+  dualOldKrn?: string
+  dualOldSgc?: string
+  dualOldTariffIndex?: string
+  dualNewTariffIndex?: string
   createdAt: string
   updatedAt: string
 }
@@ -90,9 +97,11 @@ export type MeterKeyChange = {
 
 export type CreateMeterInput = {
   meterNumber: string
+  tariffType: string
   simNumber?: string
   meterTypeId?: string
   keyChange: MeterKeyChange
+  dualKeyChange: MeterKeyChange | null
 }
 
 export type CreatedMeter = Omit<
@@ -128,6 +137,15 @@ type MeterErrorPayload = {
     fields?: Record<string, string>
     requestId?: string
   }
+}
+
+// BULK UPLOAD Meter Response
+export type BulkUploadMeterResponse = {
+    total: number,
+    successful: number,
+    failed: number,
+    created: Meter[],
+    errors: any[]
 }
 
 async function listMeters(params: MeterListParams) {
@@ -188,6 +206,18 @@ async function editMeter(id: string, input: EditMeterPayload) {
     {
       method: 'PATCH',
       json: input,
+    }
+  )
+}
+
+async function uploadBulkMeterCSV(file: File) {
+  const formData = new FormData();
+  formData.append("file", file)
+  return apiRequest<BulkUploadMeterResponse>(
+    `/meters/bulk`,
+    {
+      method: 'POST',
+      formData
     }
   )
 }
@@ -300,4 +330,15 @@ export function getCreateMeterError(error: unknown) {
     fields: payload?.error?.fields ?? {},
     requestId: payload?.error?.requestId,
   }
+}
+
+export function useUploadBulkMeterCSV() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) => uploadBulkMeterCSV(file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: meterKeys.lists() })
+    },
+  })
 }
