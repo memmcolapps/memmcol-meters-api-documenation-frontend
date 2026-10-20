@@ -17,12 +17,14 @@ import {
   type MeterFormValues,
 } from "../../../../app/MeterFormModal";
 import {
+  getConfirmObisError,
   getMeterIntegrationError,
   getObisCodeError,
   getObisCodeStatusError,
   getObisCodeUpdateError,
   getObisUploadError,
   useChangeObisCodeStatus,
+  useConfirmObis,
   useCreateObisCode,
   useMeterIntegration,
   useObisCodes,
@@ -256,10 +258,28 @@ function formatIntegrationDate(value: unknown) {
   return Number.isNaN(date.getTime()) ? "—" : formatAddedDate(date);
 }
 
+function getConfirmType(code: ObisCode): "REAL_TIME" | "PROFILE" {
+  return (PROFILE_OBIS_ACTIONS as readonly string[]).includes(code.action)
+    ? "PROFILE"
+    : "REAL_TIME";
+}
+
+function readConfirmMessage(response: string | null | undefined) {
+  if (!response) return undefined;
+  try {
+    const parsed = JSON.parse(response) as { message?: string };
+    return parsed.message ?? response;
+  } catch {
+    return response;
+  }
+}
+
 function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
   const createObisCode = useCreateObisCode(meterIntegrationId);
   const updateObisCode = useUpdateObisCode(meterIntegrationId);
   const changeObisCodeStatus = useChangeObisCodeStatus(meterIntegrationId);
+  const confirmObis = useConfirmObis(meterIntegrationId);
+  const [confirmErrors, setConfirmErrors] = useState<{ meterNo?: string }>({});
   const uploadObisCodes = useUploadObisCodes(meterIntegrationId);
   const { showToast } = useToast();
   const [search, setSearch] = useState("");
@@ -501,14 +521,53 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
     }
   };
 
-  const confirmCode = (code: ObisCode, meterNo: string) => {
-    console.log("Confirm OBIS", { obisCodeId: code.id, meterNo });
-    setConfirming(null);
-    showToast({
-      title: "OBIS confirmation submitted",
-      message: `${code.action} will be confirmed on meter ${meterNo}.`,
-      variant: "info",
-    });
+  const confirmCode = async (code: ObisCode, meterNo: string) => {
+    if (code.confirmation === "CONFIRMED") return;
+    setConfirmErrors({});
+
+    try {
+      const result = await confirmObis.mutateAsync({
+        meterSerial: meterNo,
+        obisCode: code.code,
+        type: getConfirmType(code),
+      });
+
+      const detail = result.details.find((d) => d.obisCode === code.code);
+      const confirmed = result.overallStatus === "CONFIRMED";
+
+      if (confirmed) setConfirming(null);
+
+      showToast({
+        title: confirmed ? "OBIS confirmed" : "OBIS not confirmed",
+        message:
+          readConfirmMessage(detail?.response) ??
+          `${code.action} status: ${result.overallStatus}.`,
+        variant: confirmed ? "success" : "error",
+      });
+    } catch (error) {
+      const apiError = getConfirmObisError(error);
+      const fieldMessage = [...new Set(Object.values(apiError.fields))].join(
+        " ",
+      );
+
+      if (apiError.status === 404 || Object.keys(apiError.fields).length > 0) {
+        setConfirmErrors({
+          meterNo: fieldMessage || "Meter not found. Check the meter number.",
+        });
+      }
+
+      showToast({
+        title: apiError.message,
+        message:
+          [
+            fieldMessage,
+            apiError.requestId ? `Request ID: ${apiError.requestId}` : "",
+          ]
+            .filter(Boolean)
+            .join(" · ") || undefined,
+        variant: "error",
+      });
+    }
   };
 
   const isEmpty = !codesQuery.isPending && codes.length === 0;
@@ -613,7 +672,7 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
                       <td>{code.action}</td>
                       <td>{code.code}</td>
                       <td>{code.obisType || "—"}</td>
-                      <td>{code.description}</td>
+                      <td className="cell-truncate">{code.description}</td>
                       <td>{formatAddedDate(new Date(code.createdAt))}</td>
                       <td>
                         <span
@@ -629,7 +688,7 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
                           {code.confirmation}
                         </span>
                       </td>
-                      <td>
+                      <td className="cell-truncate">
                         {code.response === null ? "No response" : code.response}
                       </td>
                       <td className="col-actions">
@@ -866,9 +925,16 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
       {confirming ? (
         <ConfirmObisModal
           code={confirming}
-          isSubmitting={false}
-          onCancel={() => setConfirming(null)}
-          onConfirm={(meterNo) => confirmCode(confirming, meterNo)}
+          isSubmitting={confirmObis.isPending}
+          fieldErrors={confirmErrors}
+          onFieldChange={() => setConfirmErrors({})}
+          onCancel={() => {
+            if (!confirmObis.isPending) {
+              setConfirming(null);
+              setConfirmErrors({});
+            }
+          }}
+          onConfirm={(meterNo) => void confirmCode(confirming, meterNo)}
         />
       ) : null}
 
@@ -949,9 +1015,13 @@ function ViewObisCodeModal({
           </div>
 
           <div className="view-grid">
-            <div className="view-cell view-cell-wide">
+            <div className="view-cell view-cell">
               <span className="view-label">Description</span>
               <span className="view-value">{code.description || "—"}</span>
+            </div>
+             <div className="view-cell view-cell">
+              <span className="view-label">Response</span>
+              <span className="view-value">{code.response || "—"}</span>
             </div>
           </div>
 
@@ -1057,6 +1127,10 @@ function ViewRealtimeObisCodeModal({
               <span className="view-label">Description</span>
               <span className="view-value">{code.description || "—"}</span>
             </div>
+              <div className="view-cell">
+              <span className="view-label">Response</span>
+              <span className="view-value">{code.response || "—"}</span>
+            </div>
           </div>
 
           <div className="modal-foot">
@@ -1071,6 +1145,7 @@ function ViewRealtimeObisCodeModal({
 }
 
 export function ConfirmObisModal({
+  code,
   isSubmitting,
   fieldErrors,
   onFieldChange,
@@ -1089,7 +1164,8 @@ export function ConfirmObisModal({
 
   useDismiss(modalRef, onCancel);
 
-  const canConfirm = meterNo.trim().length > 0;
+  const isAlreadyConfirmed = code?.confirmation === "CONFIRMED";
+  const canConfirm = meterNo.trim().length > 0 && !isAlreadyConfirmed;
 
   return (
     <div
