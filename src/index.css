@@ -2196,6 +2196,13 @@ h1 {
   justify-content: space-between;
 }
 
+.cell-truncate {
+  max-width: 240px;     
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .btn-primary-blue {
   padding: 0.65rem 2rem;
   border: none;
