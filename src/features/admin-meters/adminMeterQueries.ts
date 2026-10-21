@@ -274,6 +274,29 @@ type MeterIntegrationErrorPayload = {
   }
 }
 
+export type ConfirmObisType = 'REAL_TIME' | 'PROFILE'
+
+export type ConfirmObisInput = {
+  meterSerial: string
+  obisCode: string
+  type: ConfirmObisType
+}
+
+export type ConfirmObisDetail = {
+  obisCode: string
+  action: string
+  status: string
+  response: string | null
+}
+
+export type ConfirmObisResponse = {
+  meterId: string
+  meterSerial: string
+  meterModel: string | null
+  overallStatus: string
+  details: ConfirmObisDetail[]
+}
+
 async function createMeterIntegration(input: CreateMeterIntegrationInput) {
   const response = await apiRequest<MeterIntegrationResponse>(
     '/admin/meter-integrations',
@@ -283,6 +306,18 @@ async function createMeterIntegration(input: CreateMeterIntegrationInput) {
     },
   )
   return response.meterIntegration
+}
+
+async function confirmObis(input: ConfirmObisInput) {
+  const query = new URLSearchParams({
+    obisCode: input.obisCode,
+    type: input.type,
+  })
+
+  return apiRequest<ConfirmObisResponse>(
+    `/admin/obis/${encodeURIComponent(input.meterSerial)}/confirm-obis?${query.toString()}`,
+    { method: 'POST' },
+  )
 }
 
 async function listMeterIntegrations(params: MeterIntegrationListParams) {
@@ -494,6 +529,38 @@ async function uploadObisCodes(
     },
   )
   return response.upload
+}
+
+export function useConfirmObis(meterIntegrationId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: confirmObis,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: meterIntegrationKeys.obisCodes(meterIntegrationId),
+      })
+    },
+  })
+}
+
+export function getConfirmObisError(error: unknown) {
+  const payload =
+    error instanceof ApiError
+      ? (error.details as MeterIntegrationErrorPayload | undefined)
+      : undefined
+
+  return {
+    status: error instanceof ApiError ? error.status : undefined,
+    code: payload?.error?.code,
+    message:
+      payload?.error?.message ??
+      (error instanceof Error
+        ? error.message
+        : 'The OBIS code could not be confirmed.'),
+    fields: payload?.error?.fields ?? {},
+    requestId: payload?.error?.requestId,
+  }
 }
 
 export const meterIntegrationKeys = {
