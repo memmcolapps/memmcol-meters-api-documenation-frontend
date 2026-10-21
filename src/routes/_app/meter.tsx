@@ -1773,9 +1773,9 @@ function BulkUploadModal({ onClose }: { onClose: () => void }) {
           <div className="para-download">
             <p>
               Click the{" "}
-              <a href="../../public/bulk_meter.csv" download>
+              <a href="/bulk_meter.csv" download="bulk_meter.csv">
                 link to download
-              </a>{" "}
+              </a>
               the required document. <br />
               Please ensure your file follow the structure before uploading.
             </p>
