@@ -596,7 +596,9 @@ function AddMeterModal({ onClose }: { onClose: () => void }) {
             <h2 id="add-meter-title" className="modal-title">
               Add new meter
             </h2>
-            <p className="modal-subtitle">{step === 1 ? "Basic Information" : "Dual Tariff Information"}</p>
+            <p className="modal-subtitle">
+              {step === 1 ? "Basic Information" : "Dual Tariff Information"}
+            </p>
           </div>
           <button
             type="button"
@@ -1775,7 +1777,7 @@ function BulkUploadModal({ onClose }: { onClose: () => void }) {
               Click the{" "}
               <a href="/bulk_meter.csv" download="bulk_meter.csv">
                 link to download
-              </a>
+              </a>{" "}
               the required document. <br />
               Please ensure your file follow the structure before uploading.
             </p>
