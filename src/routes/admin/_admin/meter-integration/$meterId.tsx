@@ -530,6 +530,7 @@ function ObisPanel({ meterIntegrationId }: { meterIntegrationId: string }) {
         meterSerial: meterNo,
         obisCode: code.code,
         type: getConfirmType(code),
+        meterIntegrationId,
       });
 
       const detail = result.details.find((d) => d.obisCode === code.code);

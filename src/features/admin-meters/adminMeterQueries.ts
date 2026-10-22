@@ -280,6 +280,7 @@ export type ConfirmObisInput = {
   meterSerial: string
   obisCode: string
   type: ConfirmObisType
+   meterIntegrationId: string
 }
 
 export type ConfirmObisDetail = {
@@ -312,6 +313,7 @@ async function confirmObis(input: ConfirmObisInput) {
   const query = new URLSearchParams({
     obisCode: input.obisCode,
     type: input.type,
+    meterIntegrationId: input.meterIntegrationId,
   })
 
   return apiRequest<ConfirmObisResponse>(
