@@ -1875,7 +1875,7 @@ export function ObisFormModal({
   labelPrefix = "",
   showDescription = true,
   showRealtimeDetails = false,
-  // showIntegratedActions = false,
+  showIntegratedActions = false,
 }: {
   title: string;
   submitLabel: string;
@@ -1947,26 +1947,50 @@ export function ObisFormModal({
 
         <div className="modal-body">
           <div className="modal-field">
-            <label>{labelPrefix}OBIS Action</label>
-            <select
-              className="modal-input"
-              value={action}
-              disabled={isSubmitting}
-              onChange={(e) => {
-                setAction(e.target.value);
-                onFieldChange("action");
-              }}
-              aria-invalid={Boolean(fieldErrors.action)}
-            >
-              <option value="" disabled>
-                Select OBIS Action
-              </option>
-              {PROFILE_OBIS_ACTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
+            <label htmlFor="obis-action">{labelPrefix}OBIS Action</label>
+
+            {showIntegratedActions ? (
+              <select
+                id="obis-action"
+                className="modal-input"
+                value={action}
+                disabled={isSubmitting}
+                onChange={(e) => {
+                  setAction(e.target.value);
+                  onFieldChange("action");
+                }}
+                aria-invalid={Boolean(fieldErrors.action)}
+              >
+                <option value="" disabled>
+                  Select OBIS Action
                 </option>
-              ))}
-            </select>
+                {initial?.action &&
+                !(PROFILE_OBIS_ACTIONS as readonly string[]).includes(
+                  initial.action,
+                ) ? (
+                  <option value={initial.action}>{initial.action}</option>
+                ) : null}
+                {PROFILE_OBIS_ACTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                id="obis-action"
+                className="modal-input"
+                placeholder="Enter OBIS action"
+                value={action}
+                disabled={isSubmitting}
+                onChange={(e) => {
+                  setAction(e.target.value);
+                  onFieldChange("action");
+                }}
+                aria-invalid={Boolean(fieldErrors.action)}
+              />
+            )}
+
             {fieldErrors.action ? (
               <span className="modal-field-error" role="alert">
                 {fieldErrors.action}
