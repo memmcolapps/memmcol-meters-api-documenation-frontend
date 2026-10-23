@@ -35,12 +35,7 @@ export type Meter = {
   updatedAt: string
 }
 
-export type EditMeterPayload = {
-  meterNumber: string,
-  simNumber?: string,
-  meterTypeId?: string,
-  keyChange: MeterKeyChange,
-}
+export type EditMeterPayload = CreateMeterInput
 
 export type EditMeterResponse = {
   meter: {
@@ -118,6 +113,7 @@ export type CreatedMeter = Omit<
 
 export type MeterDetails = CreatedMeter & {
   meterCategory: string
+  dualKeyChange?: MeterKeyChange | null
 }
 
 export type UpdateMeterStatusInput = {
